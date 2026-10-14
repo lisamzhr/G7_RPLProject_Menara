@@ -1,0 +1,14 @@
+{
+  "category_key": "leafy",
+  "name": "Leafy Vegetables",
+  "response_timescale": "days",
+  "moisture_min": 76.0,
+  "moisture_max": 98.0,
+  "temp_min": 22.0,
+  "temp_max": 27.0,
+  "humidity_min": 60.0,
+  "humidity_max": 80.0,
+  "lux_min": 10000.0,
+  "lux_max": 20000.0,
+  "source_note": "Kusumawardani & Hermawan (2021). Optimization of Automated Micro-Irrigation for Hydroponic Brassica in High-Temperature Tropical Urban Environments. Note: Baseline values to be calibrated with own rooftop data."
+}

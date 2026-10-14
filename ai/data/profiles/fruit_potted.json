@@ -1,0 +1,14 @@
+{
+  "category_key": "fruit_potted",
+  "name": "Potted Dwarf Fruit Trees (Tabulampot)",
+  "response_timescale": "weeks",
+  "moisture_min": 70.0,
+  "moisture_max": 100.0,
+  "temp_min": 22.0,
+  "temp_max": 30.0,
+  "humidity_min": 50.0,
+  "humidity_max": 70.0,
+  "lux_min": 30000.0,
+  "lux_max": 50000.0,
+  "source_note": "Prasetyo & Setiawan (2019). Water Deficit Stress and Root Zone Thermal Management in Potted Fruit Trees (Tabulampot) Under Urban Heat Island Conditions. Strict floor: root damage occurs below 65% moisture. Note: Baseline values to be calibrated with own rooftop data."
+}

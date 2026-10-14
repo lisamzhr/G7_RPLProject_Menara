@@ -1,0 +1,14 @@
+{
+  "category_key": "herbs",
+  "name": "Culinary & Medicinal Herbs",
+  "response_timescale": "days",
+  "moisture_min": 50.0,
+  "moisture_max": 70.0,
+  "temp_min": 20.0,
+  "temp_max": 30.0,
+  "humidity_min": 70.0,
+  "humidity_max": 80.0,
+  "lux_min": 15000.0,
+  "lux_max": 30000.0,
+  "source_note": "Lestari & Hartono (2022). Evapotranspiration Dynamics and Essential Oil Synthesis in Container-Grown Tropical Herbs. Note: Baseline values to be calibrated with own rooftop data."
+}

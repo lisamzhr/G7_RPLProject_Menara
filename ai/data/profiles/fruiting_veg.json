@@ -1,0 +1,14 @@
+{
+  "category_key": "fruiting_veg",
+  "name": "Fruiting Vegetables",
+  "response_timescale": "days",
+  "moisture_min": 50.0,
+  "moisture_max": 70.0,
+  "temp_min": 24.0,
+  "temp_max": 28.0,
+  "humidity_min": 70.0,
+  "humidity_max": 85.0,
+  "lux_min": 30000.0,
+  "lux_max": 50000.0,
+  "source_note": "Siregar & Wibowo (2020). Microclimatic Effects on Flower Abortion and Fruit Set in Tropical Containerized Capsicum Annuum. Note: Baseline values to be calibrated with own rooftop data."
+}
