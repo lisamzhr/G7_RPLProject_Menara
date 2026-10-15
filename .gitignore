@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.ruff_cache/
+uv.lock
+
+# Node / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend/dist/
+frontend/node_modules/
+
+# Local databases & secrets
+*.db
+*.sqlite3
+.env
+hardware/firmware/include/secrets.h
+
+# PlatformIO / Hardware
+.pio/
+.vscode/
+.cache/
+compile_commands.json
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/

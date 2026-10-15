@@ -1,6 +1,5 @@
 """Horticultural recommendations router."""
 
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc
 from sqlalchemy.orm import Session

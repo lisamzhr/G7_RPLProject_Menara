@@ -14,7 +14,9 @@ def test_zone_status_ok(client, db_session):
         "humidity_pct": 70.0,
         "lux": 15000.0,
     }
-    client.post("/api/v1/ingest/readings", json=payload, headers={"X-Node-Key": "valid-secret-key-123"})
+    client.post(
+        "/api/v1/ingest/readings", json=payload, headers={"X-Node-Key": "valid-secret-key-123"}
+    )
 
     res = client.get(f"/api/v1/zones/{zone.id}/status")
     assert res.status_code == 200
@@ -36,7 +38,9 @@ def test_zone_status_low_moisture_warning(client, db_session):
         "humidity_pct": 70.0,
         "lux": 15000.0,
     }
-    client.post("/api/v1/ingest/readings", json=payload, headers={"X-Node-Key": "valid-secret-key-123"})
+    client.post(
+        "/api/v1/ingest/readings", json=payload, headers={"X-Node-Key": "valid-secret-key-123"}
+    )
 
     res = client.get(f"/api/v1/zones/{zone.id}/status")
     assert res.status_code == 200

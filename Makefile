@@ -1,4 +1,4 @@
-.PHONY: help dev-backend dev-frontend test simulate seed lint format up down clean
+.PHONY: help dev-backend dev-frontend test test-hardware simulate seed lint format up down clean
 
 PYTHON ?= python
 
@@ -8,7 +8,8 @@ help:
 	@echo "  make down          - Stop docker-compose services"
 	@echo "  make dev-backend   - Run FastAPI backend locally with uvicorn"
 	@echo "  make dev-frontend  - Run Vite React frontend development server"
-	@echo "  make test          - Run backend and AI test suites"
+	@echo "  make test          - Run backend, AI, and hardware firmware test suites"
+	@echo "  make test-hardware - Run ESP32 firmware unit tests natively with PlatformIO"
 	@echo "  make seed          - Seed database with categories, profiles, and demo garden"
 	@echo "  make simulate      - Run simulated ESP32 node sending sensor readings"
 	@echo "  make lint          - Lint backend with ruff and frontend with eslint"
@@ -31,6 +32,11 @@ test:
 	cd backend && $(PYTHON) -m pytest -v
 	@echo "Running AI tests..."
 	cd ai && $(PYTHON) -m pytest -v
+	@echo "Running hardware firmware tests..."
+	cd hardware/firmware && pio test -e native
+
+test-hardware:
+	cd hardware/firmware && pio test -e native
 
 seed:
 	$(PYTHON) scripts/seed_demo_data.py

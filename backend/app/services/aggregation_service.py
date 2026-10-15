@@ -37,9 +37,7 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
         )
 
     profile = (
-        db.query(ThresholdProfile)
-        .filter(ThresholdProfile.category_id == zone.category_id)
-        .first()
+        db.query(ThresholdProfile).filter(ThresholdProfile.category_id == zone.category_id).first()
     )
     if not profile:
         raise HTTPException(
@@ -74,9 +72,13 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
     overall_status = "normal"
 
     if latest_reading:
-        m_stat = classify_metric(latest_reading.soil_moisture_pct, profile.moisture_min, profile.moisture_max)
+        m_stat = classify_metric(
+            latest_reading.soil_moisture_pct, profile.moisture_min, profile.moisture_max
+        )
         t_stat = classify_metric(latest_reading.temperature_c, profile.temp_min, profile.temp_max)
-        h_stat = classify_metric(latest_reading.humidity_pct, profile.humidity_min, profile.humidity_max)
+        h_stat = classify_metric(
+            latest_reading.humidity_pct, profile.humidity_min, profile.humidity_max
+        )
         l_stat = classify_metric(latest_reading.lux, profile.lux_min, profile.lux_max)
 
         param_map = {
@@ -118,10 +120,34 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
     else:
         # Defaults if no reading exists yet
         param_map = {
-            "moisture": ParameterMetric(value=0.0, status="low", ideal_min=profile.moisture_min, ideal_max=profile.moisture_max, unit="%"),
-            "temperature": ParameterMetric(value=0.0, status="low", ideal_min=profile.temp_min, ideal_max=profile.temp_max, unit="°C"),
-            "humidity": ParameterMetric(value=0.0, status="low", ideal_min=profile.humidity_min, ideal_max=profile.humidity_max, unit="%"),
-            "lux": ParameterMetric(value=0.0, status="low", ideal_min=profile.lux_min, ideal_max=profile.lux_max, unit="lx"),
+            "moisture": ParameterMetric(
+                value=0.0,
+                status="low",
+                ideal_min=profile.moisture_min,
+                ideal_max=profile.moisture_max,
+                unit="%",
+            ),
+            "temperature": ParameterMetric(
+                value=0.0,
+                status="low",
+                ideal_min=profile.temp_min,
+                ideal_max=profile.temp_max,
+                unit="°C",
+            ),
+            "humidity": ParameterMetric(
+                value=0.0,
+                status="low",
+                ideal_min=profile.humidity_min,
+                ideal_max=profile.humidity_max,
+                unit="%",
+            ),
+            "lux": ParameterMetric(
+                value=0.0,
+                status="low",
+                ideal_min=profile.lux_min,
+                ideal_max=profile.lux_max,
+                unit="lx",
+            ),
         }
         overall_status = "advisory"
 
@@ -180,6 +206,31 @@ def get_zone_readings_history(
         .order_by(SensorReading.ts.asc())
     )
     rows = query.all()
+
+    if agg_str == "hourly":
+        buckets: dict[str, list[SensorReading]] = {}
+        for r in rows:
+            bucket_key = r.ts.strftime("%Y-%m-%dT%H:00:00Z")
+            buckets.setdefault(bucket_key, []).append(r)
+
+        result = []
+        for b_ts, b_rows in buckets.items():
+            valid_rows = [x for x in b_rows if x.is_valid] or b_rows
+            avg_m = sum(x.soil_moisture_pct for x in valid_rows) / len(valid_rows)
+            avg_t = sum(x.temperature_c for x in valid_rows) / len(valid_rows)
+            avg_h = sum(x.humidity_pct for x in valid_rows) / len(valid_rows)
+            avg_l = sum(x.lux for x in valid_rows) / len(valid_rows)
+            result.append(
+                {
+                    "ts": b_ts,
+                    "soil_moisture_pct": round(avg_m, 1),
+                    "temperature_c": round(avg_t, 1),
+                    "humidity_pct": round(avg_h, 1),
+                    "lux": round(avg_l, 0),
+                    "is_valid": all(x.is_valid for x in b_rows),
+                }
+            )
+        return result
 
     return [
         {

@@ -54,7 +54,7 @@ def job_verify_actuator_responses():
 
             if prior_reading and post_reading:
                 delta = post_reading.soil_moisture_pct - prior_reading.soil_moisture_pct
-                if delta < 1.0: # Moisture failed to increase after watering
+                if delta < 1.0:  # Moisture failed to increase after watering
                     create_system_alert(
                         db=db,
                         zone_id=zone.id,

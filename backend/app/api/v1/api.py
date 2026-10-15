@@ -24,6 +24,8 @@ api_router.include_router(gardens.router, prefix="/gardens", tags=["Gardens"])
 api_router.include_router(zones.router, prefix="/zones", tags=["Zones"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 api_router.include_router(alerts.router, prefix="/alerts", tags=["Alerts"])
-api_router.include_router(recommendations.router, prefix="/recommendations", tags=["Recommendations"])
+api_router.include_router(
+    recommendations.router, prefix="/recommendations", tags=["Recommendations"]
+)
 api_router.include_router(actuators.router, prefix="/actuators", tags=["Actuators"])
 api_router.include_router(internal.router, prefix="/internal", tags=["Internal"])

@@ -9,7 +9,12 @@ class ThresholdProfile(Base, TimestampMixin):
     __tablename__ = "threshold_profiles"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    category_id = Column(String(36), ForeignKey("plant_categories.id", ondelete="CASCADE"), unique=True, nullable=False)
+    category_id = Column(
+        String(36),
+        ForeignKey("plant_categories.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
     moisture_min = Column(Float, nullable=False)
     moisture_max = Column(Float, nullable=False)
     temp_min = Column(Float, nullable=False)

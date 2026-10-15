@@ -23,6 +23,7 @@ class TimestampMixin:
 
 class JSONType(TypeDecorator):
     """Platform-independent JSON type that works with SQLite (as TEXT) and Postgres."""
+
     impl = TEXT
     cache_ok = True
 
@@ -39,6 +40,7 @@ class JSONType(TypeDecorator):
 
 class VectorType(TypeDecorator):
     """Vector type that stores as JSON/TEXT on SQLite and Vector(dim) on Postgres."""
+
     impl = TEXT
     cache_ok = True
 

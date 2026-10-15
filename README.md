@@ -94,7 +94,7 @@ python -m venv venv
 .\venv\Scripts\activate
 # On Linux/macOS:
 # source venv/bin/activate
-pip install -e .
+pip install -e ../ai && pip install -e .
 uvicorn app.main:app --reload --port 8000
 ```
 
