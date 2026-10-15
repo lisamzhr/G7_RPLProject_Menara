@@ -43,6 +43,8 @@ hardware/firmware/include/secrets.h
 # PlatformIO / Hardware
 .pio/
 .vscode/
+.cache/
+compile_commands.json
 
 # OS / IDE
 .DS_Store

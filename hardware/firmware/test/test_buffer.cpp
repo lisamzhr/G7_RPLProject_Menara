@@ -1,12 +1,15 @@
 // Hardware firmware unit test for ReadingBuffer ring buffer logic
-#include <Arduino.h>
-#include <assert.h>
-#include "../src/core/reading_buffer.h"
+#include <unity.h>
+#include "core/reading_buffer.h"
+#include <cstring>
 
-void test_buffer_push_pop() {
+void setUp(void) {}
+void tearDown(void) {}
+
+void test_buffer_push_pop(void) {
     ReadingBuffer buf(5);
-    assert(buf.isEmpty());
-    assert(buf.size() == 0);
+    TEST_ASSERT_TRUE(buf.isEmpty());
+    TEST_ASSERT_EQUAL_UINT(0, buf.size());
 
     SensorReading r1;
     memset(&r1, 0, sizeof(SensorReading));
@@ -14,62 +17,63 @@ void test_buffer_push_pop() {
     r1.temperature_c = 28.0f;
     strncpy(r1.timestamp, "2026-10-15T12:00:00Z", sizeof(r1.timestamp));
 
-    assert(buf.push(r1));
-    assert(!buf.isEmpty());
-    assert(buf.size() == 1);
+    TEST_ASSERT_TRUE(buf.push(r1));
+    TEST_ASSERT_FALSE(buf.isEmpty());
+    TEST_ASSERT_EQUAL_UINT(1, buf.size());
 
     SensorReading out;
-    assert(buf.peek(out));
-    assert(out.soil_moisture_pct == 75.5f);
+    TEST_ASSERT_TRUE(buf.peek(out));
+    TEST_ASSERT_EQUAL_FLOAT(75.5f, out.soil_moisture_pct);
 
-    assert(buf.pop(out));
-    assert(out.soil_moisture_pct == 75.5f);
-    assert(buf.isEmpty());
-    assert(buf.size() == 0);
-    Serial.println("[Test] test_buffer_push_pop PASSED");
+    TEST_ASSERT_TRUE(buf.pop(out));
+    TEST_ASSERT_EQUAL_FLOAT(75.5f, out.soil_moisture_pct);
+    TEST_ASSERT_TRUE(buf.isEmpty());
+    TEST_ASSERT_EQUAL_UINT(0, buf.size());
 }
 
-void test_buffer_overflow_drops_oldest() {
+void test_buffer_overflow_drops_oldest(void) {
     ReadingBuffer buf(3);
 
     for (int i = 1; i <= 3; ++i) {
         SensorReading r;
         memset(&r, 0, sizeof(SensorReading));
         r.soil_moisture_pct = (float)i;
-        buf.push(r);
+        TEST_ASSERT_TRUE(buf.push(r));
     }
-    assert(buf.isFull());
-    assert(buf.size() == 3);
+    TEST_ASSERT_TRUE(buf.isFull());
+    TEST_ASSERT_EQUAL_UINT(3, buf.size());
 
     // Push 4th element: oldest (1.0) must be dropped
     SensorReading r4;
     memset(&r4, 0, sizeof(SensorReading));
     r4.soil_moisture_pct = 4.0f;
-    buf.push(r4);
+    TEST_ASSERT_TRUE(buf.push(r4));
 
-    assert(buf.size() == 3);
+    TEST_ASSERT_EQUAL_UINT(3, buf.size());
     SensorReading popped;
-    buf.pop(popped);
-    assert(popped.soil_moisture_pct == 2.0f); // 1.0 was dropped, 2.0 is next
-    buf.pop(popped);
-    assert(popped.soil_moisture_pct == 3.0f);
-    buf.pop(popped);
-    assert(popped.soil_moisture_pct == 4.0f);
-    assert(buf.isEmpty());
-
-    Serial.println("[Test] test_buffer_overflow_drops_oldest PASSED");
+    TEST_ASSERT_TRUE(buf.pop(popped));
+    TEST_ASSERT_EQUAL_FLOAT(2.0f, popped.soil_moisture_pct); // 1.0 was dropped
+    TEST_ASSERT_TRUE(buf.pop(popped));
+    TEST_ASSERT_EQUAL_FLOAT(3.0f, popped.soil_moisture_pct);
+    TEST_ASSERT_TRUE(buf.pop(popped));
+    TEST_ASSERT_EQUAL_FLOAT(4.0f, popped.soil_moisture_pct);
+    TEST_ASSERT_TRUE(buf.isEmpty());
 }
 
+int run_tests() {
+    UNITY_BEGIN();
+    RUN_TEST(test_buffer_push_pop);
+    RUN_TEST(test_buffer_overflow_drops_oldest);
+    return UNITY_END();
+}
+
+#if defined(ARDUINO)
 void setup() {
-    Serial.begin(115200);
-    delay(1000);
-    Serial.println("=== Starting Firmware ReadingBuffer Unit Tests ===");
-    test_buffer_push_pop();
-    test_buffer_overflow_drops_oldest();
-    Serial.println("=== All Firmware ReadingBuffer Unit Tests PASSED ===");
+    run_tests();
 }
-
-void loop() {
-    // Tests completed
-    delay(1000);
+void loop() {}
+#else
+int main(int argc, char **argv) {
+    return run_tests();
 }
+#endif
