@@ -1,14 +1,14 @@
 {
-  "category_key": "leafy",
-  "name": "Leafy Vegetables",
-  "response_timescale": "days",
-  "moisture_min": 76.0,
-  "moisture_max": 98.0,
-  "temp_min": 22.0,
-  "temp_max": 27.0,
-  "humidity_min": 60.0,
-  "humidity_max": 80.0,
-  "lux_min": 10000.0,
-  "lux_max": 20000.0,
-  "source_note": "Kusumawardani & Hermawan (2021). Optimization of Automated Micro-Irrigation for Hydroponic Brassica in High-Temperature Tropical Urban Environments. Note: Baseline values to be calibrated with own rooftop data."
-}
+   "category_key": "leafy",
+   "name": "Leafy Vegetables (Sawi Pakcoy Media Tanah)",
+   "response_timescale": "days",
+   "moisture_min": 50.0,
+   "moisture_max": 70.0,
+   "temp_min": 21.0,
+   "temp_max": 27.0,
+   "humidity_min": 60.0,
+   "humidity_max": 80.0,
+   "lux_min": 10000.0,
+   "lux_max": 20000.0,
+   "source_note": "Moisture Tanah (50-70% / 307-512 ADC) & RH (>60%): Saputra & Wijayanti (2023), Jurnal ELECTRON UBB, 'Sistem Monitoring dan Penyiraman Tanaman Sawi Daging Berbasis IoT' (https://jurnalelectron.org/index.php/electronubb/article/view/56). Suhu ideal (~21.1°C siang): Khafi et al. (2019), Generation Journal UNP Kediri (https://ojs.unpkediri.ac.id/index.php/gj/article/download/12973/1268/9500)."
+ }

@@ -6,7 +6,7 @@ Author: RoofGarden Team
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
 Requires-Dist: pydantic>=2.7.0
-Requires-Dist: anthropic>=0.25.0
+Requires-Dist: groq>=0.9.0
 Requires-Dist: numpy>=1.26.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0.0; extra == "dev"

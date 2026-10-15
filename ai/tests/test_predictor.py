@@ -14,21 +14,21 @@ def predictor_ctx():
         zone_id="zone-pred-1",
         zone_label="Zone Predictor",
         category_key="leafy",
-        thresholds=profile, # leafy min is 76.0%
-        current_moisture=82.0,
+        thresholds=profile, # leafy min is 50.0%
+        current_moisture=56.0,
         current_temp=26.0,
         current_humidity=70.0,
         current_lux=15000.0,
-        # Over 6 hours, moisture dropped from 88.0% to 82.0% (1.0% per hour)
-        recent_moisture_history=[88.0, 86.8, 85.5, 84.3, 83.1, 82.0],
+        # Over 6 hours, moisture dropped from 62.0% to 56.0% (1.2% per hour)
+        recent_moisture_history=[62.0, 60.8, 59.5, 58.3, 57.1, 56.0],
     )
 
 
 def test_linear_predictor_estimates_hours_to_minimum(predictor_ctx):
     predictor = LinearSlopePredictor()
     hours = predictor.predict_hours_to_minimum(predictor_ctx)
-    # Total drop: 88.0 - 82.0 = 6.0% over 5 intervals = 1.2% / hour
-    # Current is 82.0, min is 76.0 -> deficit to cover = 6.0%
+    # Total drop: 62.0 - 56.0 = 6.0% over 5 intervals = 1.2% / hour
+    # Current is 56.0, min is 50.0 -> deficit to cover = 6.0%
     # Expected hours: 6.0 / 1.2 = ~5.0 hours
     assert hours is not None
     assert 4.0 <= hours <= 6.0
@@ -36,7 +36,7 @@ def test_linear_predictor_estimates_hours_to_minimum(predictor_ctx):
 
 def test_linear_predictor_returns_zero_when_already_below_minimum(predictor_ctx):
     predictor = LinearSlopePredictor()
-    ctx = predictor_ctx.model_copy(update={"current_moisture": 74.0}) # Min is 76.0
+    ctx = predictor_ctx.model_copy(update={"current_moisture": 48.0}) # Min is 50.0
     hours = predictor.predict_hours_to_minimum(ctx)
     assert hours == 0.0
 

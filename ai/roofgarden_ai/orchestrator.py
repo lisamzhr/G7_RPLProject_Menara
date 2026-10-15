@@ -5,8 +5,7 @@ import logging
 from roofgarden_ai.contracts import Decision, ZoneContext
 from roofgarden_ai.guardrails.fallback_templates import generate_fallback_recommendation
 from roofgarden_ai.guardrails.validator import validate_and_filter_llm_response
-from roofgarden_ai.llm.base import LLMClient
-from roofgarden_ai.llm.claude_client import MockLLMClient
+from roofgarden_ai.llm.base import LLMClient, MockLLMClient
 from roofgarden_ai.llm.prompts import build_evaluation_prompt
 from roofgarden_ai.rule_engine.autonomy import evaluate_action_autonomy
 from roofgarden_ai.rule_engine.predictor import LinearSlopePredictor, MoisturePredictor

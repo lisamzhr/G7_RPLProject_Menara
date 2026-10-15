@@ -1,14 +1,14 @@
 {
-  "category_key": "herbs",
-  "name": "Culinary & Medicinal Herbs",
-  "response_timescale": "days",
-  "moisture_min": 50.0,
-  "moisture_max": 70.0,
-  "temp_min": 20.0,
-  "temp_max": 30.0,
-  "humidity_min": 70.0,
-  "humidity_max": 80.0,
-  "lux_min": 15000.0,
-  "lux_max": 30000.0,
-  "source_note": "Lestari & Hartono (2022). Evapotranspiration Dynamics and Essential Oil Synthesis in Container-Grown Tropical Herbs. Note: Baseline values to be calibrated with own rooftop data."
-}
+    "category_key": "herbs",
+    "name": "Culinary & Medicinal Herbs (Mint / Kemangi)",
+    "response_timescale": "days",
+    "moisture_min": 70.0,
+    "moisture_max": 80.0,
+    "temp_min": 20.0,
+    "temp_max": 30.0,
+    "humidity_min": 70.0,
+    "humidity_max": 80.0,
+    "lux_min": 15000.0,
+    "lux_max": 30000.0,
+    "source_note": "Moisture (70-80%) & Temp (20-30°C): Saputra et al. (2025), JATI ITN Malang, 'Perancangan Sistem Penyiraman Otomatis dan Monitoring Tanaman Daun Mint Menggunakan Logika Fuzzy Tsukamoto Berbasis IoT' (https://ejournal.itn.ac.id/jati/article/view/13148) dan Azhar et al. (2024), JITET Unila (https://journal.eng.unila.ac.id/index.php/jitet/article/view/4678). Lux dan RH merupakan baseline naungan parsial rooftop untuk dikalibrasi."
+  }
