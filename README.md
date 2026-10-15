@@ -54,7 +54,7 @@ flowchart TD
     DB --> CommandAPI
     CommandAPI --> ESP32
 
-    ViteApp <-->|REST API (JWT)| Backend
+    ViteApp <-->|"REST API (JWT)"| Backend
 ```
 
 ---
