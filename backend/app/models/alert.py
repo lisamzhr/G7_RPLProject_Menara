@@ -10,8 +10,8 @@ class Alert(Base, TimestampMixin):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     zone_id = Column(String(36), ForeignKey("plant_zones.id", ondelete="CASCADE"), nullable=False)
-    level = Column(String(20), nullable=False) # normal, advisory, warning
-    type = Column(String(50), nullable=False) # e.g. node_offline, moisture_critical, valve_failure
+    level = Column(String(20), nullable=False)  # normal, advisory, warning
+    type = Column(String(50), nullable=False)  # e.g. node_offline, moisture_critical, valve_failure
     message = Column(Text, nullable=False)
     requires_confirmation = Column(Boolean, default=False, nullable=False)
     resolved_at = Column(DateTime(timezone=True), nullable=True)

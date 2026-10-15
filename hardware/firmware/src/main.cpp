@@ -30,6 +30,7 @@ RelayActuator sprinklerRelay(RELAY_PIN, RELAY_ACTIVE_LOW, RELAY_MAX_ON_SECONDS);
 
 unsigned long lastSendMillis = 0;
 unsigned long lastCommandPollMillis = 0;
+unsigned long wifiDisconnectedSince = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -66,8 +67,21 @@ void loop() {
     // Enforce safety cutoff on relay if on
     sprinklerRelay.update();
 
-    // Check WiFi health
+    // Check WiFi health & Network Watchdog
     wifiManager.checkAndReconnect();
+    if (!wifiManager.isConnected()) {
+        if (wifiDisconnectedSince == 0) {
+            wifiDisconnectedSince = now;
+        } else if (now - wifiDisconnectedSince > 120000UL) {
+            // Safety: if relay is ON while network has been down > 120s, force OFF immediately
+            if (sprinklerRelay.isOn()) {
+                Serial.println("[Safety] Network watchdog triggered: WiFi offline >120s with relay ON. Cutting off relay!");
+                sprinklerRelay.turnOff();
+            }
+        }
+    } else {
+        wifiDisconnectedSince = 0;
+    }
 
     // 1. Periodic Sensor Reading & Reporting
     if (now - lastSendMillis >= (SEND_INTERVAL_S * 1000UL) || lastSendMillis == 0) {

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.deps import get_current_user
 from app.models.alert import Alert
+from app.models.control_action import ControlAction
 from app.models.feedback import Feedback
 from app.models.user import User
 from app.schemas.alerts import AlertFeedbackRequest, AlertOut
@@ -55,6 +56,21 @@ def confirm_alert(
         comment=req.comment or "Confirmed by user",
     )
     db.add(feedback)
+
+    # If this alert was for an action that required confirmation, queue the control action
+    if alert.requires_confirmation and alert.type.startswith("action_"):
+        action_name = alert.type.replace("action_", "")
+        if action_name == "water" and alert.zone and alert.zone.actuators:
+            actuator = alert.zone.actuators[0]
+            cmd = ControlAction(
+                actuator_id=actuator.id,
+                command="turn_on",
+                duration_seconds=30,
+                source="human_confirmed",
+                status="pending",
+            )
+            db.add(cmd)
+
     db.commit()
 
     return {"status": "confirmed", "alert_id": id}

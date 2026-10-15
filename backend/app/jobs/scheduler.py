@@ -43,7 +43,9 @@ def start_scheduler():
         scheduler.start()
         logger.info("APScheduler background jobs successfully started.")
     except Exception as e:
-        logger.warning(f"Failed to start APScheduler (might already be running or in test runner): {e}")
+        logger.warning(
+            f"Failed to start APScheduler (might already be running or in test runner): {e}"
+        )
 
 
 def shutdown_scheduler():

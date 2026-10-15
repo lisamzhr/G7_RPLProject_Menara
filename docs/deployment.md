@@ -73,7 +73,7 @@ This guide covers deployment instructions for the **RoofGarden Monitoring System
    - `VITE_SUPABASE_URL`: `https://your-project.supabase.co`
    - `VITE_SUPABASE_ANON_KEY`: `your-supabase-anon-key`
 3. **Deploy**:
-   - Hit **Deploy**. The SPA routes are properly handled via [`vercel.json`](file:///C:/Users/khali/Semester-5/RPL/roofgarden/frontend/vercel.json).
+   - Hit **Deploy**. The SPA routes are properly handled via [`vercel.json`](../frontend/vercel.json).
 
 ---
 

@@ -9,9 +9,13 @@ class PlantCategory(Base, TimestampMixin):
     __tablename__ = "plant_categories"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
-    key = Column(String(50), unique=True, index=True, nullable=False) # leafy, fruiting_veg, herbs, fruit_potted
+    key = Column(
+        String(50), unique=True, index=True, nullable=False
+    )  # leafy, fruiting_veg, herbs, fruit_potted
     name = Column(String(100), nullable=False)
-    response_timescale = Column(String(20), nullable=False) # days, weeks
+    response_timescale = Column(String(20), nullable=False)  # days, weeks
 
-    threshold_profile = relationship("ThresholdProfile", back_populates="category", uselist=False, cascade="all, delete-orphan")
+    threshold_profile = relationship(
+        "ThresholdProfile", back_populates="category", uselist=False, cascade="all, delete-orphan"
+    )
     zones = relationship("PlantZone", back_populates="category")

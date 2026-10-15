@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from roofgarden_ai.contracts import CategoryThresholds, ZoneContext
 from roofgarden_ai.llm.claude_client import ClaudeClient, MockLLMClient
 from roofgarden_ai.orchestrator import evaluate
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -22,7 +22,9 @@ logger = logging.getLogger("roofgarden.ai_runner")
 
 def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 20.0) -> None:
     """Build ZoneContext and execute roofgarden_ai evaluation."""
-    profile = db.query(ThresholdProfile).filter(ThresholdProfile.category_id == zone.category_id).first()
+    profile = (
+        db.query(ThresholdProfile).filter(ThresholdProfile.category_id == zone.category_id).first()
+    )
     if not profile:
         return
 
@@ -55,14 +57,47 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
     if latest:
         reading_age = (datetime.now(UTC) - latest.ts).total_seconds()
 
+    # Query actuator history for autonomy safety gate
+    last_watered_min = None
+    today_water_sec = 0
+    min_interval = 120
+    suggested_duration = 30
+
+    actuator_ids = [a.id for a in zone.actuators] if zone.actuators else []
+    if actuator_ids:
+        act = zone.actuators[0]
+        min_interval = act.min_interval_minutes
+        suggested_duration = min(30, act.max_on_seconds)
+
+        last_action = (
+            db.query(ControlAction)
+            .filter(ControlAction.actuator_id.in_(actuator_ids), ControlAction.command == "turn_on")
+            .order_by(desc(ControlAction.requested_at))
+            .first()
+        )
+        if last_action and last_action.requested_at:
+            last_watered_min = (datetime.now(UTC) - last_action.requested_at).total_seconds() / 60.0
+
+        today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        daily_sum = (
+            db.query(func.sum(ControlAction.duration_seconds))
+            .filter(
+                ControlAction.actuator_id.in_(actuator_ids),
+                ControlAction.command == "turn_on",
+                ControlAction.requested_at >= today_start,
+            )
+            .scalar()
+        )
+        today_water_sec = int(daily_sum or 0)
+
     ctx = ZoneContext(
         zone_id=zone.id,
         zone_label=zone.label,
-        category_key=zone.category.key, # type: ignore
+        category_key=zone.category.key,  # type: ignore
         thresholds=CategoryThresholds(
             category_key=zone.category.key,
             name=zone.category.name,
-            response_timescale=zone.category.response_timescale, # type: ignore
+            response_timescale=zone.category.response_timescale,  # type: ignore
             moisture_min=profile.moisture_min,
             moisture_max=profile.moisture_max,
             temp_min=profile.temp_min,
@@ -81,6 +116,10 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
         reading_age_seconds=max(reading_age, 0.0),
         recent_moisture_history=recent_moistures,
         rain_chance_next_3h=rain_chance,
+        last_watered_minutes_ago=last_watered_min,
+        today_water_seconds=today_water_sec,
+        min_interval_minutes=min_interval,
+        suggested_water_seconds=suggested_duration,
     )
 
     llm = ClaudeClient() if settings.ANTHROPIC_API_KEY else MockLLMClient()

@@ -105,6 +105,7 @@ def db_session():
 @pytest.fixture(scope="function")
 def client(db_session):
     """Override get_db dependency with test session."""
+
     def override_get_db():
         try:
             yield db_session

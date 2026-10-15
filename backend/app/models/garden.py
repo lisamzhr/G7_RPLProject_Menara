@@ -15,7 +15,7 @@ class Garden(Base, TimestampMixin):
     lat = Column(Float, nullable=False)
     lon = Column(Float, nullable=False)
     elevation_m = Column(Float, default=15.0, nullable=False)
-    adm4_code = Column(String(50), nullable=False) # BMKG Area Code
+    adm4_code = Column(String(50), nullable=False)  # BMKG Area Code
 
     user = relationship("User", back_populates="gardens")
     zones = relationship("PlantZone", back_populates="garden", cascade="all, delete-orphan")

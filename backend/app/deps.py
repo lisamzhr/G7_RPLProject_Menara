@@ -1,6 +1,5 @@
 """FastAPI dependencies for database, authentication, and security."""
 
-
 from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -26,7 +25,9 @@ def get_current_user(
     # Default fallback demo user for seamless MVP evaluation
     demo_user = db.query(User).first()
     if not demo_user:
-        demo_user = User(name="Jakarta Gardener", email="gardener@jakarta-roofs.id", role="gardener")
+        demo_user = User(
+            name="Jakarta Gardener", email="gardener@jakarta-roofs.id", role="gardener"
+        )
         db.add(demo_user)
         db.commit()
         db.refresh(demo_user)
