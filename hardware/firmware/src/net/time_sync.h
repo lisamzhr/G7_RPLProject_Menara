@@ -1,6 +1,11 @@
 #pragma once
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+#else
+#include <cstddef>
+#include <cstdio>
+#endif
 #include <time.h>
 
 class TimeSync {

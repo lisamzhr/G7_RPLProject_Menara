@@ -2,6 +2,9 @@
 
 #if defined(ARDUINO)
 #include <Arduino.h>
+#else
+#include <cstdint>
+#include <cstddef>
 #endif
 
 #include "../core/reading_buffer.h"
