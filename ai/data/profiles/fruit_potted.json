@@ -1,14 +1,14 @@
 {
-  "category_key": "fruit_potted",
-  "name": "Potted Dwarf Fruit Trees (Tabulampot)",
-  "response_timescale": "weeks",
-  "moisture_min": 70.0,
-  "moisture_max": 100.0,
-  "temp_min": 22.0,
-  "temp_max": 30.0,
-  "humidity_min": 50.0,
-  "humidity_max": 70.0,
-  "lux_min": 30000.0,
-  "lux_max": 50000.0,
-  "source_note": "Prasetyo & Setiawan (2019). Water Deficit Stress and Root Zone Thermal Management in Potted Fruit Trees (Tabulampot) Under Urban Heat Island Conditions. Strict floor: root damage occurs below 65% moisture. Note: Baseline values to be calibrated with own rooftop data."
-}
+    "category_key": "fruit_potted",
+    "name": "Potted Dwarf Fruit Trees (Tabulampot)",
+    "response_timescale": "weeks",
+    "moisture_min": 78.0,
+    "moisture_max": 100.0,
+    "temp_min": 22.0,
+    "temp_max": 30.0,
+    "humidity_min": 50.0,
+    "humidity_max": 70.0,
+    "lux_min": 30000.0,
+    "lux_max": 50000.0,
+    "source_note": "Moisture (78-100%): Yudatama et al. (2023), ELKOMIKA ITENAS, 'Sistem Pemantauan dan Kendali Penyiraman pada Budi Daya Buah Jambu Biji Kristal berbasis IoT' (https://ejurnal.itenas.ac.id/index.php/elkomika/article/view/9679) — pompa menyala saat kelembapan tanah <78%. Batas bawah kering (45%): Suryantoro et al. (2025), JEIS Swadharma (https://ejurnal.swadharma.ac.id/index.php/jeis/article/view/805). Suhu, RH, dan Lux merupakan baseline operasional rooftop tropis untuk dikalibrasi di lapangan."
+  }

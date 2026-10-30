@@ -6,7 +6,7 @@ import pytest
 
 from roofgarden_ai.contracts import ZoneContext
 from roofgarden_ai.guardrails.validator import validate_and_filter_llm_response
-from roofgarden_ai.llm.claude_client import MockLLMClient
+from roofgarden_ai.llm.base import MockLLMClient
 from roofgarden_ai.orchestrator import evaluate
 from roofgarden_ai.rule_engine.thresholds import load_category_profile
 
@@ -19,7 +19,7 @@ def test_ctx():
         zone_label="Test Zone",
         category_key="leafy",
         thresholds=profile,
-        current_moisture=65.0, # Below 76 min -> warning!
+        current_moisture=45.0, # Below 50 min -> warning!
         current_temp=26.0,
         current_humidity=70.0,
         current_lux=15000.0,
@@ -29,7 +29,7 @@ def test_ctx():
 
 def test_guardrail_rejects_severity_mismatch(test_ctx):
     bad_llm_json = json.dumps({
-        "message": "Everything looks fine with moisture at 65.0%.",
+        "message": "Everything looks fine with moisture at 45.0%.",
         "severity": "normal", # Wrong! Expected is 'warning'
         "reasons": ["Mock reason"]
     })
@@ -51,7 +51,7 @@ def test_guardrail_rejects_hallucinated_number(test_ctx):
 
 def test_guardrail_rejects_rain_contradiction(test_ctx):
     bad_llm_json = json.dumps({
-        "message": "Moisture is 65.0%. Please water now to prevent wilting.",
+        "message": "Moisture is 45.0%. Please water now to prevent wilting.",
         "severity": "warning",
         "reasons": ["Drying out"]
     })
@@ -68,4 +68,4 @@ def test_orchestrator_activates_fallback_on_corrupt_llm(test_ctx):
     assert decision.used_fallback is True
     assert decision.overall_level == "warning"
     assert decision.recommendation.status_level == "warning"
-    assert "65.0%" in decision.recommendation.message
+    assert "45.0%" in decision.recommendation.message

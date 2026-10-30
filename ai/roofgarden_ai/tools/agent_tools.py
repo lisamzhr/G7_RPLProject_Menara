@@ -4,6 +4,7 @@ from typing import Any
 
 from roofgarden_ai.contracts import ProposedAction, ZoneContext
 from roofgarden_ai.rule_engine.autonomy import evaluate_action_autonomy
+from roofgarden_ai.tools.bmkg_client import get_weather_context
 
 
 def get_sensor_data(zone_id: str) -> dict[str, Any]:
@@ -26,12 +27,15 @@ def get_threshold_profile(category_key: str) -> dict[str, Any]:
 
 
 def get_weather_forecast(adm4_code: str) -> dict[str, Any]:
-    """Fetch cached BMKG weather forecast for administrative code."""
+    """Ambil prakiraan BMKG (cache). available=False bila BMKG tidak dapat dijangkau."""
+    ctx = get_weather_context(adm4_code)
+    if ctx is None:
+        return {"adm4_code": adm4_code, "available": False}
     return {
         "adm4_code": adm4_code,
-        "forecast": "Hujan Sedang (Moderate Rain)",
-        "rain_probability_pct": 65.0,
-        "temperature_c": 29.0,
+        "available": True,
+        "forecast": ctx["weather_forecast_text"],
+        "rain_probability_pct": ctx["rain_chance_next_3h"],
     }
 
 

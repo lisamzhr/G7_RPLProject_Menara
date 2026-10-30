@@ -1,14 +1,14 @@
 {
-  "category_key": "fruiting_veg",
-  "name": "Fruiting Vegetables",
-  "response_timescale": "days",
-  "moisture_min": 50.0,
-  "moisture_max": 70.0,
-  "temp_min": 24.0,
-  "temp_max": 28.0,
-  "humidity_min": 70.0,
-  "humidity_max": 85.0,
-  "lux_min": 30000.0,
-  "lux_max": 50000.0,
-  "source_note": "Siregar & Wibowo (2020). Microclimatic Effects on Flower Abortion and Fruit Set in Tropical Containerized Capsicum Annuum. Note: Baseline values to be calibrated with own rooftop data."
-}
+    "category_key": "fruiting_veg",
+    "name": "Fruiting Vegetables (Cabai / Paprika Pot)",
+    "response_timescale": "days",
+    "moisture_min": 45.0,
+    "moisture_max": 76.0,
+    "temp_min": 25.0,
+    "temp_max": 27.0,
+    "humidity_min": 70.0,
+    "humidity_max": 85.0,
+    "lux_min": 5000.0,
+    "lux_max": 10000.0,
+    "source_note": "Moisture (45-76% core fuzzy 'Lembab') & Temp (25-27°C optimal siang, >32°C gugur bunga): JIPM (2025), 'Sistem Penyiraman Otomatis Berbasis IoT dengan Soil Moisture pada Proses Pembibitan Cabai Merah Keriting Menggunakan Metode Fuzzy Mamdani' (https://ejurnal.kampusakademik.my.id/index.php/jipm/article/view/1155). Lux (5000-10000 lux) & RH: Shahrosi et al. (2023), STRING Unindra (https://journal.lppmunindra.ac.id/index.php/STRING/article/view/15139) & Winarno (2020)."
+  }

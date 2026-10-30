@@ -9,7 +9,7 @@ def test_load_all_profiles():
     profiles = load_all_profiles()
     assert len(profiles) == 4
     assert set(profiles.keys()) == {"leafy", "fruiting_veg", "herbs", "fruit_potted"}
-    assert profiles["leafy"].moisture_min == 76.0
+    assert profiles["leafy"].moisture_min == 50.0
     assert profiles["fruit_potted"].response_timescale == "weeks"
 
 
@@ -20,7 +20,7 @@ def test_leafy_status_classification():
         zone_label="Leafy Zone",
         category_key="leafy",
         thresholds=profile,
-        current_moisture=80.0,
+        current_moisture=60.0,
         current_temp=25.0,
         current_humidity=70.0,
         current_lux=15000.0,
@@ -38,7 +38,7 @@ def test_leafy_out_of_range_warning():
         zone_label="Leafy Zone",
         category_key="leafy",
         thresholds=profile,
-        current_moisture=65.0, # Below 76.0 min!
+        current_moisture=40.0, # Below 50.0 min!
         current_temp=31.0,     # Above 27.0 max!
         current_humidity=70.0,
         current_lux=15000.0,

@@ -5,6 +5,7 @@ This directory stores sensor telemetry datasets and external training datasets f
 - `raw/`: Unprocessed sensor telemetry logs, Mendeley Data IoT sensor logs, and BMKG historical meteorological dumps (git-ignored).
 - `processed/`: Normalized feature matrices, train/test splits for soil moisture depletion regressors (git-ignored).
 
-### Mendeley Data Sources
-- Mendeley Data: "IoT-based Smart Irrigation System Dataset using NodeMCU and Sensors" (DOI: 10.17632/v9v8t62t2f.1).
-- BMKG Open Meteorological Datasets (Jakarta observation stations: Kemayoran, Halim, Tanjung Priok).
+### Data Sources
+- https://www.kaggle.com/code/alperkaraca1/soil-moisture-prediction/input?select=plant_vase2.CSV
+
+- https://www.kaggle.com/code/sulaniishara/plant-health-prediction-with-ml/input
