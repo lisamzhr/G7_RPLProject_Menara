@@ -10,6 +10,7 @@
 
 #include "core/reading_buffer.h"
 #include "actuators/relay.h"
+#include "net/config_storage.h"
 #include "net/wifi_manager.h"
 #include "net/api_client.h"
 #include "net/time_sync.h"
@@ -23,9 +24,11 @@
 #endif
 
 // Global component instances
-WiFiManager wifiManager(WIFI_SSID, WIFI_PASS);
+ConfigStorage configStorage;
+DeviceConfig currentConfig;
+WiFiManager wifiManager;
+ApiClient apiClient;
 TimeSync timeSync(NTP_SERVER, GMT_OFFSET_SEC, DAYLIGHT_OFFSET);
-ApiClient apiClient(API_BASE_URL, NODE_ID, NODE_API_KEY);
 ReadingBuffer readingBuffer(BUFFER_MAX_READINGS);
 RelayActuator sprinklerRelay(RELAY_PIN, RELAY_ACTIVE_LOW, RELAY_MAX_ON_SECONDS);
 
@@ -41,45 +44,69 @@ unsigned long lastSendMillis = 0;
 unsigned long lastCommandPollMillis = 0;
 unsigned long wifiDisconnectedSince = 0;
 
-void printMockMenu() {
-#if MOCK_ENVIRONMENT
+void printMenu() {
     Serial.println("\n------------------------------------------------------------");
-    Serial.println("[Mock Controller] Interactive Serial Shortcuts:");
+    Serial.println("[RoofGarden Controller] Interactive Serial Shortcuts:");
+    Serial.println("  'c' or 'p' -> Launch Wi-Fi Captive Portal for phone setup");
+    Serial.println("  'F'        -> Factory reset (Clear saved Wi-Fi in NVS)");
+#if MOCK_ENVIRONMENT
     Serial.println("  '1' or 'n' -> Switch to NORMAL scenario (Healthy garden)");
     Serial.println("  '2' or 'd' -> Switch to DRY scenario (Trigger auto-watering)");
     Serial.println("  '3' or 'h' -> Switch to HEATWAVE scenario (Heat stress)");
     Serial.println("  '4' or 'w' -> Manual watering pulse (+12% soil moisture)");
     Serial.println("  '5' or 'a' -> Toggle ANOMALY injection (Test backend validation)");
-    Serial.println("  '?' or 's' -> Print current simulation status");
-    Serial.println("------------------------------------------------------------\n");
 #endif
+    Serial.println("  '?' or 's' -> Print current device diagnostics");
+    Serial.println("------------------------------------------------------------\n");
 }
 
 void setup() {
     Serial.begin(115200);
     delay(500);
 
+    // 1. Check onboard BOOT button (GPIO0) for manual portal trigger
+    pinMode(CONFIG_BUTTON_PIN, INPUT_PULLUP);
+    bool forcePortal = false;
+    if (digitalRead(CONFIG_BUTTON_PIN) == LOW) {
+        Serial.println("[Setup] BOOT button is held down. Checking hold duration...");
+        unsigned long btnPressStart = millis();
+        while (digitalRead(CONFIG_BUTTON_PIN) == LOW) {
+            if (millis() - btnPressStart >= (CONFIG_BUTTON_HOLD_SEC * 1000UL)) {
+                forcePortal = true;
+                Serial.println("[Setup] BOOT button held for 3s -> Launching Wi-Fi Captive Portal!");
+                break;
+            }
+            delay(50);
+        }
+    }
+
+    // 2. Load Configuration from Flash NVS (with secrets.h fallback)
+    bool hasValidCreds = configStorage.load(currentConfig);
+    wifiManager.setCredentials(currentConfig.wifi_ssid, currentConfig.wifi_pass);
+    apiClient.setConfig(currentConfig.api_base_url, currentConfig.node_id, currentConfig.node_api_key);
+
 #if MOCK_ENVIRONMENT
     Serial.println("\n============================================================");
     Serial.println("  ROOFGARDEN ESP32 FIRMWARE - MOCK ENVIRONMENT ACTIVE");
-    Serial.printf("  Node ID:          %s\n", NODE_ID);
-    Serial.printf("  Target API:       %s\n", API_BASE_URL);
+    Serial.printf("  Node ID:          %s\n", currentConfig.node_id);
+    Serial.printf("  Target API:       %s\n", currentConfig.api_base_url);
     Serial.printf("  Send Interval:    %u seconds (Fast Mock Telemetry)\n", EFFECTIVE_SEND_INTERVAL_S);
     Serial.printf("  Command Poll:     %u seconds\n", COMMAND_POLL_INTERVAL_S);
     Serial.println("============================================================");
 #else
     Serial.println("\n[RoofGarden] Booting ESP32 Sensor Node (Physical Hardware)...");
+    Serial.printf("  Node ID:          %s\n", currentConfig.node_id);
+    Serial.printf("  Target API:       %s\n", currentConfig.api_base_url);
 #endif
 
-    // 1. Initialize Relay FIRST (Safety requirement: force safe OFF state on boot)
+    // 3. Initialize Relay FIRST (Safety requirement: force safe OFF state on boot)
     sprinklerRelay.begin();
     Serial.println("[RoofGarden] Sprinkler relay initialized to SAFE OFF state.");
 
-    // 2. Initialize Sensors (Physical or Mock)
+    // 4. Initialize Sensors (Physical or Mock)
 #if MOCK_ENVIRONMENT
     mockSensors.begin();
     Serial.printf("[Mock] Sensors initialized. Active Scenario: %s\n", mockSensors.getScenarioName());
-    printMockMenu();
 #else
     soilSensor.begin();
     dhtSensor.begin();
@@ -89,25 +116,47 @@ void setup() {
         Serial.println("[RoofGarden] Warning: BH1750 not detected on I2C.");
     }
 #endif
+    printMenu();
 
-    // 3. Connect to WiFi
-    Serial.print("[RoofGarden] Connecting to WiFi: ");
-    Serial.println(WIFI_SSID);
-    if (wifiManager.connect()) {
-        Serial.println("[RoofGarden] WiFi Connected.");
-        timeSync.begin();
+    // 5. Connect to Wi-Fi or Launch Captive Portal
+    if (forcePortal || !hasValidCreds) {
+        Serial.println("[RoofGarden] No valid Wi-Fi credentials or BOOT triggered. Launching Captive Portal...");
+        wifiManager.startPortal(currentConfig, PORTAL_AP_SSID_PREFIX);
     } else {
-        Serial.println("[RoofGarden] WiFi connection failed. Will buffer readings to RAM.");
+        Serial.print("[RoofGarden] Connecting to Wi-Fi: ");
+        Serial.println(currentConfig.wifi_ssid);
+        if (wifiManager.connect(15000)) {
+            Serial.println("[RoofGarden] Wi-Fi Connected.");
+            timeSync.begin();
+        } else {
+            Serial.println("[RoofGarden] Wi-Fi connection timed out. Launching Captive Portal for phone setup...");
+            wifiManager.startPortal(currentConfig, PORTAL_AP_SSID_PREFIX);
+        }
     }
 }
 
 void handleSerialInput() {
-#if MOCK_ENVIRONMENT
     while (Serial.available() > 0) {
         char ch = (char)Serial.read();
         if (ch == '\r' || ch == '\n' || ch == ' ') continue;
 
         switch (ch) {
+            case 'c':
+            case 'p':
+            case 'C':
+            case 'P':
+                Serial.println("[Controller] Manual request to launch Captive Portal.");
+                wifiManager.startPortal(currentConfig, PORTAL_AP_SSID_PREFIX);
+                break;
+
+            case 'F':
+                Serial.println("[Controller] Factory reset requested. Clearing NVS credentials...");
+                configStorage.clear();
+                memset(&currentConfig, 0, sizeof(DeviceConfig));
+                wifiManager.startPortal(currentConfig, PORTAL_AP_SSID_PREFIX);
+                break;
+
+#if MOCK_ENVIRONMENT
             case '1':
             case 'n':
             case 'N':
@@ -144,40 +193,76 @@ void handleSerialInput() {
                 Serial.printf("[Mock Controller] Anomaly mode: %s\n", newState ? "ENABLED (Out-of-bounds)" : "DISABLED (Normal)");
                 break;
             }
+#endif
 
             case '?':
             case 's':
             case 'S': {
+                Serial.println("\n--- [Device Diagnostics] ---");
+                Serial.printf("Node ID:          %s\n", apiClient.getNodeId());
+                Serial.printf("API Base URL:     %s\n", apiClient.getBaseUrl());
+                Serial.printf("Wi-Fi SSID:       %s\n", wifiManager.getSSID());
+                Serial.printf("Wi-Fi Status:     %s (RSSI: %d dBm)\n",
+                              wifiManager.isConnected() ? "Connected" : (wifiManager.isPortalActive() ? "Portal (SoftAP)" : "Disconnected"),
+                              wifiManager.getRSSI());
+                Serial.printf("Portal Active:    %s\n", wifiManager.isPortalActive() ? "YES" : "NO");
+                Serial.printf("Sprinkler Relay:  %s\n", sprinklerRelay.isOn() ? "ON (Active)" : "OFF (Idle)");
+                Serial.printf("Buffered Reads:   %u / %u\n", (unsigned int)readingBuffer.size(), (unsigned int)BUFFER_MAX_READINGS);
+#if MOCK_ENVIRONMENT
                 float t = 0.0f, h = 0.0f;
                 mockSensors.readDHT(t, h);
-                Serial.println("\n--- [Mock Status Diagnostics] ---");
-                Serial.printf("Scenario:         %s\n", mockSensors.getScenarioName());
+                Serial.printf("Mock Scenario:    %s\n", mockSensors.getScenarioName());
                 Serial.printf("Soil Moisture:    %.1f%%\n", mockSensors.readSoilMoisturePct());
                 Serial.printf("Air Temp / Hum:   %.1f C / %.1f%%\n", t, h);
                 Serial.printf("Solar Lux:        %.0f lx\n", mockSensors.readLux());
                 Serial.printf("Battery:          %.2f V\n", mockSensors.readBatteryVoltage());
                 Serial.printf("Anomaly Mode:     %s\n", mockSensors.isAnomalyActive() ? "YES" : "NO");
-                Serial.printf("Sprinkler Relay:  %s\n", sprinklerRelay.isOn() ? "ON (Active)" : "OFF (Idle)");
-                Serial.printf("Buffered Reads:   %u / %u\n", (unsigned int)readingBuffer.size(), (unsigned int)BUFFER_MAX_READINGS);
-                Serial.printf("WiFi Status:      %s\n", wifiManager.isConnected() ? "Connected" : "Disconnected");
-                Serial.println("---------------------------------\n");
-                printMockMenu();
+#endif
+                Serial.println("----------------------------\n");
+                printMenu();
                 break;
             }
 
             default:
-                Serial.printf("[Mock Controller] Unknown key: '%c'. Type '?' for menu.\n", ch);
+                Serial.printf("[Controller] Unknown key: '%c'. Type '?' for menu.\n", ch);
                 break;
         }
     }
-#endif
 }
 
 void loop() {
-    unsigned long now = millis();
-
-    // Check for interactive user inputs in mock mode
+    // 1. Process interactive serial commands
     handleSerialInput();
+
+    // 2. If Captive Portal is running, process its network stack
+    if (wifiManager.isPortalActive()) {
+        wifiManager.updatePortal();
+
+        // Check if user submitted new credentials via phone browser
+        if (wifiManager.isPortalConfigSaved()) {
+            Serial.println("[Portal] New configuration received from phone! Saving to flash NVS...");
+            currentConfig = wifiManager.getSavedPortalConfig();
+            configStorage.save(currentConfig);
+
+            wifiManager.stopPortal();
+            wifiManager.setCredentials(currentConfig.wifi_ssid, currentConfig.wifi_pass);
+            apiClient.setConfig(currentConfig.api_base_url, currentConfig.node_id, currentConfig.node_api_key);
+
+            Serial.print("[WiFi] Connecting to newly configured Wi-Fi: ");
+            Serial.println(currentConfig.wifi_ssid);
+            if (wifiManager.connect(15000)) {
+                Serial.println("[WiFi] Connected successfully to new network!");
+                timeSync.begin();
+            } else {
+                Serial.println("[WiFi] Failed to connect with new credentials. Re-opening portal.");
+                wifiManager.startPortal(currentConfig, PORTAL_AP_SSID_PREFIX);
+            }
+        }
+        delay(10);
+        return;
+    }
+
+    unsigned long now = millis();
 
     // Enforce safety cutoff on relay if on
     sprinklerRelay.update();
@@ -198,7 +283,7 @@ void loop() {
         wifiDisconnectedSince = 0;
     }
 
-    // 1. Periodic Sensor Reading & Reporting
+    // 3. Periodic Sensor Reading & Reporting
     if (now - lastSendMillis >= (EFFECTIVE_SEND_INTERVAL_S * 1000UL) || lastSendMillis == 0) {
         lastSendMillis = now;
 
@@ -272,7 +357,7 @@ void loop() {
         }
     }
 
-    // 2. Periodic Command Polling
+    // 4. Periodic Command Polling
     if (now - lastCommandPollMillis >= (COMMAND_POLL_INTERVAL_S * 1000UL)) {
         lastCommandPollMillis = now;
 

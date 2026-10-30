@@ -44,7 +44,7 @@ build-mock-firmware:
 	cd hardware/firmware && pio run -e esp32dev_mock
 
 build-native-mock:
-	g++ -std=c++17 -O2 -I hardware/firmware/src hardware/firmware/src/native_mock_runner.cpp hardware/firmware/src/sensors/mock_sensors.cpp hardware/firmware/src/core/reading_buffer.cpp -lwininet -o hardware/firmware/mock_node.exe
+	g++ -std=c++17 -O2 -I hardware/firmware/src hardware/tools/native_mock_runner.cpp hardware/firmware/src/sensors/mock_sensors.cpp hardware/firmware/src/core/reading_buffer.cpp -lwininet -o hardware/firmware/mock_node.exe
 
 seed:
 	$(PYTHON) scripts/seed_demo_data.py
