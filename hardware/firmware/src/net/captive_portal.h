@@ -5,9 +5,15 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <DNSServer.h>
+#include <vector>
 #endif
 
 #include "config_storage.h"
+
+struct ScannedAp {
+    char ssid[64];
+    int rssi;
+};
 
 class CaptivePortal {
 public:
@@ -40,6 +46,9 @@ private:
 #if defined(ARDUINO)
     WebServer* _server;
     DNSServer* _dnsServer;
+    std::vector<ScannedAp> _scannedAps;
+    unsigned long _lastScanMillis;
+    void performScan();
 #endif
     bool _running;
     bool _configSaved;
