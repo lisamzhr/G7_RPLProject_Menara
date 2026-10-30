@@ -10,6 +10,7 @@ python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 psycopg2-binary>=2.9.9
 pgvector>=0.2.5
+roofgarden-ai
 
 [dev]
 pytest>=8.0.0

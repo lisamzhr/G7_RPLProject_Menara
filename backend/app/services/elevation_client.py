@@ -25,6 +25,8 @@ class ElevationClient:
                     if results and "elevation" in results[0]:
                         return float(results[0]["elevation"])
         except Exception as e:
-            logger.warning(f"Could not retrieve live elevation for ({lat}, {lon}): {e}. Using Jakarta rooftop default.")
+            logger.warning(
+                f"Could not retrieve live elevation for ({lat}, {lon}): {e}. Using Jakarta rooftop default."
+            )
 
-        return 18.5 # Jakarta average elevation default fallback
+        return 18.5  # Jakarta average elevation default fallback

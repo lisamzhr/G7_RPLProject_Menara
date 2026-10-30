@@ -1,6 +1,9 @@
 #pragma once
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+#endif
+
 #include "../core/reading_buffer.h"
 
 struct ActuatorCommand {
@@ -12,13 +15,17 @@ struct ActuatorCommand {
 
 class ApiClient {
 public:
-    ApiClient(const char* baseUrl, const char* nodeId, const char* apiKey);
+    ApiClient(const char* baseUrl = "", const char* nodeId = "", const char* apiKey = "");
+    void setConfig(const char* baseUrl, const char* nodeId, const char* apiKey);
     bool postReading(const SensorReading& reading);
     bool pollPendingCommands(ActuatorCommand& outCommand, bool& hasCommand);
     bool ackCommand(const char* commandId, const char* status, const char* result);
 
+    const char* getBaseUrl() const;
+    const char* getNodeId() const;
+
 private:
-    const char* _baseUrl;
-    const char* _nodeId;
-    const char* _apiKey;
+    char _baseUrl[128];
+    char _nodeId[64];
+    char _apiKey[128];
 };

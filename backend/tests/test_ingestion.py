@@ -29,8 +29,8 @@ def test_ingest_out_of_range_reading_marked_invalid(client):
     # Moisture > 100% and temperature > 70C
     payload = {
         "node_id": "esp32-node-test",
-        "soil_moisture_pct": 145.0, # Out of range!
-        "temperature_c": 85.0,      # Out of range!
+        "soil_moisture_pct": 145.0,  # Out of range!
+        "temperature_c": 85.0,  # Out of range!
         "humidity_pct": 72.0,
         "lux": 15000.0,
     }

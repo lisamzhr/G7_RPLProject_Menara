@@ -27,7 +27,7 @@ class ZoneOut(BaseModel):
 
 class ParameterMetric(BaseModel):
     value: float
-    status: str # ok, low, high
+    status: str  # ok, low, high
     ideal_min: float
     ideal_max: float
     unit: str
@@ -54,7 +54,7 @@ class ZoneStatusResponse(BaseModel):
     zone_id: str
     zone_label: str
     category_key: str
-    overall_status: str # normal, advisory, warning
+    overall_status: str  # normal, advisory, warning
     latest_reading: LatestReadingSummary | None = None
     parameter_status: dict[str, ParameterMetric]
     latest_recommendation: RecommendationSummary | None = None

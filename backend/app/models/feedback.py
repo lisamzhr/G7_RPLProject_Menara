@@ -10,9 +10,9 @@ class Feedback(Base, TimestampMixin):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    target_type = Column(String(50), nullable=False) # alert, recommendation, action
+    target_type = Column(String(50), nullable=False)  # alert, recommendation, action
     target_id = Column(String(36), nullable=False)
-    decision = Column(String(20), nullable=False) # confirm, override
+    decision = Column(String(20), nullable=False)  # confirm, override
     comment = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="feedbacks")

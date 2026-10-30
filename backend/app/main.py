@@ -19,6 +19,52 @@ async def lifespan(app: FastAPI):
     logger.info("Starting RoofGarden Backend application...")
     # Create DB tables if not present (useful for local development & SQLite)
     Base.metadata.create_all(bind=engine)
+    if engine.dialect.name == "sqlite":
+        with engine.begin() as conn:
+            conn.exec_driver_sql("""
+            CREATE VIEW IF NOT EXISTS readings_hourly AS
+            SELECT
+                node_id,
+                strftime('%Y-%m-%d %H:00:00', ts) AS hour_bucket,
+                AVG(soil_moisture_pct) AS avg_moisture,
+                MIN(soil_moisture_pct) AS min_moisture,
+                MAX(soil_moisture_pct) AS max_moisture,
+                AVG(temperature_c) AS avg_temp,
+                MIN(temperature_c) AS min_temp,
+                MAX(temperature_c) AS max_temp,
+                AVG(humidity_pct) AS avg_humidity,
+                MIN(humidity_pct) AS min_humidity,
+                MAX(humidity_pct) AS max_humidity,
+                AVG(lux) AS avg_lux,
+                MIN(lux) AS min_lux,
+                MAX(lux) AS max_lux,
+                COUNT(*) AS sample_count
+            FROM sensor_readings
+            WHERE is_valid = 1
+            GROUP BY node_id, strftime('%Y-%m-%d %H:00:00', ts);
+            """)
+            conn.exec_driver_sql("""
+            CREATE VIEW IF NOT EXISTS readings_daily AS
+            SELECT
+                node_id,
+                strftime('%Y-%m-%d 00:00:00', ts) AS day_bucket,
+                AVG(soil_moisture_pct) AS avg_moisture,
+                MIN(soil_moisture_pct) AS min_moisture,
+                MAX(soil_moisture_pct) AS max_moisture,
+                AVG(temperature_c) AS avg_temp,
+                MIN(temperature_c) AS min_temp,
+                MAX(temperature_c) AS max_temp,
+                AVG(humidity_pct) AS avg_humidity,
+                MIN(humidity_pct) AS min_humidity,
+                MAX(humidity_pct) AS max_humidity,
+                AVG(lux) AS avg_lux,
+                MIN(lux) AS min_lux,
+                MAX(lux) AS max_lux,
+                COUNT(*) AS sample_count
+            FROM sensor_readings
+            WHERE is_valid = 1
+            GROUP BY node_id, strftime('%Y-%m-%d 00:00:00', ts);
+            """)
     start_scheduler()
     yield
     # Shutdown

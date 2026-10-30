@@ -10,10 +10,10 @@ class ControlAction(Base, TimestampMixin):
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
     actuator_id = Column(String(36), ForeignKey("actuators.id", ondelete="CASCADE"), nullable=False)
-    command = Column(String(50), nullable=False) # turn_on, turn_off
+    command = Column(String(50), nullable=False)  # turn_on, turn_off
     duration_seconds = Column(Integer, default=30, nullable=False)
-    source = Column(String(20), default="auto", nullable=False) # auto, user
-    status = Column(String(20), default="pending", nullable=False) # pending, sent, acked, failed
+    source = Column(String(20), default="auto", nullable=False)  # auto, user
+    status = Column(String(20), default="pending", nullable=False)  # pending, sent, acked, failed
     requested_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     executed_at = Column(DateTime(timezone=True), nullable=True)
     result = Column(Text, nullable=True)

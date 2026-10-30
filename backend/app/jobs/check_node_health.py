@@ -18,7 +18,9 @@ def job_check_node_health():
         nodes = db.query(SensorNode).all()
         now = datetime.now(UTC)
         # 3x send interval (default: 3 * 300s = 900s = 15m)
-        offline_threshold_sec = settings.NODE_OFFLINE_THRESHOLD_FACTOR * settings.DEFAULT_NODE_SEND_INTERVAL_S
+        offline_threshold_sec = (
+            settings.NODE_OFFLINE_THRESHOLD_FACTOR * settings.DEFAULT_NODE_SEND_INTERVAL_S
+        )
         cutoff = now - timedelta(seconds=offline_threshold_sec)
 
         for node in nodes:
@@ -29,7 +31,7 @@ def job_check_node_health():
                     zone_id=node.zone_id,
                     level="warning",
                     alert_type="node_offline",
-                    message=f"Sensor node '{node.id}' is offline: no telemetry received for over {int(offline_threshold_sec/60)} minutes.",
+                    message=f"Sensor node '{node.id}' is offline: no telemetry received for over {int(offline_threshold_sec / 60)} minutes.",
                     requires_confirmation=False,
                 )
         db.commit()

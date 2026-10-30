@@ -1,6 +1,5 @@
 """Pydantic schemas for dashboard summary."""
 
-
 from pydantic import BaseModel
 
 

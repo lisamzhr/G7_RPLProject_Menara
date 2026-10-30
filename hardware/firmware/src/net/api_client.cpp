@@ -1,11 +1,39 @@
 #include "api_client.h"
+#include <cstring>
+
+#if defined(ARDUINO)
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#endif
 
-ApiClient::ApiClient(const char* baseUrl, const char* nodeId, const char* apiKey)
-    : _baseUrl(baseUrl), _nodeId(nodeId), _apiKey(apiKey) {}
+ApiClient::ApiClient(const char* baseUrl, const char* nodeId, const char* apiKey) {
+    setConfig(baseUrl, nodeId, apiKey);
+}
+
+void ApiClient::setConfig(const char* baseUrl, const char* nodeId, const char* apiKey) {
+    memset(_baseUrl, 0, sizeof(_baseUrl));
+    memset(_nodeId, 0, sizeof(_nodeId));
+    memset(_apiKey, 0, sizeof(_apiKey));
+
+    if (baseUrl) strncpy(_baseUrl, baseUrl, sizeof(_baseUrl) - 1);
+    if (nodeId)  strncpy(_nodeId, nodeId, sizeof(_nodeId) - 1);
+    if (apiKey)  strncpy(_apiKey, apiKey, sizeof(_apiKey) - 1);
+}
+
+const char* ApiClient::getBaseUrl() const {
+    return _baseUrl;
+}
+
+const char* ApiClient::getNodeId() const {
+    return _nodeId;
+}
 
 bool ApiClient::postReading(const SensorReading& reading) {
+#if defined(ARDUINO)
+    if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
+        return false;
+    }
+
     HTTPClient http;
     String url = String(_baseUrl) + "/ingest/readings";
     
@@ -35,10 +63,18 @@ bool ApiClient::postReading(const SensorReading& reading) {
     http.end();
 
     return success;
+#else
+    return true;
+#endif
 }
 
 bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasCommand) {
     hasCommand = false;
+#if defined(ARDUINO)
+    if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
+        return false;
+    }
+
     HTTPClient http;
     String url = String(_baseUrl) + "/nodes/" + _nodeId + "/commands";
 
@@ -74,9 +110,17 @@ bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasComman
     hasCommand = true;
 
     return true;
+#else
+    return true;
+#endif
 }
 
 bool ApiClient::ackCommand(const char* commandId, const char* status, const char* result) {
+#if defined(ARDUINO)
+    if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
+        return false;
+    }
+
     HTTPClient http;
     String url = String(_baseUrl) + "/nodes/" + _nodeId + "/commands/" + commandId + "/ack";
 
@@ -97,4 +141,7 @@ bool ApiClient::ackCommand(const char* commandId, const char* status, const char
     http.end();
 
     return success;
+#else
+    return true;
+#endif
 }

@@ -6,18 +6,28 @@ import { Alerts } from "./pages/Alerts";
 import { Devices } from "./pages/Devices";
 import { Settings } from "./pages/Settings";
 import { Login } from "./pages/Login";
+import LandingPage from "./pages/LandingPage";
 
 export const router = createBrowserRouter([
+  // Public landing page
+  {
+    path: "/",
+    element: <LandingPage />,
+  },
+
+  // Authentication
   {
     path: "/login",
     element: <Login />,
   },
+
+  // Internal application
   {
     path: "/",
     element: <Layout />,
     children: [
       {
-        index: true,
+        path: "dashboard",
         element: <Dashboard />,
       },
       {

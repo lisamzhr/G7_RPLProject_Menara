@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
     # Database
-    DATABASE_URL: str = "sqlite:///./roofgarden_dev.db" # Default fallback for zero-dependency local dev/tests; PostgreSQL in prod
+    DATABASE_URL: str = "sqlite:///./roofgarden_dev.db"  # Default fallback for zero-dependency local dev/tests; PostgreSQL in prod
     DATABASE_URL_ASYNC: str = ""
 
     # External APIs

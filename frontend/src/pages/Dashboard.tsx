@@ -8,6 +8,7 @@ export const Dashboard: React.FC = () => {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [gardens, setGardens] = useState<Garden[]>([]);
   const [zones, setZones] = useState<PlantZone[]>([]);
+  const [zoneStatuses, setZoneStatuses] = useState<Record<string, "normal" | "advisory" | "warning">>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,6 +26,20 @@ export const Dashboard: React.FC = () => {
         if (gards.length > 0) {
           const zList = await api.getZones(gards[0].id);
           setZones(zList);
+
+          const statusList = await Promise.all(
+            zList.map((z) =>
+              api
+                .getZoneStatus(z.id)
+                .then((st) => ({ id: z.id, status: st.overall_status }))
+                .catch(() => ({ id: z.id, status: "normal" as const }))
+            )
+          );
+          const stMap: Record<string, "normal" | "advisory" | "warning"> = {};
+          statusList.forEach((s) => {
+            stMap[s.id] = s.status;
+          });
+          setZoneStatuses(stMap);
         }
       } catch (err: any) {
         setError(err.message || "Failed to load dashboard data");
@@ -90,7 +105,8 @@ export const Dashboard: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {zones.map((zone) => {
-              const badge = getStatusBadge("normal");
+              const statusLevel = zoneStatuses[zone.id] || "normal";
+              const badge = getStatusBadge(statusLevel);
               return (
                 <Link
                   key={zone.id}
