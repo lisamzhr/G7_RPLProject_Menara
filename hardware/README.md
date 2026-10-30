@@ -123,3 +123,37 @@ make test-hardware
 # Or:
 cd hardware/firmware && pio test -e native
 ```
+
+
+---
+
+## 6. Wi-Fi Captive Portal Onboarding (Phone Setup)
+
+The firmware eliminates hardcoded Wi-Fi credentials through an integrated **SoftAP Captive Portal**, allowing any smartphone, tablet, or PC to provision network and backend settings through a mobile web browser.
+
+### 6.1 How It Works
+
+1. **Triggering the Portal**:
+   - **First Boot**: Automatically starts if no credentials are saved in flash NVS.
+   - **Connection Failure**: Automatically opens if the saved Wi-Fi cannot be reached within 15 seconds.
+   - **Physical Button**: Hold the onboard **BOOT button (GPIO0)** for **3 seconds** during power-up.
+   - **Serial Monitor**: Press `c` or `p` anytime in the Serial monitor.
+   - **Factory Reset**: Press `F` in the Serial monitor to wipe stored NVS credentials.
+
+2. **Connecting from a Phone**:
+   - Open your phone's Wi-Fi settings and connect to `RoofGarden-Setup-XXXX` (open network, no password needed).
+   - An OS captive portal notification / browser pop-up automatically opens. If it does not appear automatically, navigate to `http://192.168.4.1/`.
+
+3. **Web Portal Configuration Form**:
+   - **Wi-Fi Scanner**: Automatically displays a dropdown of all discovered 2.4 GHz SSIDs with signal strength (dBm), plus an option to manually enter hidden networks.
+   - **Password Field**: Enter the Wi-Fi password (includes a "Show password" toggle).
+   - **Advanced Server Settings (Optional)**:
+     - `API Base URL`: Point to local LAN (`http://192.168.1.100:8000/api/v1`) or cloud backend.
+     - `Node ID`: Hardware identifier (e.g. `esp32-node-01`).
+     - `Node API Secret Key`: Pre-shared key for `X-Node-Key` authentication.
+   - Tap **"Save & Connect"**.
+
+4. **Flash Persistence (NVS)**:
+   - Credentials are saved into the ESP32’s Non-Volatile Storage (NVS) using `Preferences.h`.
+   - The SoftAP and DNS server shut down cleanly, and the ESP32 transitions directly into Station mode.
+   - Subsequent boots connect automatically using the saved credentials without launching the portal.

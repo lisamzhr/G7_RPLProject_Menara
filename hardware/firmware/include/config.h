@@ -30,6 +30,19 @@
 // Optional visual status LED on ESP32 DevKit (GPIO2)
 #define STATUS_LED_PIN          2
 
+// Onboard BOOT Button on ESP32 DevKit (GPIO0, Active-LOW)
+// Hold on boot for 3s to trigger Wi-Fi Captive Portal setup
+#define CONFIG_BUTTON_PIN       0
+#define CONFIG_BUTTON_HOLD_SEC  3
+
+// ==============================================================================
+// Captive Portal Onboarding Configuration
+// ==============================================================================
+#define PORTAL_AP_SSID_PREFIX   "RoofGarden-Setup"
+#define PORTAL_TIMEOUT_MS       300000 // 5 minutes inactivity timeout
+#define PORTAL_DNS_PORT         53
+#define PORTAL_HTTP_PORT        80
+
 // ==============================================================================
 // Timing Intervals (Seconds / Milliseconds)
 // ==============================================================================
