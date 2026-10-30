@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   ArrowDown,
   ArrowRight,
@@ -149,9 +150,9 @@ export default function LandingPage() {
           <a className="button button-outline" href="/login">
             Sign In
           </a>
-          <a className="button button-primary" href="/login">
+          <Link className="button button-primary" to="/dashboard">
             Get Started <ArrowRight size={15} />
-          </a>
+          </Link>
         </nav>
       </header>
 
@@ -190,9 +191,9 @@ export default function LandingPage() {
           </p>
 
           <div className="hero-actions">
-            <a className="button button-primary" href="/login">
-              Get Started <ArrowRight size={16} />
-            </a>
+          <Link className="button button-primary" to="/dashboard">
+            Get Started <ArrowRight size={16} />
+          </Link>
             <a className="button button-glass" href="#features">
               Explore MENARA <ArrowDown size={15} />
             </a>
@@ -341,9 +342,9 @@ export default function LandingPage() {
             conditions, and access MENARA&apos;s available tools.
           </p>
           <div className="cta-actions">
-            <a className="button button-primary" href="/login">
-              Get Started <ArrowRight size={16} />
-            </a>
+          <Link className="button button-primary" to="/dashboard">
+            Get Started <ArrowRight size={16} />
+          </Link>
             <a className="button button-glass" href="/login">
               Sign In
             </a>
