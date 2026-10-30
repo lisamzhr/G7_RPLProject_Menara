@@ -76,6 +76,11 @@ int WiFiManager::getRSSI() {
 }
 
 bool WiFiManager::startPortal(const DeviceConfig& currentConfig, const char* apPrefix) {
+#if defined(ARDUINO)
+    // Disconnect active station attempts so ESP-IDF doesn't emit NO_AP_FOUND (201) in portal mode
+    WiFi.disconnect(false, false);
+    delay(50);
+#endif
     return _portal.begin(currentConfig, apPrefix);
 }
 
@@ -85,6 +90,9 @@ void WiFiManager::updatePortal() {
 
 void WiFiManager::stopPortal() {
     _portal.stop();
+#if defined(ARDUINO)
+    WiFi.mode(WIFI_STA);
+#endif
 }
 
 bool WiFiManager::isPortalActive() const {

@@ -1,9 +1,10 @@
 #include "captive_portal.h"
 
 #if defined(ARDUINO)
+#include <algorithm>
 
 CaptivePortal::CaptivePortal()
-    : _server(nullptr), _dnsServer(nullptr), _running(false), _configSaved(false), _startedMillis(0) {
+    : _server(nullptr), _dnsServer(nullptr), _lastScanMillis(0), _running(false), _configSaved(false), _startedMillis(0) {
     memset(&_config, 0, sizeof(DeviceConfig));
     memset(&_savedConfig, 0, sizeof(DeviceConfig));
     memset(_apSsid, 0, sizeof(_apSsid));
@@ -13,11 +14,63 @@ CaptivePortal::~CaptivePortal() {
     stop();
 }
 
+void CaptivePortal::performScan() {
+    Serial.println("[Portal] Scanning 2.4 GHz Wi-Fi channels...");
+    // Synchronous scan with show_hidden=false, passive=false
+    int n = WiFi.scanNetworks(false, false);
+    _scannedAps.clear();
+
+    if (n > 0) {
+        for (int i = 0; i < n; ++i) {
+            String s = WiFi.SSID(i);
+            s.trim();
+            if (s.length() == 0) continue;
+
+            int rssi = WiFi.RSSI(i);
+            // Check for existing SSID and keep strongest signal
+            bool found = false;
+            for (auto& existing : _scannedAps) {
+                if (strcmp(existing.ssid, s.c_str()) == 0) {
+                    if (rssi > existing.rssi) {
+                        existing.rssi = rssi;
+                    }
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                ScannedAp ap;
+                strncpy(ap.ssid, s.c_str(), sizeof(ap.ssid) - 1);
+                ap.ssid[sizeof(ap.ssid) - 1] = '\0';
+                ap.rssi = rssi;
+                _scannedAps.push_back(ap);
+            }
+        }
+
+        // Sort descending by RSSI (strongest signal first)
+        std::sort(_scannedAps.begin(), _scannedAps.end(), [](const ScannedAp& a, const ScannedAp& b) {
+            return a.rssi > b.rssi;
+        });
+
+        // Clean up internal scan memory
+        WiFi.scanDelete();
+        Serial.printf("[Portal] Scan complete: %u access points found.\n", (unsigned int)_scannedAps.size());
+    } else {
+        Serial.printf("[Portal] Scan returned code %d (no APs found or scan failed).\n", n);
+    }
+    _lastScanMillis = millis();
+}
+
 bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefix) {
     _config = initialConfig;
     _configSaved = false;
 
-    // Generate unique AP SSID using last 2 bytes of MAC
+    // 1. Explicitly disconnect Station to stop background auto-reconnect
+    // This immediately stops the ESP-IDF driver from emitting NO_AP_FOUND (reason 201)
+    WiFi.disconnect(false, false);
+    delay(50);
+
+    // 2. Generate unique AP SSID using last 2 bytes of MAC
     uint8_t mac[6];
     WiFi.macAddress(mac);
     snprintf(_apSsid, sizeof(_apSsid), "%s-%02X%02X", apPrefix, mac[4], mac[5]);
@@ -39,12 +92,15 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     Serial.print("[Portal] SoftAP IP address: ");
     Serial.println(WiFi.softAPIP());
 
-    // Start DNS server redirecting all domain requests to our AP IP (Captive Portal trigger)
+    // 3. Initial Wi-Fi scan so the list is ready when the phone loads the web page
+    performScan();
+
+    // 4. Start DNS server redirecting all domain requests to our AP IP (Captive Portal trigger)
     _dnsServer = new DNSServer();
     _dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
     _dnsServer->start(53, "*", apIP);
 
-    // Start HTTP WebServer
+    // 5. Start HTTP WebServer
     _server = new WebServer(80);
     setupRoutes();
     _server->begin();
@@ -98,6 +154,8 @@ void CaptivePortal::stop() {
         _dnsServer = nullptr;
     }
     WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_STA);
+    _scannedAps.clear();
     _running = false;
 }
 
@@ -121,17 +179,20 @@ void CaptivePortal::handleNotFound() {
 }
 
 void CaptivePortal::handleScan() {
-    int n = WiFi.scanNetworks();
+    performScan();
     String json = "[";
-    for (int i = 0; i < n; ++i) {
+    for (size_t i = 0; i < _scannedAps.size(); ++i) {
         if (i > 0) json += ",";
-        json += "{\"ssid\":\"" + WiFi.SSID(i) + "\",\"rssi\":" + String(WiFi.RSSI(i)) + "}";
+        json += "{\"ssid\":\"" + String(_scannedAps[i].ssid) + "\",\"rssi\":" + String(_scannedAps[i].rssi) + "}";
     }
     json += "]";
     _server->send(200, "application/json", json);
 }
 
 void CaptivePortal::handleRoot() {
+    if (_server->hasArg("rescan")) {
+        performScan();
+    }
     _server->send(200, "text/html", buildHtml());
 }
 
@@ -177,7 +238,7 @@ void CaptivePortal::handleSave() {
     .icon { font-size: 52px; margin-bottom: 12px; }
     h2 { margin: 0 0 10px; color: #15803d; }
     p { color: #374151; font-size: 15px; line-height: 1.5; }
-    .badge { display: inline-block; background: #dcfce7; color: #166534; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 14px; margin-top: 10px; }
+    .badge { display: inline-block; background: #dcfce7; color: #166534; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 14px; margin-top: 10px; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -197,8 +258,7 @@ void CaptivePortal::handleSave() {
 }
 
 String CaptivePortal::buildHtml() {
-    // Scan available networks
-    int n = WiFi.scanNetworks();
+    bool hasAps = !_scannedAps.empty();
 
     String html = R"rawliteral(
 <!DOCTYPE html>
@@ -243,7 +303,18 @@ String CaptivePortal::buildHtml() {
     h1 { font-size: 22px; font-weight: 700; color: #065f46; margin: 0; }
     p.sub { font-size: 14px; color: #64748b; margin: 6px 0 0; }
     .form-group { margin-bottom: 16px; }
-    label { display: block; font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; }
+    .flex-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    label { font-size: 13px; font-weight: 600; color: #334155; }
+    .rescan-btn {
+      font-size: 12px;
+      color: #059669;
+      text-decoration: none;
+      background: #ecfdf5;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 600;
+      border: 1px solid #a7f3d0;
+    }
     select, input[type="text"], input[type="password"] {
       width: 100%;
       padding: 12px 14px;
@@ -279,13 +350,14 @@ String CaptivePortal::buildHtml() {
       background: #f8fafc;
     }
     summary { font-size: 13px; font-weight: 600; color: #475569; cursor: pointer; }
-    .toggle-custom { display: none; margin-top: 8px; }
+    .toggle-custom { margin-top: 8px; }
+    .hint { font-size: 12px; color: #64748b; margin-top: 4px; }
   </style>
   <script>
     function onSsidChange() {
       var select = document.getElementById('ssid_select');
       var customDiv = document.getElementById('custom_ssid_group');
-      if (select.value === '__custom__') {
+      if (!select || select.value === '__custom__') {
         customDiv.style.display = 'block';
       } else {
         customDiv.style.display = 'none';
@@ -297,40 +369,46 @@ String CaptivePortal::buildHtml() {
     }
   </script>
 </head>
-<body>
+<body onload="onSsidChange()">
   <div class="container">
     <div class="header">
       <div class="logo-badge">&#x1F331;</div>
       <h1>RoofGarden Setup</h1>
-      <p class="sub">Connect this ESP32 node to your local rooftop Wi-Fi</p>
+      <p class="sub">Connect this ESP32 node to your local 2.4 GHz Wi-Fi</p>
     </div>
 
     <form method="POST" action="/save">
       <div class="form-group">
-        <label for="ssid_select">Available 2.4 GHz Wi-Fi</label>
+        <div class="flex-row">
+          <label for="ssid_select">Nearby 2.4 GHz Wi-Fi</label>
+          <a href="/?rescan=1" class="rescan-btn">&#x21BB; Refresh list</a>
+        </div>
         <select id="ssid_select" name="ssid" onchange="onSsidChange()">
 )rawliteral";
 
-    if (n == 0) {
-        html += "<option value='__custom__'>No networks found (Enter manually)</option>";
+    if (!hasAps) {
+        html += "<option value='__custom__' selected>No networks auto-detected (Enter manually)</option>";
     } else {
         html += "<option value=''>-- Select your Wi-Fi --</option>";
-        for (int i = 0; i < n; ++i) {
-            String ssid = WiFi.SSID(i);
-            int rssi = WiFi.RSSI(i);
-            if (ssid.length() == 0) continue; // Skip hidden SSIDs
-            html += "<option value='" + ssid + "'>" + ssid + " (" + String(rssi) + " dBm)</option>";
+        for (const auto& ap : _scannedAps) {
+            String s = String(ap.ssid);
+            int rssi = ap.rssi;
+            String signal = (rssi > -60) ? "Strong" : ((rssi > -75) ? "Good" : "Weak");
+            html += "<option value='" + s + "'>" + s + " (" + signal + ", " + String(rssi) + " dBm)</option>";
         }
         html += "<option value='__custom__'>+ Enter Hidden / Other SSID...</option>";
     }
+
+    String customDisplayStyle = hasAps ? "none" : "block";
 
     html += R"rawliteral(
         </select>
       </div>
 
-      <div class="form-group toggle-custom" id="custom_ssid_group">
-        <label for="custom_ssid">Manual Network Name (SSID)</label>
-        <input type="text" id="custom_ssid" name="custom_ssid" placeholder="My_Rooftop_WiFi">
+      <div class="form-group toggle-custom" id="custom_ssid_group" style="display:)rawliteral" + customDisplayStyle + R"rawliteral(;">
+        <label for="custom_ssid">Network Name (SSID)</label>
+        <input type="text" id="custom_ssid" name="custom_ssid" placeholder="Enter Wi-Fi network name">
+        <div class="hint">Ensure your router broadcasts a 2.4 GHz Wi-Fi signal.</div>
       </div>
 
       <div class="form-group">

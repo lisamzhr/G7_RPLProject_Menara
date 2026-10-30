@@ -18,7 +18,14 @@ static const char* NVS_NAMESPACE = "roofgarden";
 ConfigStorage::ConfigStorage() {}
 
 bool ConfigStorage::isValid(const DeviceConfig& config) {
-    return (strlen(config.wifi_ssid) > 0);
+    if (strlen(config.wifi_ssid) == 0) {
+        return false;
+    }
+    // Filter out default example template placeholder so unconfigured nodes don't fail-connect
+    if (strcmp(config.wifi_ssid, "Your_Rooftop_WiFi_SSID") == 0) {
+        return false;
+    }
+    return true;
 }
 
 bool ConfigStorage::load(DeviceConfig& outConfig) {
@@ -40,7 +47,7 @@ bool ConfigStorage::load(DeviceConfig& outConfig) {
             strncpy(outConfig.api_base_url, url.c_str(), sizeof(outConfig.api_base_url) - 1);
             strncpy(outConfig.node_id, nid.c_str(), sizeof(outConfig.node_id) - 1);
             strncpy(outConfig.node_api_key, key.c_str(), sizeof(outConfig.node_api_key) - 1);
-            return true;
+            return isValid(outConfig);
         }
     }
 #endif
