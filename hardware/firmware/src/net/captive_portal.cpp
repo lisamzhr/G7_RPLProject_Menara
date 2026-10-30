@@ -1,4 +1,48 @@
 #include "captive_portal.h"
+#include <cstring>
+
+bool CaptivePortal::isIpAddress(const char* host) {
+    if (!host || *host == '\0') return false;
+
+    int dotCount = 0;
+    int numCount = 0;
+    const char* p = host;
+
+    while (*p && *p != ':') {
+        if (*p >= '0' && *p <= '9') {
+            numCount++;
+        } else if (*p == '.') {
+            dotCount++;
+        } else {
+            return false;
+        }
+        p++;
+    }
+
+    return (dotCount == 3 && numCount >= 4);
+}
+
+bool CaptivePortal::isCaptiveProbe(const char* path) {
+    if (!path) return false;
+    static const char* const probes[] = {
+        "/generate_204",
+        "/gen_204",
+        "/mobile/status",
+        "/hotspot-detect.html",
+        "/library/test/success.html",
+        "/success.txt",
+        "/ncsi.txt",
+        "/connecttest.txt",
+        "/fwlink",
+        "/canonical.html"
+    };
+    for (const char* probe : probes) {
+        if (strcmp(path, probe) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
 
 #if defined(ARDUINO)
 #include <algorithm>
@@ -111,6 +155,27 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     return true;
 }
 
+bool CaptivePortal::captivePortal() {
+    if (!_server) return false;
+    String host = _server->hostHeader();
+    if (!isIpAddress(host.c_str())) {
+        Serial.printf("[Portal] Hijacked external probe for '%s' -> 302 Redirect to http://192.168.4.1/\n", host.c_str());
+        handleRedirect();
+        return true;
+    }
+    return false;
+}
+
+void CaptivePortal::handleRedirect() {
+    if (!_server) return;
+    _server->sendHeader("Location", "http://192.168.4.1/", true);
+    _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    _server->sendHeader("Pragma", "no-cache");
+    _server->sendHeader("Expires", "0");
+    _server->send(302, "text/plain", "");
+    _server->client().stop();
+}
+
 void CaptivePortal::setupRoutes() {
     if (!_server) return;
 
@@ -119,11 +184,23 @@ void CaptivePortal::setupRoutes() {
     _server->on("/scan", HTTP_GET, [this]() { handleScan(); });
 
     // Operating system captive portal probe intercepts
-    _server->on("/generate_204", HTTP_GET, [this]() { handleRoot(); });          // Android
-    _server->on("/hotspot-detect.html", HTTP_GET, [this]() { handleRoot(); });    // Apple iOS / macOS
-    _server->on("/ncsi.txt", HTTP_GET, [this]() { handleRoot(); });               // Windows
-    _server->on("/connecttest.txt", HTTP_GET, [this]() { handleRoot(); });        // Windows
-    _server->on("/canonical.html", HTTP_GET, [this]() { handleRoot(); });         // ChromeOS
+    // Android / Google connectivity probes:
+    _server->on("/generate_204", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/gen_204", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/mobile/status", HTTP_GET, [this]() { handleRedirect(); });
+
+    // Apple iOS / macOS Captive Network Assistant (CNA) probes:
+    _server->on("/hotspot-detect.html", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/library/test/success.html", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/success.txt", HTTP_GET, [this]() { handleRedirect(); });
+
+    // Microsoft Windows network connectivity probes:
+    _server->on("/ncsi.txt", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/connecttest.txt", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/fwlink", HTTP_GET, [this]() { handleRedirect(); });
+
+    // ChromeOS / Firefox probes:
+    _server->on("/canonical.html", HTTP_GET, [this]() { handleRedirect(); });
 
     _server->onNotFound([this]() { handleNotFound(); });
 }
@@ -132,7 +209,10 @@ void CaptivePortal::update() {
     if (!_running) return;
 
     if (_dnsServer) {
-        _dnsServer->processNextRequest();
+        // Drain pending DNS requests in queue
+        for (int i = 0; i < 5; ++i) {
+            _dnsServer->processNextRequest();
+        }
     }
     if (_server) {
         _server->handleClient();
@@ -172,10 +252,11 @@ DeviceConfig CaptivePortal::getSavedConfig() const {
 }
 
 void CaptivePortal::handleNotFound() {
-    // Redirect any unknown domain request to the portal root
-    String redirectUrl = "http://192.168.4.1/";
-    _server->sendHeader("Location", redirectUrl, true);
-    _server->send(302, "text/plain", "");
+    if (captivePortal()) {
+        return;
+    }
+    // Any unrecognized path on 192.168.4.1 redirects to root
+    handleRedirect();
 }
 
 void CaptivePortal::handleScan() {
@@ -186,13 +267,21 @@ void CaptivePortal::handleScan() {
         json += "{\"ssid\":\"" + String(_scannedAps[i].ssid) + "\",\"rssi\":" + String(_scannedAps[i].rssi) + "}";
     }
     json += "]";
+    _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     _server->send(200, "application/json", json);
 }
 
 void CaptivePortal::handleRoot() {
+    if (captivePortal()) {
+        return; // External domain intercepted, redirected to 192.168.4.1
+    }
+
     if (_server->hasArg("rescan")) {
         performScan();
     }
+    _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    _server->sendHeader("Pragma", "no-cache");
+    _server->sendHeader("Expires", "0");
     _server->send(200, "text/html", buildHtml());
 }
 
@@ -253,6 +342,7 @@ void CaptivePortal::handleSave() {
 </html>
 )rawliteral";
 
+    _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     _server->send(200, "text/html", resp);
     Serial.printf("[Portal] Credentials saved for SSID: %s\n", finalSsid.c_str());
 }
@@ -349,54 +439,67 @@ String CaptivePortal::buildHtml() {
       padding: 12px;
       background: #f8fafc;
     }
-    summary { font-size: 13px; font-weight: 600; color: #475569; cursor: pointer; }
-    .toggle-custom { margin-top: 8px; }
-    .hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+    summary {
+      font-size: 13px;
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      outline: none;
+    }
+    .hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
   </style>
   <script>
-    function onSsidChange() {
-      var select = document.getElementById('ssid_select');
-      var customDiv = document.getElementById('custom_ssid_group');
-      if (!select || select.value === '__custom__') {
-        customDiv.style.display = 'block';
-      } else {
-        customDiv.style.display = 'none';
-      }
-    }
     function togglePass() {
-      var p = document.getElementById('pass');
-      p.type = (p.type === 'password') ? 'text' : 'password';
+      var x = document.getElementById("pass");
+      x.type = x.type === "password" ? "text" : "password";
+    }
+    function onSsidChange() {
+      var sel = document.getElementById("ssid_select");
+      var customGroup = document.getElementById("custom_ssid_group");
+      var customInput = document.getElementById("custom_ssid");
+      if (sel && sel.value === "__custom__") {
+        customGroup.style.display = "block";
+        customInput.focus();
+      } else if (customGroup) {
+        customGroup.style.display = "none";
+      }
     }
   </script>
 </head>
-<body onload="onSsidChange()">
+<body>
   <div class="container">
     <div class="header">
-      <div class="logo-badge">&#x1F331;</div>
+      <div class="logo-badge">&#x1F33F;</div>
       <h1>RoofGarden Setup</h1>
-      <p class="sub">Connect this ESP32 node to your local 2.4 GHz Wi-Fi</p>
+      <p class="sub">Configure Wi-Fi credentials for node sensor</p>
     </div>
 
-    <form method="POST" action="/save">
+    <form action="/save" method="POST">
       <div class="form-group">
         <div class="flex-row">
-          <label for="ssid_select">Nearby 2.4 GHz Wi-Fi</label>
-          <a href="/?rescan=1" class="rescan-btn">&#x21BB; Refresh list</a>
+          <label for="ssid_select">Available Networks</label>
+          <a href="/?rescan=1" class="rescan-btn">&#x21BB; Refresh</a>
         </div>
         <select id="ssid_select" name="ssid" onchange="onSsidChange()">
 )rawliteral";
 
-    if (!hasAps) {
-        html += "<option value='__custom__' selected>No networks auto-detected (Enter manually)</option>";
-    } else {
-        html += "<option value=''>-- Select your Wi-Fi --</option>";
-        for (const auto& ap : _scannedAps) {
-            String s = String(ap.ssid);
-            int rssi = ap.rssi;
-            String signal = (rssi > -60) ? "Strong" : ((rssi > -75) ? "Good" : "Weak");
-            html += "<option value='" + s + "'>" + s + " (" + signal + ", " + String(rssi) + " dBm)</option>";
+    if (hasAps) {
+        for (size_t i = 0; i < _scannedAps.size(); ++i) {
+            String bars = "  ";
+            if (_scannedAps[i].rssi >= -60) bars = " [Strong]";
+            else if (_scannedAps[i].rssi >= -75) bars = " [Medium]";
+            else bars = " [Weak]";
+
+            html += "<option value=\"" + String(_scannedAps[i].ssid) + "\">" +
+                    String(_scannedAps[i].ssid) + bars + "</option>\n";
         }
-        html += "<option value='__custom__'>+ Enter Hidden / Other SSID...</option>";
+        html += "<option value=\"__custom__\">-- Manual SSID entry --</option>\n";
+    } else {
+        html += "<option value=\"__custom__\">No Wi-Fi networks found (Enter manually)</option>\n";
     }
 
     String customDisplayStyle = hasAps ? "none" : "block";
