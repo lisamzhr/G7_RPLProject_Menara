@@ -1,4 +1,6 @@
-# Python
+# ==============================
+# Python / Backend
+# ==============================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -26,27 +28,46 @@ wheels/
 .ruff_cache/
 uv.lock
 
+# ==============================
 # Node / Frontend
+# ==============================
 node_modules/
+frontend/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 frontend/dist/
-frontend/node_modules/
 
-# Local databases & secrets
-*.db
-*.sqlite3
+# ==============================
+# Build Output
+# ==============================
+dist/
+
+# ==============================
+# Environment Variables / Secrets
+# ==============================
 .env
+.env.*
+!.env.example
 hardware/firmware/include/secrets.h
 
+# ==============================
+# Local Databases
+# ==============================
+*.db
+*.sqlite3
+
+# ==============================
 # PlatformIO / Hardware
+# ==============================
 .pio/
-.vscode/
-.cache/
 compile_commands.json
 
-# OS / IDE
+# ==============================
+# IDE / OS
+# ==============================
+.vscode/
+.cache/
 .DS_Store
 Thumbs.db
 .idea/
