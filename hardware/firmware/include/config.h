@@ -1,6 +1,17 @@
 #pragma once
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+#endif
+
+// ==============================================================================
+// Mock Environment Toggle
+// Set to 1 to simulate sensor inputs without physical hardware
+// (Can also be enabled via build_flags: -D MOCK_ENVIRONMENT=1)
+// ==============================================================================
+#ifndef MOCK_ENVIRONMENT
+#define MOCK_ENVIRONMENT        0
+#endif
 
 // ==============================================================================
 // Hardware Pin Definitions
@@ -16,12 +27,29 @@
 #define RELAY_PIN               26   // GPIO26: Active-Low Sprinkler Relay
 #define RELAY_ACTIVE_LOW        true
 
+// Optional visual status LED on ESP32 DevKit (GPIO2)
+#define STATUS_LED_PIN          2
+
 // ==============================================================================
 // Timing Intervals (Seconds / Milliseconds)
 // ==============================================================================
-#define SEND_INTERVAL_S         300  // Reading interval: 5 minutes
-#define COMMAND_POLL_INTERVAL_S 30   // Poll pending commands every 30 seconds
+#define SEND_INTERVAL_S         300  // Production reading interval: 5 minutes
+#define MOCK_SEND_INTERVAL_S    15   // Mock environment interval: 15 seconds (fast feedback)
+#define COMMAND_POLL_INTERVAL_S 15   // Poll pending commands every 15 seconds
 #define NTP_SYNC_INTERVAL_S     3600 // NTP resync every 1 hour
+
+#if MOCK_ENVIRONMENT
+#define EFFECTIVE_SEND_INTERVAL_S MOCK_SEND_INTERVAL_S
+#else
+#define EFFECTIVE_SEND_INTERVAL_S SEND_INTERVAL_S
+#endif
+
+// ==============================================================================
+// Mock Environment Simulation Constants
+// ==============================================================================
+#define MOCK_INITIAL_SOIL_PCT   78.0f // Initial soil moisture %
+#define MOCK_WATER_ABSORB_RATE  0.45f // % moisture increase per second of watering
+#define MOCK_SOIL_DRY_RATE      0.02f // % moisture drop per second
 
 // ==============================================================================
 // Capacitive Soil Moisture Calibration Constants
