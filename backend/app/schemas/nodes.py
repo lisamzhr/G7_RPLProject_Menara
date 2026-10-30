@@ -23,7 +23,7 @@ class NodeCommandOut(BaseModel):
 
 
 class CommandAckRequest(BaseModel):
-    status: str # acked, failed
+    status: str  # acked, failed
     executed_at: datetime | None = None
     result: str | None = None
 

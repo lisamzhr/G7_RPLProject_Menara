@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "author": "RoofGarden Team",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-led",
+      "id": "relay_led",
+      "top": -60,
+      "left": 130,
+      "attrs": { "color": "cyan", "label": "Sprinkler Relay (GPIO26)" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "r1",
+      "top": -20,
+      "left": 130,
+      "attrs": { "resistance": "330" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:26", "relay_led:A", "cyan", [ "v0" ] ],
+    [ "relay_led:K", "r1:1", "black", [ "v0" ] ],
+    [ "r1:2", "esp:GND.1", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}

@@ -19,7 +19,9 @@ router = APIRouter()
 bmkg = BMKGClient()
 
 
-@router.get("/summary", response_model=DashboardSummaryResponse, summary="Get daily overview summary")
+@router.get(
+    "/summary", response_model=DashboardSummaryResponse, summary="Get daily overview summary"
+)
 async def get_dashboard_summary(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -45,12 +47,7 @@ async def get_dashboard_summary(
     forecast_data = await bmkg.get_forecast(db, adm4)
 
     # Top recommendations
-    recs = (
-        db.query(Recommendation)
-        .order_by(desc(Recommendation.created_at))
-        .limit(3)
-        .all()
-    )
+    recs = db.query(Recommendation).order_by(desc(Recommendation.created_at)).limit(3).all()
     top_recs = []
     for r in recs:
         z = db.query(PlantZone).filter(PlantZone.id == r.zone_id).first()

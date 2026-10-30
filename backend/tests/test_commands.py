@@ -19,7 +19,9 @@ def test_actuator_command_flow(client, db_session):
     db_session.commit()
 
     # 1. Post manual command to actuator
-    cmd_res = client.post(f"/api/v1/actuators/{act.id}/command", json={"command": "turn_on", "duration_seconds": 30})
+    cmd_res = client.post(
+        f"/api/v1/actuators/{act.id}/command", json={"command": "turn_on", "duration_seconds": 30}
+    )
     assert cmd_res.status_code == 200
     cmd_id = cmd_res.json()["command_id"]
 

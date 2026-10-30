@@ -7,7 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ReadingIngestRequest(BaseModel):
     node_id: str = Field(..., description="ESP32 hardware node identifier")
-    ts: datetime | None = Field(None, description="ISO8601 reading timestamp (defaults to current time if omitted)")
+    ts: datetime | None = Field(
+        None, description="ISO8601 reading timestamp (defaults to current time if omitted)"
+    )
     soil_moisture_pct: float = Field(..., description="Soil moisture percentage (0-100)")
     temperature_c: float = Field(..., description="Temperature in Celsius (-10 to 70)")
     humidity_pct: float = Field(..., description="Relative humidity percentage (0-100)")

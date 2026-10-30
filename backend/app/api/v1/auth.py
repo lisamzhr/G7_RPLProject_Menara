@@ -27,4 +27,8 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         db.refresh(user)
 
     token = create_access_token({"sub": user.id, "email": user.email, "role": user.role})
-    return {"access_token": token, "token_type": "bearer", "user": {"id": user.id, "name": user.name, "role": user.role}}
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {"id": user.id, "name": user.name, "role": user.role},
+    }

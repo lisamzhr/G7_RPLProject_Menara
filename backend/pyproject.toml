@@ -20,6 +20,7 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "psycopg2-binary>=2.9.9",
     "pgvector>=0.2.5",
+    "roofgarden-ai",
 ]
 
 [project.optional-dependencies]
@@ -41,3 +42,7 @@ ignore = ["B008", "BLE001"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+pythonpath = [".", "../ai"]
+
+[tool.uv.sources]
+roofgarden-ai = { path = "../ai", editable = true }

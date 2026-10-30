@@ -13,7 +13,7 @@ import random
 import time
 from datetime import UTC, datetime
 
-import requests
+import httpx
 
 DEFAULT_API_URL = "http://localhost:8000/api/v1"
 DEFAULT_NODE_ID = "esp32-node-01"
@@ -79,17 +79,17 @@ def run_simulator(
 
         # 1. Post telemetry
         try:
-            res = requests.post(f"{api_url}/ingest/readings", json=payload, headers=headers, timeout=5)
+            res = httpx.post(f"{api_url}/ingest/readings", json=payload, headers=headers, timeout=5)
             if res.status_code in [200, 201]:
                 print(f"[{count}] Ingested: Moisture={payload['soil_moisture_pct']}% Temp={temp}C Hum={hum}% Lux={lux}")
             else:
                 print(f"[{count}] Ingest error {res.status_code}: {res.text}")
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             print(f"[{count}] Ingest request failed: {e}")
 
         # 2. Poll pending commands
         try:
-            poll_res = requests.get(f"{api_url}/nodes/{node_id}/commands", headers=headers, timeout=5)
+            poll_res = httpx.get(f"{api_url}/nodes/{node_id}/commands", headers=headers, timeout=5)
             if poll_res.status_code == 200:
                 commands = poll_res.json()
                 if commands:
@@ -112,9 +112,9 @@ def run_simulator(
                             "executed_at": datetime.now(UTC).isoformat(),
                             "result": f"Simulated relay executed {action} for {duration}s",
                         }
-                        ack_res = requests.post(f"{api_url}/nodes/{node_id}/commands/{cid}/ack", json=ack_payload, headers=headers)
+                        ack_res = httpx.post(f"{api_url}/nodes/{node_id}/commands/{cid}/ack", json=ack_payload, headers=headers)
                         print(f"  -> Ack response: {ack_res.status_code}")
-        except requests.RequestException as e:
+        except httpx.HTTPError as e:
             print(f"[{count}] Poll command failed: {e}")
 
         if iterations == 0 or count < iterations:

@@ -11,4 +11,6 @@ class KnowledgeChunk(Base, TimestampMixin):
     category_key = Column(String(50), index=True, nullable=False)
     content = Column(Text, nullable=False)
     source = Column(Text, nullable=False)
-    embedding = Column(VectorType(1536), nullable=True) # pgvector Vector(1536) on Postgres, JSON on SQLite
+    embedding = Column(
+        VectorType(1536), nullable=True
+    )  # pgvector Vector(1536) on Postgres, JSON on SQLite

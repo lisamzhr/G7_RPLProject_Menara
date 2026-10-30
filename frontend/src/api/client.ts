@@ -11,9 +11,11 @@ import {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const headers = {
+  const token = localStorage.getItem("roofgarden_token");
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   const res = await fetch(url, { ...options, headers });
@@ -25,6 +27,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  login: (email: string, password: string) =>
+    request<{ access_token: string; token_type: string; user: { id: string; name: string; role: string } }>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
   getGardens: () => request<Garden[]>("/gardens"),
   getZones: (gardenId: string) => request<PlantZone[]>(`/gardens/${gardenId}/zones`),
   getZoneStatus: (zoneId: string) => request<ZoneStatus>(`/zones/${zoneId}/status`),

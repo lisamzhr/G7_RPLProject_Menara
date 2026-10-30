@@ -1,6 +1,11 @@
 #pragma once
 
+#if defined(ARDUINO)
 #include <Arduino.h>
+#else
+#include <cstddef>
+#include <cstring>
+#endif
 
 struct SensorReading {
     char timestamp[30];
