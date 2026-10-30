@@ -68,3 +68,58 @@ Capacitive soil moisture sensors vary by manufacturer and soil substrate. Calibr
    - If WiFi connection or API heartbeats fail for more than 120 seconds while a relay is commanded ON, the firmware automatically de-energizes the relay immediately.
 4. **In-Memory Ring Buffer**:
    - When offline, up to 100 sensor readings with NTP-synchronized timestamps are stored in RAM. Upon reconnection to WiFi, the buffer is flushed sequentially to `/api/v1/ingest/readings`.
+
+
+---
+
+## 5. Mock Environment Firmware
+
+The firmware provides a dedicated **Mock Environment** target (`esp32dev_mock`) for developing, testing, and demonstrating the IoT system without requiring connected physical sensors.
+
+### 5.1 Key Capabilities
+
+- **Realistic Sensor Synthesis**: Generates high-fidelity readings for capacitive soil moisture (with natural drying curves), DHT22 (ambient temperature and humidity), BH1750 (solar illuminance in lux), and Li-ion battery voltage.
+- **Bi-Directional Actuation Feedback**: When the backend or web app sends a `turn_on` command, the firmware energizes the relay and calculates water absorption into the soil (+0.45% moisture per second), satisfying the backend's automated `verify_actions` loop.
+- **Accelerated Ingestion Cadence**: Transmits telemetry every **15 seconds** (configurable via `MOCK_SEND_INTERVAL_S`) instead of 300 seconds for rapid UI responsiveness during testing.
+- **Interactive Serial Console**: Switch scenarios dynamically in real-time via USB serial:
+  - `1` or `n`: **NORMAL** (Optimal conditions: 74-82% soil moisture, 27.5°C, 72% RH).
+  - `2` or `d`: **DRY** (Simulates soil drying <62% to trigger AI automated irrigation recommendations).
+  - `3` or `h`: **HEATWAVE** (Simulates extreme solar radiation >36°C, <45% RH to test heat stress alerts).
+  - `4` or `w`: **WATER PULSE** (+12% immediate soil moisture boost).
+  - `5` or `a`: **ANOMALY TOGGLE** (Injects out-of-bounds metrics to verify backend `is_valid=false` rejection).
+  - `?` or `s`: **DIAGNOSTICS** (Prints status, buffer size, WiFi state, and current sensor values).
+
+### 5.2 Building & Running
+
+#### 1. Compile ESP32 Mock Firmware (PlatformIO)
+```bash
+cd hardware/firmware
+pio run -e esp32dev_mock
+```
+To flash to a connected ESP32 board:
+```bash
+pio run -e esp32dev_mock -t upload
+pio device monitor
+```
+
+#### 2. Run in Wokwi Simulator
+A pre-configured `wokwi.toml` and `diagram.json` are included. In VS Code with the Wokwi extension or via Wokwi CLI:
+```bash
+# Opens simulation with virtual ESP32 DevKit, status LED, and relay circuit
+wokwi-cli hardware/firmware
+```
+
+#### 3. Run Native Host Mock Firmware (PC / Windows / Linux)
+Compile and run directly on your host machine without an ESP32 board:
+```bash
+make build-native-mock
+./hardware/firmware/mock_node.exe
+```
+
+#### 4. Run Firmware Unit Tests
+Execute the native unit tests verifying ring buffer and mock sensor dynamics:
+```bash
+make test-hardware
+# Or:
+cd hardware/firmware && pio test -e native
+```
