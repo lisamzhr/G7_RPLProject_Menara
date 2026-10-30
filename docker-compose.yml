@@ -19,8 +19,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: roofgarden_backend
     restart: unless-stopped
     ports:
@@ -34,10 +34,12 @@ services:
       BMKG_BASE_URL: ${BMKG_BASE_URL:-https://api.bmkg.go.id/publik}
       OPEN_ELEVATION_BASE_URL: ${OPEN_ELEVATION_BASE_URL:-https://api.open-elevation.com/api/v1/lookup}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./scripts:/app/scripts
     depends_on:
       db:
         condition: service_healthy
-
+    
 volumes:
   postgres_data:
     driver: local

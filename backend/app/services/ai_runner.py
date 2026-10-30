@@ -4,7 +4,8 @@ import logging
 from datetime import UTC, datetime
 
 from roofgarden_ai.contracts import CategoryThresholds, ZoneContext
-from roofgarden_ai.llm.claude_client import ClaudeClient, MockLLMClient
+from roofgarden_ai.llm.base import MockLLMClient
+from roofgarden_ai.llm.groq_client import GroqClient
 from roofgarden_ai.orchestrator import evaluate
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
@@ -83,7 +84,11 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
         rain_chance_next_3h=rain_chance,
     )
 
-    llm = ClaudeClient() if settings.ANTHROPIC_API_KEY else MockLLMClient()
+    if settings.GROQ_API_KEY:
+        llm = GroqClient(api_key=settings.GROQ_API_KEY, model=settings.LLM_MODEL)
+    else:
+        llm = MockLLMClient()
+
     decision = evaluate(ctx, llm_client=llm)
 
     # Persist Recommendation

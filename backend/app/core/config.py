@@ -26,10 +26,10 @@ class Settings(BaseSettings):
     BMKG_BASE_URL: str = "https://api.bmkg.go.id/publik"
     OPEN_ELEVATION_BASE_URL: str = "https://api.open-elevation.com/api/v1/lookup"
 
-    # AI & LLM Provider
-    ANTHROPIC_API_KEY: str = ""
-    LLM_PROVIDER: str = "claude"
-    LLM_MODEL: str = "claude-3-5-sonnet-20241022"
+    # AI & LLM Provider (Groq API free tier)
+    GROQ_API_KEY: str = ""
+    LLM_PROVIDER: str = "groq"
+    LLM_MODEL: str = "llama-3.3-70b-versatile"
 
     # APScheduler Background Job Intervals
     JOB_EVALUATE_ZONES_INTERVAL_MINUTES: int = 15

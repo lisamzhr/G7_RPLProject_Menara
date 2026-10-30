@@ -9,12 +9,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy pyproject files and install dependencies
-COPY pyproject.toml ./
+# Install AI package first
+COPY ai /ai
+RUN pip install --no-cache-dir /ai
+
+# Install backend dependencies
+COPY backend/pyproject.toml ./
 RUN pip install --no-cache-dir .
 
 # Copy application source code
-COPY . .
+COPY backend/ .
 
 # Expose port
 EXPOSE 8000
