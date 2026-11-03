@@ -1,10 +1,9 @@
 """Pydantic contracts for RoofGarden AI orchestration, rule engine, and guardrails."""
 
 from __future__ import annotations
-
 from typing import Literal
-
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class CategoryThresholds(BaseModel):
@@ -51,6 +50,8 @@ class ZoneContext(BaseModel):
     min_interval_minutes: int = 120
     daily_water_cap_seconds: int = 300
     suggested_water_seconds: int = 30
+    moisture_series_10min: list[float] = Field(default_factory=list)  # persen, tiap 10 menit, terlama -> terbaru, >= 19 titik
+    observed_at: datetime | None = None    
 
 
 class ProposedAction(BaseModel):
