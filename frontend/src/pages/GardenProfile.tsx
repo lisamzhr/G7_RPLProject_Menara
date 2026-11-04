@@ -14,8 +14,6 @@ import {
   UserRound,
   MoreVertical,
   Clock3,
-  Wifi,
-  Link,
 } from "lucide-react";
 
 import {

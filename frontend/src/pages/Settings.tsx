@@ -24,7 +24,6 @@ import {
   EyeOff,
   CheckCircle2,
   AlertTriangle,
-  Wifi,
   Waves,
   Lightbulb,
   RefreshCw,

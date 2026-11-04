@@ -17,17 +17,13 @@ import {
   Wifi,
   BatteryFull,
   ChevronDown,
-  ChevronRight,
   MapPin,
   Radio,
   Sparkles,
-  Droplets,
   House,
   UserRound,
   MoreVertical,
   Check,
-  Clock,
-  Leaf,
 } from "lucide-react";
 
 import "../styles/dashboard.css";

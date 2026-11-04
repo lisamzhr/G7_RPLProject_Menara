@@ -12,7 +12,6 @@ import {
   RefreshCw,
   Clock,
   Building2,
-  Wifi,
   Droplet,
   ShieldCheck,
   Timer,
@@ -219,6 +218,11 @@ export const Devices = () => {
               </button>
             </div>
           </header>
+          {/* CONTROLLER NOTICE */}
+          <div className="device-notice" role="status">
+            <Info size={16} />
+            <p>{notice}</p>
+          </div>
 
           {/* CONTROLLER STATUS */}
           <section className="device-controller-status">

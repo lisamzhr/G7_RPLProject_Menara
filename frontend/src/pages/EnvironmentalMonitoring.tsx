@@ -6,7 +6,6 @@ import {
   Brain,
   SlidersHorizontal,
   Settings,
-  MapPin,
   ChevronDown,
   RefreshCw,
   Radio,
@@ -17,7 +16,6 @@ import {
   Sun,
   Building2,
   ShieldCheck,
-  Clock3,
 } from "lucide-react";
 
 import {
@@ -25,8 +23,6 @@ import {
   AreaChart,
   CartesianGrid,
   Line,
-  LineChart,
-  ReferenceArea,
   ResponsiveContainer,
   Tooltip,
   XAxis,
