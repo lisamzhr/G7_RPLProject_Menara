@@ -1,15 +1,18 @@
 import { createBrowserRouter } from "react-router-dom";
-import { Layout } from "./components/layout/Layout";
+
 import { Dashboard } from "./pages/Dashboard";
-import { ZoneDetail } from "./pages/ZoneDetail";
-import { Alerts } from "./pages/Alerts";
+import { GardenProfile } from "./pages/GardenProfile";
+import { EnvironmentalMonitoring } from "./pages/EnvironmentalMonitoring";
+import { AIRecommendations } from "./pages/AIRecommendations";
 import { Devices } from "./pages/Devices";
 import { Settings } from "./pages/Settings";
+
 import { Login } from "./pages/Login";
+import Register from "./pages/Register";
 import LandingPage from "./pages/LandingPage";
 
 export const router = createBrowserRouter([
-  // Public landing page
+  // Public Landing Page
   {
     path: "/",
     element: <LandingPage />,
@@ -20,32 +23,44 @@ export const router = createBrowserRouter([
     path: "/login",
     element: <Login />,
   },
-
-  // Internal application
   {
-    path: "/",
-    element: <Layout />,
-    children: [
-      {
-        path: "dashboard",
-        element: <Dashboard />,
-      },
-      {
-        path: "zones/:id",
-        element: <ZoneDetail />,
-      },
-      {
-        path: "alerts",
-        element: <Alerts />,
-      },
-      {
-        path: "devices",
-        element: <Devices />,
-      },
-      {
-        path: "settings",
-        element: <Settings />,
-      },
-    ],
+    path: "/register",
+    element: <Register />,
+  },
+
+  // MENARA Dashboard
+  {
+    path: "/dashboard",
+    element: <Dashboard />,
+  },
+
+  // Garden Profile
+  {
+    path: "/garden-profile",
+    element: <GardenProfile />,
+  },
+
+  // Environmental Monitoring
+  {
+    path: "/monitoring",
+    element: <EnvironmentalMonitoring />,
+  },
+
+  // AI Recommendations
+  {
+    path: "/recommendations",
+    element: <AIRecommendations />,
+  },
+
+  // Device Control
+  {
+    path: "/devices",
+    element: <Devices />,
+  },
+
+  // Settings
+  {
+    path: "/settings",
+    element: <Settings />,
   },
 ]);

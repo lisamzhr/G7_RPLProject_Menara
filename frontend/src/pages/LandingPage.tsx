@@ -147,12 +147,13 @@ export default function LandingPage() {
           <a href="#audience" onClick={() => setMenuOpen(false)}>
             About <span className="nav-chevron"></span>
           </a>
-          <a className="button button-outline" href="/login">
-            Sign In
-          </a>
-          <Link className="button button-primary" to="/dashboard">
-            Get Started <ArrowRight size={15} />
-          </Link>
+        <Link className="button button-outline" to="/login">
+          Sign In
+        </Link>
+
+        <Link className="button button-primary" to="/register">
+          Get Started <ArrowRight size={15} />
+        </Link>
         </nav>
       </header>
 
@@ -190,10 +191,11 @@ export default function LandingPage() {
             plant-care decisions with AI and IoT.
           </p>
 
-          <div className="hero-actions">
-          <Link className="button button-primary" to="/dashboard">
-            Get Started <ArrowRight size={16} />
-          </Link>
+            <div className="hero-actions">
+            <Link className="button button-primary" to="/register">
+              Get Started <ArrowRight size={16} />
+            </Link>
+
             <a className="button button-glass" href="#features">
               Explore MENARA <ArrowDown size={15} />
             </a>
@@ -342,12 +344,13 @@ export default function LandingPage() {
             conditions, and access MENARA&apos;s available tools.
           </p>
           <div className="cta-actions">
-          <Link className="button button-primary" to="/dashboard">
-            Get Started <ArrowRight size={16} />
-          </Link>
-            <a className="button button-glass" href="/login">
+            <Link className="button button-primary" to="/register">
+              Get Started <ArrowRight size={16} />
+            </Link>
+
+            <Link className="button button-glass" to="/login">
               Sign In
-            </a>
+            </Link>
           </div>
         </div>
       </section>
