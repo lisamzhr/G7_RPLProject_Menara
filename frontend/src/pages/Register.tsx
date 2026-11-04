@@ -14,7 +14,7 @@ import {
   UserRoundPlus,
 } from "lucide-react";
 import { api } from "../api/client";
-import "../styles/Register.css";
+import "../styles/register.css";
 
 export const Register = () => {
   const navigate = useNavigate();
