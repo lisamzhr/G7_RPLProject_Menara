@@ -1,448 +1,423 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
-  CloudSun,
-  Droplets,
-  Leaf,
-  MapPin,
   Sprout,
+  LayoutDashboard,
+  BarChart3,
+  Brain,
+  SlidersHorizontal,
+  Settings,
+  Thermometer,
+  Droplet,
   Sun,
-  Wind,
-  ArrowUpRight,
-  RefreshCw,
+  CloudSun,
+  CloudRain,
+  Cloud,
+  Wifi,
+  BatteryFull,
+  ChevronDown,
+  MapPin,
+  Radio,
+  Sparkles,
+  House,
+  UserRound,
+  MoreVertical,
+  Check,
 } from "lucide-react";
 
-import { api } from "../api/client";
-import { DashboardSummary, Garden, PlantZone } from "../types";
-import { getStatusBadge } from "../lib/status";
+import "../styles/dashboard.css";
 
-export const Dashboard: React.FC = () => {
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [gardens, setGardens] = useState<Garden[]>([]);
-  const [zones, setZones] = useState<PlantZone[]>([]);
-  const [zoneStatuses, setZoneStatuses] = useState<
-    Record<string, "normal" | "advisory" | "warning">
-  >({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const sensorData = [
+  {
+    title: "AIR TEMPERATURE",
+    sensor: "DHT22 Sensor",
+    value: "31.2",
+    unit: "°C",
+    status: "Normal Range",
+    recommendation: "Rec: 26–33°C",
+    icon: Thermometer,
+    level: 6,
+    color: "green",
+  },
+  {
+    title: "AIR HUMIDITY",
+    sensor: "DHT22 Sensor",
+    value: "64",
+    unit: "%",
+    status: "Optimal",
+    recommendation: "Rec: 60–75%",
+    icon: Droplet,
+    level: 6,
+    color: "green",
+  },
+  {
+    title: "SOIL MOISTURE",
+    sensor: "Capacitive v1.2",
+    value: "71",
+    unit: "%",
+    status: "Adequate",
+    recommendation: "Depth 15cm • B3",
+    icon: Sprout,
+    level: 7,
+    color: "green",
+  },
+  {
+    title: "LIGHT INTENSITY",
+    sensor: "BH1750 Lux Sensor",
+    value: "42,500",
+    unit: "lux",
+    status: "High Sunlight",
+    recommendation: "",
+    icon: Sun,
+    level: 7,
+    color: "gold",
+  },
+];
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+const recommendations = [
+  {
+    title: "Delay Afternoon Misting",
+    description:
+      "Rain forecast at 16:00 combined with 71% soil moisture indicates sufficient hydration. Postponing misting prevents root saturation.",
+    device: "Solenoid Bank 02 (Valve A)",
+    priority: "High Priority",
+    action: "Postpone",
+    icon: Droplet,
+    type: "high",
+  },
+  {
+    title: "Deploy Canopy Shade Cloth",
+    description:
+      "Ambient light exceeds 40,000 lux peak irradiance. Adjust motorized shade net over Bok Choy beds to mitigate solar leaf scorch.",
+    device: "Motorized Retractable Pergola",
+    priority: "Medium Priority",
+    action: "Engage",
+    icon: House,
+    type: "medium",
+  },
+];
 
-      const [sum, gards] = await Promise.all([
-        api.getDashboardSummary(),
-        api.getGardens(),
-      ]);
+const sidebarLinks = [
+  { label: "Dashboard", icon: LayoutDashboard, to: "/dashboard", active: true },
+  { label: "Garden Profile", icon: Sprout, to: "/garden-profile" },
+  {
+    label: "Environmental Monitoring",
+    icon: BarChart3,
+    to: "/monitoring",
+  },
+  { label: "AI Recommendations", icon: Brain, to: "/recommendations", ai: true },
+  { label: "Device Control", icon: SlidersHorizontal, to: "/devices" },
+  { label: "Settings", icon: Settings, to: "/settings" },
+];
 
-      setSummary(sum);
-      setGardens(gards);
+function Sidebar() {
+  return (
+    <aside className="dashboard-sidebar">
+      <Link to="/dashboard" className="dashboard-brand">
+        <span className="dashboard-brand-logo">
+          <img src="/LogoMenara.png" alt="MENARA Logo" />
+        </span>
+        <span className="dashboard-brand-text">
+          <strong>
+            MENARA<span className="brand-online-dot" />
+          </strong>
+          <small>ROOFTOP AGRITECH</small>
+        </span>
+      </Link>
 
-      if (gards.length > 0) {
-        const zList = await api.getZones(gards[0].id);
-        setZones(zList);
+      <nav className="dashboard-navigation">
+        {sidebarLinks.map((item) => {
+          const Icon = item.icon;
 
-        const statusList = await Promise.all(
-          zList.map((zone) =>
-            api
-              .getZoneStatus(zone.id)
-              .then((status) => ({
-                id: zone.id,
-                status: status.overall_status,
-              }))
-              .catch(() => ({
-                id: zone.id,
-                status: "normal" as const,
-              }))
-          )
-        );
+          return (
+            <Link
+              to={item.to}
+              key={item.label}
+              className={`dashboard-nav-link ${item.active ? "active" : ""}`}
+            >
+              <Icon size={17} />
+              <span>{item.label}</span>
+              {item.ai && <span className="nav-ai-tag">AI</span>}
+              {item.active && <span className="nav-active-dot" />}
+            </Link>
+          );
+        })}
+      </nav>
 
-        const statusMap: Record<
-          string,
-          "normal" | "advisory" | "warning"
-        > = {};
+      <div className="sidebar-bottom">
+        <div className="network-status">
+          <span className="network-dot" />
+          <span>Online • Node Mesh</span>
+          <Radio size={13} />
+        </div>
 
-        statusList.forEach((item) => {
-          statusMap[item.id] = item.status;
-        });
-
-        setZoneStatuses(statusMap);
-      } else {
-        setZones([]);
-        setZoneStatuses({});
-      }
-    } catch (err: any) {
-      setError(err.message || "Failed to load dashboard data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const garden = gardens[0];
-  const weather = summary?.weather_summary;
-
-  const healthyZones = summary?.zones_ok ?? 0;
-  const attentionZones = summary?.zones_need_attention ?? 0;
-
-  if (loading) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-[#527A4D]">
-        <RefreshCw size={30} className="animate-spin" />
-        <p className="text-sm font-medium">
-          Loading rooftop garden status...
-        </p>
+        <div className="sidebar-profile">
+          <div className="profile-avatar">
+            <UserRound size={19} />
+          </div>
+          <div className="profile-info">
+            <strong>Dr. Ezzedine Ruzash</strong>
+            <small>Lead Agronomist</small>
+          </div>
+          <button className="profile-menu" aria-label="Profile menu">
+            <MoreVertical size={18} />
+          </button>
+        </div>
       </div>
-    );
-  }
+    </aside>
+  );
+}
 
-  if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">
-        <h3 className="font-semibold text-lg">
-          Unable to load dashboard
-        </h3>
-        <p className="mt-1 text-sm">{error}</p>
-        <button
-          onClick={fetchData}
-          className="mt-4 rounded-lg bg-red-700 px-4 py-2 text-sm font-medium text-white hover:bg-red-800"
-        >
-          Try Again
-        </button>
-      </div>
-    );
-  }
+function SensorCard({
+  sensor,
+}: {
+  sensor: (typeof sensorData)[number];
+}) {
+  const Icon = sensor.icon;
 
   return (
-    <div className="space-y-6 text-[#26352B]">
-
-      {/* Page Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight">
-              Dashboard
-            </h1>
-
-            <span className="flex items-center gap-1.5 rounded-full border border-[#DCE6D6] bg-white px-3 py-1 text-xs text-[#527A4D] shadow-sm">
-              <span className="h-2 w-2 rounded-full bg-[#6FA66B]" />
-              Live Overview
-            </span>
-          </div>
-
-          <p className="mt-1 text-sm text-[#718071]">
-            Monitor your rooftop garden conditions and activities.
-          </p>
-        </div>
-
-        <button
-          onClick={fetchData}
-          className="flex items-center justify-center gap-2 rounded-xl border border-[#DCE3D6] bg-white px-4 py-2.5 text-sm font-medium text-[#527A4D] shadow-sm transition hover:bg-[#F1F5EC]"
-        >
-          <RefreshCw size={15} />
-          Refresh Data
-        </button>
+    <article className="sensor-card">
+      <div className="sensor-card-heading">
+        <span>{sensor.title}</span>
+        <span className="sensor-icon">
+          <Icon size={17} />
+        </span>
       </div>
 
-      {/* Garden Overview */}
-      <section className="rounded-2xl border border-[#DCE4D7] bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <p className="sensor-name">{sensor.sensor}</p>
 
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#E8F0E5] text-[#527A4D]">
-              <Sprout size={23} />
-            </div>
+      <div className="sensor-value">
+        {sensor.value}
+        <span>{sensor.unit}</span>
+      </div>
 
-            <div>
-              <h2 className="font-bold text-[#26352B]">
-                {garden?.name || "My Rooftop Garden"}
-              </h2>
-              <p className="mt-1 flex items-center gap-1 text-xs text-[#7B8979]">
-                <MapPin size={13} />
-                {weather?.location || "Garden Location"}
-              </p>
-            </div>
-          </div>
+      <div className={`sensor-bars ${sensor.color}`}>
+        {Array.from({ length: 7 }).map((_, index) => (
+          <span
+            key={index}
+            className={index < sensor.level ? "filled" : ""}
+          />
+        ))}
+      </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2 rounded-xl bg-[#EAF4E6] px-4 py-3">
-              <Activity size={17} className="text-[#527A4D]" />
-              <div>
-                <p className="text-xs text-[#718071]">Healthy Zones</p>
-                <p className="font-bold text-[#365D38]">
-                  {healthyZones} Zones
-                </p>
-              </div>
-            </div>
+      <div className="sensor-card-footer">
+        <span className={`sensor-status ${sensor.color}`}>
+          <span className="status-small-dot" />
+          {sensor.status}
+        </span>
+        <small>{sensor.recommendation}</small>
+      </div>
+    </article>
+  );
+}
 
-            <div className="flex items-center gap-2 rounded-xl bg-[#FFF4DD] px-4 py-3">
-              <Activity size={17} className="text-[#B88935]" />
-              <div>
-                <p className="text-xs text-[#8D7A55]">Need Attention</p>
-                <p className="font-bold text-[#9B7028]">
-                  {attentionZones} Zones
-                </p>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* Summary Cards */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Garden Summary</h2>
-          <span className="text-xs text-[#829080]">
-            Current Overview
+function WeatherSection() {
+  return (
+    <section className="dashboard-panel weather-panel">
+      <div className="panel-heading">
+        <div className="panel-title">
+          <span className="panel-icon weather-icon">
+            <CloudSun size={19} />
           </span>
+          <h2>BMKG Weather Integration</h2>
         </div>
+        <span className="source-tag">BMKG Jakarta Pusat</span>
+      </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-
-          {/* Total Zones */}
-          <div className="rounded-2xl border border-[#DCE4D7] bg-white p-5 shadow-sm transition hover:shadow-md">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#718071]">
-                Total Plant Zones
-              </p>
-              <div className="rounded-lg bg-[#E8F0E5] p-2 text-[#527A4D]">
-                <Leaf size={19} />
-              </div>
-            </div>
-            <p className="mt-3 text-3xl font-bold">
-              {zones.length}
-            </p>
-            <p className="mt-2 text-xs text-[#829080]">
-              Registered garden zones
-            </p>
-          </div>
-
-          {/* Healthy Zones */}
-          <div className="rounded-2xl border border-[#DCE4D7] bg-white p-5 shadow-sm transition hover:shadow-md">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#718071]">
-                Healthy Zones
-              </p>
-              <div className="rounded-lg bg-[#E8F0E5] p-2 text-[#527A4D]">
-                <Sprout size={19} />
-              </div>
-            </div>
-            <p className="mt-3 text-3xl font-bold text-[#527A4D]">
-              {healthyZones}
-            </p>
-            <p className="mt-2 text-xs text-[#829080]">
-              Zones in normal condition
-            </p>
-          </div>
-
-          {/* Attention */}
-          <div className="rounded-2xl border border-[#DCE4D7] bg-white p-5 shadow-sm transition hover:shadow-md">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#718071]">
-                Need Attention
-              </p>
-              <div className="rounded-lg bg-[#FFF4DD] p-2 text-[#B88935]">
-                <Activity size={19} />
-              </div>
-            </div>
-            <p className="mt-3 text-3xl font-bold text-[#B88935]">
-              {attentionZones}
-            </p>
-            <p className="mt-2 text-xs text-[#829080]">
-              Zones requiring monitoring
-            </p>
-          </div>
-
-          {/* Weather */}
-          <div className="rounded-2xl border border-[#DCE4D7] bg-white p-5 shadow-sm transition hover:shadow-md">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#718071]">
-                Rain Probability
-              </p>
-              <div className="rounded-lg bg-[#EAF0FA] p-2 text-[#6688BD]">
-                <CloudSun size={19} />
-              </div>
-            </div>
-            <p className="mt-3 text-3xl font-bold text-[#6688BD]">
-              {weather?.rain_probability_pct ?? "--"}%
-            </p>
-            <p className="mt-2 text-xs text-[#829080]">
-              Based on weather forecast
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* Weather Section */}
-      {weather && (
-        <section className="rounded-2xl border border-[#DCE4D7] bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-[#EAF0FA] p-2.5 text-[#6688BD]">
-                <CloudSun size={23} />
-              </div>
-              <div>
-                <h2 className="font-bold">BMKG Weather Integration</h2>
-                <p className="text-xs text-[#829080]">
-                  Weather information for your garden
-                </p>
-              </div>
-            </div>
-
-            <span className="w-fit rounded-full border border-[#DCE4F2] bg-[#F0F4FB] px-3 py-1 text-xs font-medium text-[#6688BD]">
-              {weather.location}
-            </span>
-          </div>
-
-          <div className="mt-5 rounded-xl bg-[#F4F3EB] p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <Sun size={37} className="text-[#D6A846]" />
-                <div>
-                  <p className="text-3xl font-bold">
-                    {weather.temp_c}°C
-                  </p>
-                  <p className="text-sm text-[#718071]">
-                    {weather.forecast}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-white px-5 py-3">
-                <p className="text-xs text-[#829080]">
-                  Rain Probability
-                </p>
-                <p className="text-2xl font-bold text-[#6688BD]">
-                  {weather.rain_probability_pct}%
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex items-center gap-3 rounded-xl border border-[#E6EADF] p-4">
-              <Droplets size={21} className="text-[#6688BD]" />
-              <div>
-                <p className="text-xs text-[#829080]">Weather Forecast</p>
-                <p className="text-sm font-semibold">
-                  {weather.forecast}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 rounded-xl border border-[#E6EADF] p-4">
-              <Wind size={21} className="text-[#6688BD]" />
-              <div>
-                <p className="text-xs text-[#829080]">Location</p>
-                <p className="text-sm font-semibold">
-                  {weather.location}
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Plant Zones */}
-      <section className="rounded-2xl border border-[#DCE4D7] bg-white p-5 shadow-sm">
-        <div className="mb-5 flex items-center justify-between">
+      <div className="weather-current">
+        <div className="weather-current-main">
+          <CloudSun className="weather-main-icon" size={34} />
           <div>
-            <h2 className="text-lg font-bold">Plant Zones</h2>
-            <p className="mt-1 text-xs text-[#829080]">
-              Monitor the condition of each garden zone.
-            </p>
+            <strong>32°C</strong>
+            <span>Feels 36°C • Partly Cloudy (Cerah Berawan)</span>
           </div>
-
-          <span className="rounded-full bg-[#EAF2E7] px-3 py-1 text-xs font-medium text-[#527A4D]">
-            {zones.length} Zones
-          </span>
         </div>
 
-        {zones.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[#DCE4D7] bg-[#FAFBF7] p-8 text-center">
-            <Sprout size={30} className="mx-auto text-[#A8C3A0]" />
-            <p className="mt-3 font-medium text-[#527A4D]">
-              No plant zones available
-            </p>
-            <p className="mt-1 text-sm text-[#829080]">
-              Your garden zones will appear here once configured.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {zones.map((zone) => {
-              const statusLevel = zoneStatuses[zone.id] || "normal";
-              const badge = getStatusBadge(statusLevel);
-
-              return (
-                <Link
-                  key={zone.id}
-                  to={`/zones/${zone.id}`}
-                  className="group rounded-xl border border-[#E1E8DD] bg-[#FCFDF9] p-5 transition-all hover:-translate-y-0.5 hover:border-[#A8C3A0] hover:shadow-md"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="rounded-lg bg-[#E8F0E5] p-2.5 text-[#527A4D]">
-                        <Sprout size={20} />
-                      </div>
-
-                      <div>
-                        <h3 className="font-bold text-[#26352B]">
-                          {zone.label}
-                        </h3>
-                        <p className="mt-1 text-xs text-[#829080]">
-                          {zone.category.name}
-                        </p>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold ${badge.bgColor} ${badge.textColor} ${badge.borderColor}`}
-                    >
-                      {badge.icon} {badge.label}
-                    </span>
-                  </div>
-
-                  <div className="mt-4">
-                    <p className="text-xs text-[#829080]">
-                      Plants in this zone
-                    </p>
-                    <p className="mt-1 text-sm font-medium">
-                      {zone.plant_names.join(", ") || "No plants listed"}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between border-t border-[#E8EDE4] pt-3">
-                    <span className="text-xs text-[#829080]">
-                      Response: {zone.category.response_timescale}
-                    </span>
-
-                    <span className="flex items-center gap-1 text-xs font-semibold text-[#527A4D] transition group-hover:gap-2">
-                      View Details
-                      <ArrowUpRight size={14} />
-                    </span>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Footer */}
-      <div className="border-t border-[#DCE4D7] pt-4 text-right">
-        <p className="text-xs text-[#829080]">
-          © 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
-        </p>
+        <div className="rain-probability">
+          <small>RAIN PROB.</small>
+          <strong>65%</strong>
+        </div>
       </div>
 
+      <p className="weather-alert">
+        Afternoon convective rain expected <strong>15:30 - 17:00 WIB</strong>{" "}
+        with localized wind gusts up to 14 km/h over rooftop canopy structures.
+      </p>
+
+      <div className="weather-forecast">
+        <div className="forecast-item">
+          <small>14:00 WIB</small>
+          <Sun size={17} className="sunny-icon" />
+          <strong>33°C</strong>
+          <span>Sunny</span>
+        </div>
+
+        <div className="forecast-item active">
+          <small>16:00 WIB</small>
+          <CloudRain size={17} />
+          <strong>29°C</strong>
+          <span>Light Rain</span>
+        </div>
+
+        <div className="forecast-item">
+          <small>18:00 WIB</small>
+          <Cloud size={17} />
+          <strong>27°C</strong>
+          <span>Overcast</span>
+        </div>
+      </div>
+
+      <div className="weather-footer">
+        <span>
+          <span className="status-small-dot" />
+          Live Sync Valid
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function RecommendationsSection() {
+  return (
+    <section className="dashboard-panel recommendations-panel">
+      <div className="panel-heading">
+        <div className="panel-title">
+          <span className="panel-icon ai-icon">
+            <Sparkles size={19} />
+          </span>
+          <h2>AI Recommendations</h2>
+        </div>
+        <span className="engine-tag">Agronomy Engine Active</span>
+      </div>
+
+      <div className="recommendation-list">
+        {recommendations.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <article className="recommendation-card" key={item.title}>
+              <div className="recommendation-top">
+                <h3>
+                  <Icon size={15} />
+                  {item.title}
+                </h3>
+                <span className={`priority-tag ${item.type}`}>
+                  {item.priority}
+                </span>
+              </div>
+
+              <p>{item.description}</p>
+
+              <div className="recommendation-bottom">
+                <small>{item.device}</small>
+                <button className="recommendation-action">
+                  {item.action}
+                  <Check size={12} />
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="recommendation-footer">
+        <span>Rule confidence: 96.4%</span>
+        <strong>2 Actions Suggested</strong>
+      </div>
+    </section>
+  );
+}
+
+export const Dashboard: React.FC = () => {
+  return (
+    <div className="menara-dashboard">
+      <Sidebar />
+
+      <main className="dashboard-main">
+        <div className="dashboard-content">
+          <header className="dashboard-header">
+            <div className="dashboard-heading">
+              <h1>Dashboard</h1>
+              <span className="sync-label">
+                <Activity size={12} />
+                Synced 3m ago
+              </span>
+            </div>
+
+            <button className="garden-selector">
+              <span className="garden-selector-icon">
+                <House size={16} />
+              </span>
+              <span className="garden-selector-text">
+                <strong>Kebun Atap Menteng - Rooftop Block B</strong>
+                <small>Central Jakarta • Zone 2B</small>
+              </span>
+              <ChevronDown size={15} />
+            </button>
+          </header>
+
+          <section className="garden-overview">
+            <div className="garden-overview-info">
+              <span className="overview-icon">
+                <Sprout size={19} />
+              </span>
+              <div>
+                <strong>Kebun Atap Menteng</strong>
+                <small>
+                  <MapPin size={11} />
+                  Central Jakarta (Zone 2B)
+                </small>
+              </div>
+            </div>
+
+            <div className="garden-condition">
+              <span>• Healthy Microclimate</span>
+              <span>• Optimal Growth Conditions</span>
+            </div>
+
+            <div className="overview-divider" />
+
+            <div className="sensor-connection">
+              <strong>
+                <span className="status-small-dot" />
+                4/4 Sensors Online
+              </strong>
+              <small>(DHT22, Soil, BH1750, ESP32)</small>
+            </div>
+
+            <div className="hardware-status">
+              <span>
+                <BatteryFull size={15} />
+                Solar Battery 94%
+              </span>
+              <span>
+                <Wifi size={15} />
+                Strong Signal
+              </span>
+            </div>
+          </section>
+
+          <section className="sensor-grid">
+            {sensorData.map((sensor) => (
+              <SensorCard key={sensor.title} sensor={sensor} />
+            ))}
+          </section>
+
+          <WeatherSection />
+
+          <RecommendationsSection />
+
+          <footer className="dashboard-footer">
+            <span className="footer-decoration">• • •</span>
+            <span>
+              © 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
+            </span>
+          </footer>
+        </div>
+      </main>
     </div>
   );
 };
+
+export default Dashboard;

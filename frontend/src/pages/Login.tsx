@@ -1,66 +1,228 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  ArrowRight,
+  UserRound,
+  Mail,
+  LockKeyhole,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { api } from "../api/client";
+import "../styles/login.css";
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState("gardener@jakarta-roofs.id");
   const [password, setPassword] = useState("password123");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     try {
       setLoading(true);
       setError(null);
+
       const res = await api.login(email, password);
+
       localStorage.setItem("roofgarden_token", res.access_token);
-      navigate("/");
-    } catch (err: any) {
-      setError(err.message || "Login failed");
+
+      if (rememberMe) {
+        localStorage.setItem("roofgarden_email", email);
+      } else {
+        localStorage.removeItem("roofgarden_email");
+      }
+
+      navigate("/dashboard");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Login failed";
+
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto mt-16 p-8 bg-white rounded-xl border border-slate-200 shadow-sm text-center">
-      <div className="text-4xl mb-3">🌱</div>
-      <h1 className="text-2xl font-bold text-slate-900">RoofGarden Monitor</h1>
-      <p className="text-sm text-slate-500 mt-1">Sign in with Gardener Account</p>
+    <div className="login-page">
+      {/* HEADER */}
+      <header className="login-header">
+        <Link to="/" className="login-brand">
+          <div className="login-brand-logo">
+            <img src="/LogoMenara.png" alt="MENARA Logo" />
+          </div>
 
-      {error && (
-        <div className="mt-4 p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-lg">
-          {error}
+          <div className="login-brand-text">
+            <strong>MENARA</strong>
+            <span>
+              MONITORING ENVIRONMENT FOR AI ROOFTOP AGRICULTURE
+            </span>
+          </div>
+        </Link>
+
+        <div className="login-header-actions">
+          <Link to="/" className="login-back-home">
+            <ArrowLeft size={12} />
+            Back to Home
+          </Link>
+
+          <div className="login-profile-icon">
+            <UserRound size={13} />
+          </div>
         </div>
-      )}
+      </header>
 
-      <form onSubmit={handleLogin} className="mt-6 space-y-4">
-        <input
-          type="email"
-          placeholder="gardener@example.com"
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="••••••••"
-          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full block py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold rounded-lg text-sm transition"
-        >
-          {loading ? "Signing in..." : "Sign In"}
-        </button>
-      </form>
+      {/* MAIN */}
+      <main className="login-main">
+        {/* LEFT SIDE */}
+        <section className="login-hero">
+          <div className="login-hero-content">
+            <h1>Meet MENARA</h1>
+
+            <p>
+              A smarter way to monitor rooftop gardens, understand
+              environmental conditions, and make informed plant-care
+              decisions with AI and IoT.
+            </p>
+          </div>
+        </section>
+
+        {/* RIGHT SIDE */}
+        <section className="login-form-section">
+          <div className="login-form-container">
+            {/* WELCOME */}
+            <div className="login-welcome">
+              <div className="login-welcome-logo">
+                <img src="/LogoMenara.png" alt="MENARA" />
+              </div>
+
+              <span>WELCOME TO MENARA</span>
+            </div>
+
+            <h2>Welcome Back</h2>
+
+            <p className="login-description">
+              Sign in to monitor your rooftop gardens and access your
+              MENARA dashboard.
+            </p>
+
+            {error && (
+              <div className="login-error">
+                {error}
+              </div>
+            )}
+
+            {/* LOGIN FORM */}
+            <form onSubmit={handleLogin} className="login-form">
+              {/* EMAIL */}
+              <div className="login-field">
+                <div className="login-label-row">
+                  <label htmlFor="login-email">Email Address</label>
+                  <span>Registered ID</span>
+                </div>
+
+                <div className="login-input-wrapper">
+                  <Mail size={14} />
+
+                  <input
+                    id="login-email"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* PASSWORD */}
+              <div className="login-field">
+                <div className="login-label-row">
+                  <label htmlFor="login-password">Password</label>
+                  <span>Security Key</span>
+                </div>
+
+                <div className="login-input-wrapper">
+                  <LockKeyhole size={14} />
+
+                  <input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    className="login-password-toggle"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff size={15} />
+                    ) : (
+                      <Eye size={15} />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* REMEMBER ME + FORGOT PASSWORD */}
+              <div className="login-options">
+                <label className="login-remember">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  <span>Remember me</span>
+                </label>
+
+                <Link to="/forgot-password" className="login-forgot">
+                  Forgot password?
+                </Link>
+              </div>
+
+              {/* SUBMIT */}
+              <button
+                type="submit"
+                className="login-submit"
+                disabled={loading}
+              >
+                {loading ? "Signing in..." : "Sign In"}
+                {!loading && <ArrowRight size={14} />}
+              </button>
+            </form>
+
+            {/* REGISTER LINK */}
+            <p className="login-register-text">
+              Don't have an account?{" "}
+              <Link to="/register">Sign Up</Link>
+            </p>
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="login-footer">
+        <span>© 2026 MENARA. All rights reserved.</span>
+        <strong>Security &amp; Protocols</strong>
+      </footer>
     </div>
   );
 };
+
+export default Login;
