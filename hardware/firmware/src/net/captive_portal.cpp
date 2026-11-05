@@ -27,14 +27,19 @@ bool CaptivePortal::isCaptiveProbe(const char* path) {
     static const char* const probes[] = {
         "/generate_204",
         "/gen_204",
+        "/generate204",
         "/mobile/status",
+        "/mobile/status.php",
+        "/check_network_status.txt",
         "/hotspot-detect.html",
         "/library/test/success.html",
         "/success.txt",
         "/ncsi.txt",
         "/connecttest.txt",
         "/fwlink",
-        "/canonical.html"
+        "/redirect",
+        "/canonical.html",
+        "/success.html"
     };
     for (const char* probe : probes) {
         if (strcmp(path, probe) == 0) {
@@ -44,11 +49,103 @@ bool CaptivePortal::isCaptiveProbe(const char* path) {
     return false;
 }
 
+size_t CaptivePortal::buildDnsResponse(
+    const uint8_t* req,
+    size_t reqLen,
+    const uint8_t resolvedIp[4],
+    uint8_t* resp,
+    size_t maxRespLen
+) {
+    // Minimum DNS header (12 bytes) + 1 byte root QName + 4 bytes (QType + QClass) = 17 bytes
+    if (!req || !resolvedIp || !resp || reqLen < 17 || maxRespLen < 33) {
+        return 0;
+    }
+
+    // Must be a standard query (QR == 0, Opcode == 0)
+    if ((req[2] & 0xF8) != 0x00) {
+        return 0;
+    }
+
+    uint16_t qdCount = (static_cast<uint16_t>(req[4]) << 8) | req[5];
+    if (qdCount == 0) {
+        return 0;
+    }
+
+    // Parse first Question QName starting at offset 12 (tolerates EDNS0 ARCount > 0)
+    size_t pos = 12;
+    while (pos < reqLen) {
+        uint8_t labelLen = req[pos];
+        if (labelLen == 0) {
+            pos += 1;
+            break;
+        }
+        if ((labelLen & 0xC0) != 0 || (pos + 1 + labelLen) >= reqLen) {
+            return 0;
+        }
+        pos += 1 + labelLen;
+    }
+
+    // Need 4 bytes after QName for QType (2) and QClass (2)
+    if (pos + 4 > reqLen) {
+        return 0;
+    }
+
+    uint16_t qType = (static_cast<uint16_t>(req[pos]) << 8) | req[pos + 1];
+    size_t questionLen = (pos + 4) - 12;
+
+    // Answer with IPv4 A record for Type A (1) or ANY (255); return clean NoError NODATA (ANCount=0) for AAAA (28) / HTTPS (65)
+    bool includeARecord = (qType == 1 || qType == 255);
+    size_t totalRespLen = 12 + questionLen + (includeARecord ? 16 : 0);
+    if (totalRespLen > maxRespLen) {
+        return 0;
+    }
+
+    // 1. DNS Response Header (12 bytes)
+    resp[0] = req[0];
+    resp[1] = req[1];
+    resp[2] = 0x84 | (req[2] & 0x01); // QR=1 (Response), AA=1 (Authoritative), copy RD
+    resp[3] = 0x80;                   // RA=1, Z=0, RCode=0 (NoError)
+    resp[4] = 0x00;
+    resp[5] = 0x01;                   // QDCount = 1
+    resp[6] = 0x00;
+    resp[7] = includeARecord ? 0x01 : 0x00; // ANCount = 1 for A/ANY, 0 for AAAA/HTTPS
+    resp[8] = 0x00;
+    resp[9] = 0x00;                   // NSCount = 0
+    resp[10] = 0x00;
+    resp[11] = 0x00;                  // ARCount = 0
+
+    // 2. Echo Question section
+    memcpy(resp + 12, req + 12, questionLen);
+
+    // 3. Append Answer RR for IPv4 A query
+    if (includeARecord) {
+        size_t ansOffset = 12 + questionLen;
+        resp[ansOffset + 0] = 0xC0; // Name pointer to offset 12
+        resp[ansOffset + 1] = 0x0C;
+        resp[ansOffset + 2] = 0x00; // TYPE = A (1)
+        resp[ansOffset + 3] = 0x01;
+        resp[ansOffset + 4] = 0x00; // CLASS = IN (1)
+        resp[ansOffset + 5] = 0x01;
+        resp[ansOffset + 6] = 0x00; // TTL = 60 seconds
+        resp[ansOffset + 7] = 0x00;
+        resp[ansOffset + 8] = 0x00;
+        resp[ansOffset + 9] = 0x3C;
+        resp[ansOffset + 10] = 0x00; // RDLENGTH = 4
+        resp[ansOffset + 11] = 0x04;
+        resp[ansOffset + 12] = resolvedIp[0];
+        resp[ansOffset + 13] = resolvedIp[1];
+        resp[ansOffset + 14] = resolvedIp[2];
+        resp[ansOffset + 15] = resolvedIp[3];
+    }
+
+    return totalRespLen;
+}
+
 #if defined(ARDUINO)
 #include <algorithm>
 
 CaptivePortal::CaptivePortal()
-    : _server(nullptr), _dnsServer(nullptr), _lastScanMillis(0), _running(false), _configSaved(false), _startedMillis(0) {
+    : _server(nullptr), _lastScanMillis(0), _running(false), _configSaved(false), _startedMillis(0) {
     memset(&_config, 0, sizeof(DeviceConfig));
     memset(&_savedConfig, 0, sizeof(DeviceConfig));
     memset(_apSsid, 0, sizeof(_apSsid));
@@ -114,7 +211,14 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     WiFi.disconnect(false, false);
     delay(50);
 
-    // 2. Generate unique AP SSID using last 2 bytes of MAC
+    // 2. Initial Wi-Fi scan in STA mode BEFORE starting SoftAP
+    // Scanning before AP broadcast prevents dropping client association frames,
+    // avoids 3-4s off-channel radio hopping while clients connect, and ensures
+    // the SSID list is already populated when the mobile device opens the portal.
+    WiFi.mode(WIFI_STA);
+    performScan();
+
+    // 3. Generate unique AP SSID using last 2 bytes of MAC
     uint8_t mac[6];
     WiFi.macAddress(mac);
     snprintf(_apSsid, sizeof(_apSsid), "%s-%02X%02X", apPrefix, mac[4], mac[5]);
@@ -122,32 +226,33 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     Serial.print("[Portal] Starting SoftAP: ");
     Serial.println(_apSsid);
 
-    // Use AP_STA mode so we can scan nearby 2.4GHz routers while broadcasting the hotspot
+    // Use AP_STA mode so the ESP32 can both run the hotspot and allow on-demand rescans
     WiFi.mode(WIFI_AP_STA);
-    IPAddress apIP(192, 168, 4, 1);
-    IPAddress netMsk(255, 255, 255, 0);
-    WiFi.softAPConfig(apIP, apIP, netMsk);
-    
     if (!WiFi.softAP(_apSsid)) {
         Serial.println("[Portal] Failed to start SoftAP.");
         return false;
     }
+    // Allow WIFI_EVENT_AP_START to initialize the SoftAP netif before configuring IP & DHCP
+    delay(100);
 
-    Serial.print("[Portal] SoftAP IP address: ");
-    Serial.println(WiFi.softAPIP());
+    IPAddress apIP(192, 168, 4, 1);
+    IPAddress netMsk(255, 255, 255, 0);
+    WiFi.softAPConfig(apIP, apIP, netMsk);
 
-    // 3. Initial Wi-Fi scan so the list is ready when the phone loads the web page
-    performScan();
+    // 4. Start RFC-compliant DNS responder on UDP port 53 (supports EDNS0 and AAAA/HTTPS NODATA)
+    _dnsUdp.stop();
+    _dnsUdp.begin(53);
 
-    // 4. Start DNS server redirecting all domain requests to our AP IP (Captive Portal trigger)
-    _dnsServer = new DNSServer();
-    _dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
-    _dnsServer->start(53, "*", apIP);
-
-    // 5. Start HTTP WebServer
+    // 5. Start HTTP WebServer (TCP 80) immediately
+    if (_server) {
+        delete _server;
+    }
     _server = new WebServer(80);
     setupRoutes();
     _server->begin();
+
+    Serial.print("[Portal] SoftAP IP address: ");
+    Serial.println(WiFi.softAPIP());
 
     _running = true;
     _startedMillis = millis();
@@ -155,10 +260,33 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     return true;
 }
 
+void CaptivePortal::processDnsRequests() {
+    static const uint8_t AP_IP[4] = {192, 168, 4, 1};
+    uint8_t reqBuf[512];
+    uint8_t respBuf[540];
+
+    for (int i = 0; i < 8; ++i) {
+        int packetSize = _dnsUdp.parsePacket();
+        if (packetSize <= 0) {
+            break;
+        }
+        int len = _dnsUdp.read(reqBuf, sizeof(reqBuf));
+        if (len <= 0) {
+            continue;
+        }
+        size_t respLen = buildDnsResponse(reqBuf, static_cast<size_t>(len), AP_IP, respBuf, sizeof(respBuf));
+        if (respLen > 0) {
+            _dnsUdp.beginPacket(_dnsUdp.remoteIP(), _dnsUdp.remotePort());
+            _dnsUdp.write(respBuf, respLen);
+            _dnsUdp.endPacket();
+        }
+    }
+}
+
 bool CaptivePortal::captivePortal() {
     if (!_server) return false;
     String host = _server->hostHeader();
-    if (!isIpAddress(host.c_str())) {
+    if (host.length() > 0 && !isIpAddress(host.c_str())) {
         Serial.printf("[Portal] Hijacked external probe for '%s' -> 302 Redirect to http://192.168.4.1/\n", host.c_str());
         handleRedirect();
         return true;
@@ -172,8 +300,12 @@ void CaptivePortal::handleRedirect() {
     _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     _server->sendHeader("Pragma", "no-cache");
     _server->sendHeader("Expires", "0");
-    _server->send(302, "text/plain", "");
-    _server->client().stop();
+    static const char REDIRECT_HTML[] =
+        "<!DOCTYPE html><html><head>"
+        "<meta http-equiv=\"refresh\" content=\"0; url=http://192.168.4.1/\"/>"
+        "<title>Redirecting</title></head>"
+        "<body><p>Redirecting to <a href=\"http://192.168.4.1/\">WiFi Setup</a>...</p></body></html>";
+    _server->send(302, "text/html", REDIRECT_HTML);
 }
 
 void CaptivePortal::setupRoutes() {
@@ -185,22 +317,27 @@ void CaptivePortal::setupRoutes() {
 
     // Operating system captive portal probe intercepts
     // Android / Google connectivity probes:
-    _server->on("/generate_204", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/gen_204", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/mobile/status", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/generate_204", [this]() { handleRedirect(); });
+    _server->on("/gen_204", [this]() { handleRedirect(); });
+    _server->on("/generate204", [this]() { handleRedirect(); });
+    _server->on("/mobile/status", [this]() { handleRedirect(); });
+    _server->on("/mobile/status.php", [this]() { handleRedirect(); });
+    _server->on("/check_network_status.txt", [this]() { handleRedirect(); });
 
     // Apple iOS / macOS Captive Network Assistant (CNA) probes:
-    _server->on("/hotspot-detect.html", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/library/test/success.html", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/success.txt", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/hotspot-detect.html", [this]() { handleRedirect(); });
+    _server->on("/library/test/success.html", [this]() { handleRedirect(); });
+    _server->on("/success.txt", [this]() { handleRedirect(); });
 
     // Microsoft Windows network connectivity probes:
-    _server->on("/ncsi.txt", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/connecttest.txt", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/fwlink", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/ncsi.txt", [this]() { handleRedirect(); });
+    _server->on("/connecttest.txt", [this]() { handleRedirect(); });
+    _server->on("/fwlink", [this]() { handleRedirect(); });
+    _server->on("/redirect", [this]() { handleRedirect(); });
 
     // ChromeOS / Firefox probes:
-    _server->on("/canonical.html", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/canonical.html", [this]() { handleRedirect(); });
+    _server->on("/success.html", [this]() { handleRedirect(); });
 
     _server->onNotFound([this]() { handleNotFound(); });
 }
@@ -208,12 +345,8 @@ void CaptivePortal::setupRoutes() {
 void CaptivePortal::update() {
     if (!_running) return;
 
-    if (_dnsServer) {
-        // Drain pending DNS requests in queue
-        for (int i = 0; i < 5; ++i) {
-            _dnsServer->processNextRequest();
-        }
-    }
+    processDnsRequests();
+
     if (_server) {
         _server->handleClient();
     }
@@ -228,11 +361,7 @@ void CaptivePortal::stop() {
         delete _server;
         _server = nullptr;
     }
-    if (_dnsServer) {
-        _dnsServer->stop();
-        delete _dnsServer;
-        _dnsServer = nullptr;
-    }
+    _dnsUdp.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
     _scannedAps.clear();

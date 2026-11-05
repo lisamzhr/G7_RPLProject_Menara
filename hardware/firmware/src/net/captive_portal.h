@@ -3,10 +3,12 @@
 #if defined(ARDUINO)
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <WebServer.h>
-#include <DNSServer.h>
 #include <vector>
 #endif
+#include <cstddef>
+#include <cstdint>
 
 #include "config_storage.h"
 
@@ -45,14 +47,22 @@ public:
     // Helper functions for captive portal detection & redirection (unit testable)
     static bool isIpAddress(const char* host);
     static bool isCaptiveProbe(const char* path);
+    static size_t buildDnsResponse(
+        const uint8_t* req,
+        size_t reqLen,
+        const uint8_t resolvedIp[4],
+        uint8_t* resp,
+        size_t maxRespLen
+    );
 
 private:
 #if defined(ARDUINO)
     WebServer* _server;
-    DNSServer* _dnsServer;
+    WiFiUDP _dnsUdp;
     std::vector<ScannedAp> _scannedAps;
     unsigned long _lastScanMillis;
     void performScan();
+    void processDnsRequests();
     bool captivePortal();
     void handleRedirect();
 #endif
