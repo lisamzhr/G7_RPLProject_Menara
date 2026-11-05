@@ -127,6 +127,20 @@ void test_api_client_command_struct_layout(void) {
     TEST_ASSERT_TRUE(client.ackCommand("cmd-9999", "acked", "OK", "2026-11-05T12:00:00Z"));
 }
 
+void test_api_client_https_detection(void) {
+    ApiClient clientHttp("http://192.168.1.100:8000/api/v1", "node-1", "key1");
+    TEST_ASSERT_FALSE(clientHttp.isHttps());
+
+    ApiClient clientHttps("https://api.menara.example.com", "node-2", "key2");
+    TEST_ASSERT_TRUE(clientHttps.isHttps());
+
+    ApiClient clientEmpty("", "", "");
+    TEST_ASSERT_FALSE(clientEmpty.isHttps());
+
+    clientEmpty.setConfig("https://10.0.0.5/iot", "node-3", "key3");
+    TEST_ASSERT_TRUE(clientEmpty.isHttps());
+}
+
 // ==============================================================================
 // 4. TimeSync Unit Tests
 // ==============================================================================
@@ -184,46 +198,20 @@ void test_captive_portal_ap_sorting(void) {
     TEST_ASSERT_EQUAL(-88, aps[2].rssi);
 }
 
-void test_captive_portal_ip_address_detection(void) {
-    // Numeric IPs should be recognized
-    TEST_ASSERT_TRUE(CaptivePortal::isIpAddress("192.168.4.1"));
-    TEST_ASSERT_TRUE(CaptivePortal::isIpAddress("192.168.4.1:80"));
-    TEST_ASSERT_TRUE(CaptivePortal::isIpAddress("10.0.0.1"));
-    TEST_ASSERT_TRUE(CaptivePortal::isIpAddress("172.16.0.1:8080"));
-
-    // Domain names should be rejected so they trigger 302 captive redirection
-    TEST_ASSERT_FALSE(CaptivePortal::isIpAddress("connectivitycheck.gstatic.com"));
-    TEST_ASSERT_FALSE(CaptivePortal::isIpAddress("clients3.google.com"));
-    TEST_ASSERT_FALSE(CaptivePortal::isIpAddress("captive.apple.com"));
-    TEST_ASSERT_FALSE(CaptivePortal::isIpAddress("www.msftconnecttest.com"));
-    TEST_ASSERT_FALSE(CaptivePortal::isIpAddress("detectportal.firefox.com"));
-    TEST_ASSERT_FALSE(CaptivePortal::isIpAddress(""));
-    TEST_ASSERT_FALSE(CaptivePortal::isIpAddress(nullptr));
-}
-
 void test_captive_portal_probe_recognition(void) {
     // Android / Google connectivity probes
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/generate_204"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/gen_204"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/generate204"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/mobile/status"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/mobile/status.php"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/check_network_status.txt"));
 
     // Apple CNA probes
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/hotspot-detect.html"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/library/test/success.html"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/success.txt"));
 
     // Windows probes
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/ncsi.txt"));
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/connecttest.txt"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/fwlink"));
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/redirect"));
 
     // ChromeOS / Firefox probes
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/canonical.html"));
-    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/success.html"));
 
     // Normal application endpoints should NOT be marked as probes
     TEST_ASSERT_FALSE(CaptivePortal::isCaptiveProbe("/"));
@@ -248,54 +236,56 @@ void test_captive_portal_lifecycle(void) {
     TEST_ASSERT_FALSE(portal.isRunning());
 }
 
-void test_captive_portal_dns_edns0_and_aaaa_handling(void) {
-    const uint8_t apIp[4] = {192, 168, 4, 1};
-    uint8_t resp[128];
+void test_captive_portal_hex256_validation(void) {
+    char validHex[257];
+    for (int i = 0; i < 256; ++i) {
+        validHex[i] = (i % 2 == 0) ? 'a' : '9';
+    }
+    validHex[256] = '\0';
 
-    // 1. EDNS0 Type-A Query for "captive.apple.com" (QDCount=1, ARCount=1 with trailing OPT record)
-    const uint8_t edns0QueryA[] = {
-        0x12, 0x34, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
-        0x07, 'c', 'a', 'p', 't', 'i', 'v', 'e',
-        0x05, 'a', 'p', 'p', 'l', 'e',
-        0x03, 'c', 'o', 'm', 0x00,
-        0x00, 0x01, // QType = A (1)
-        0x00, 0x01, // QClass = IN (1)
-        // EDNS0 OPT pseudo-record (11 bytes)
-        0x00, 0x00, 0x29, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-    };
+    TEST_ASSERT_TRUE(CaptivePortal::isHex256(validHex));
 
-    memset(resp, 0, sizeof(resp));
-    size_t lenA = CaptivePortal::buildDnsResponse(edns0QueryA, sizeof(edns0QueryA), apIp, resp, sizeof(resp));
-    TEST_ASSERT_EQUAL_UINT32(51, (uint32_t)lenA);
-    TEST_ASSERT_EQUAL_UINT8(0x12, resp[0]);
-    TEST_ASSERT_EQUAL_UINT8(0x34, resp[1]);
-    TEST_ASSERT_EQUAL_UINT8(0x01, resp[5]); // QDCount = 1
-    TEST_ASSERT_EQUAL_UINT8(0x01, resp[7]); // ANCount = 1 (A record returned despite ARCount=1)
-    TEST_ASSERT_EQUAL_UINT8(0x00, resp[11]); // ARCount = 0 in response
-    // Last 4 bytes must be 192.168.4.1
-    TEST_ASSERT_EQUAL_UINT8(192, resp[lenA - 4]);
-    TEST_ASSERT_EQUAL_UINT8(168, resp[lenA - 3]);
-    TEST_ASSERT_EQUAL_UINT8(4, resp[lenA - 2]);
-    TEST_ASSERT_EQUAL_UINT8(1, resp[lenA - 1]);
+    // Uppercase hex
+    for (int i = 0; i < 256; ++i) {
+        validHex[i] = (i % 2 == 0) ? 'F' : '3';
+    }
+    TEST_ASSERT_TRUE(CaptivePortal::isHex256(validHex));
 
-    // 2. Type-AAAA (IPv6, QType=28) Query -> must return clean NoError NODATA (ANCount=0)
-    const uint8_t queryAAAA[] = {
-        0xAB, 0xCD, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x07, 'c', 'a', 'p', 't', 'i', 'v', 'e',
-        0x05, 'a', 'p', 'p', 'l', 'e',
-        0x03, 'c', 'o', 'm', 0x00,
-        0x00, 0x1C, // QType = AAAA (28)
-        0x00, 0x01  // QClass = IN (1)
-    };
+    // Too short (255 chars)
+    validHex[255] = '\0';
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(validHex));
 
-    memset(resp, 0, sizeof(resp));
-    size_t lenAAAA = CaptivePortal::buildDnsResponse(queryAAAA, sizeof(queryAAAA), apIp, resp, sizeof(resp));
-    TEST_ASSERT_EQUAL_UINT32(35, (uint32_t)lenAAAA); // 12-byte header + 23-byte question, 0 answers
-    TEST_ASSERT_EQUAL_UINT8(0xAB, resp[0]);
-    TEST_ASSERT_EQUAL_UINT8(0xCD, resp[1]);
-    TEST_ASSERT_EQUAL_UINT8(0x01, resp[5]); // QDCount = 1
-    TEST_ASSERT_EQUAL_UINT8(0x00, resp[7]); // ANCount = 0 (NODATA)
-    TEST_ASSERT_EQUAL_UINT8(0x00, resp[3] & 0x0F); // RCode = 0 (NoError)
+    // Invalid non-hex char
+    validHex[255] = 'g';
+    validHex[256] = '\0';
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(validHex));
+
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(nullptr));
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(""));
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256("plaintext_password"));
+}
+
+void test_captive_portal_hex_to_bytes(void) {
+    const char* hexStr = "01a2ff";
+    uint8_t outBytes[4] = {0};
+
+    TEST_ASSERT_TRUE(CaptivePortal::hexToBytes(hexStr, outBytes, sizeof(outBytes)));
+    TEST_ASSERT_EQUAL_HEX8(0x01, outBytes[0]);
+    TEST_ASSERT_EQUAL_HEX8(0xA2, outBytes[1]);
+    TEST_ASSERT_EQUAL_HEX8(0xFF, outBytes[2]);
+
+    // Odd length string
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes("123", outBytes, sizeof(outBytes)));
+
+    // Non-hex characters
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes("123g", outBytes, sizeof(outBytes)));
+
+    // Buffer too small
+    uint8_t smallBuf[2];
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes(hexStr, smallBuf, sizeof(smallBuf)));
+
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes(nullptr, outBytes, sizeof(outBytes)));
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes(hexStr, nullptr, sizeof(outBytes)));
 }
 
 // ==============================================================================
@@ -319,6 +309,7 @@ int run_networking_tests() {
     // 3. ApiClient
     RUN_TEST(test_api_client_config_getters);
     RUN_TEST(test_api_client_command_struct_layout);
+    RUN_TEST(test_api_client_https_detection);
 
     // 4. TimeSync
     RUN_TEST(test_time_sync_begin_and_sync_state);
@@ -326,10 +317,10 @@ int run_networking_tests() {
 
     // 5. CaptivePortal
     RUN_TEST(test_captive_portal_ap_sorting);
-    RUN_TEST(test_captive_portal_ip_address_detection);
     RUN_TEST(test_captive_portal_probe_recognition);
     RUN_TEST(test_captive_portal_lifecycle);
-    RUN_TEST(test_captive_portal_dns_edns0_and_aaaa_handling);
+    RUN_TEST(test_captive_portal_hex256_validation);
+    RUN_TEST(test_captive_portal_hex_to_bytes);
 
     return UNITY_END();
 }

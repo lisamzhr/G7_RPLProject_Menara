@@ -26,6 +26,7 @@ public:
 
     const char* getBaseUrl() const;
     const char* getNodeId() const;
+    bool isHttps() const;
 
 private:
     char _baseUrl[128];

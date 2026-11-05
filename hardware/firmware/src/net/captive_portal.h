@@ -3,14 +3,18 @@
 #if defined(ARDUINO)
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WiFiUdp.h>
+#include <DNSServer.h>
 #include <WebServer.h>
 #include <vector>
+#include "mbedtls/rsa.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 #endif
 #include <cstddef>
 #include <cstdint>
 
 #include "config_storage.h"
+#include "config.h"
 
 struct ScannedAp {
     char ssid[64];
@@ -44,26 +48,31 @@ public:
     bool isConfigSaved() const;
     DeviceConfig getSavedConfig() const;
 
-    // Helper functions for captive portal detection & redirection (unit testable)
-    static bool isIpAddress(const char* host);
+    // Helper functions for captive portal detection & credential processing (unit testable)
     static bool isCaptiveProbe(const char* path);
-    static size_t buildDnsResponse(
-        const uint8_t* req,
-        size_t reqLen,
-        const uint8_t resolvedIp[4],
-        uint8_t* resp,
-        size_t maxRespLen
-    );
+    static bool isHex256(const char* str);
+    static bool hexToBytes(const char* hexStr, uint8_t* outBytes, size_t maxLen);
 
 private:
 #if defined(ARDUINO)
     WebServer* _server;
-    WiFiUDP _dnsUdp;
+    DNSServer _dnsServer;
     std::vector<ScannedAp> _scannedAps;
     unsigned long _lastScanMillis;
+    unsigned long _lastDnsMillis;
+
+    // Ephemeral RSA-1024 context for client-side encrypted credentials
+    mbedtls_rsa_context _rsa;
+    mbedtls_entropy_context _entropy;
+    mbedtls_ctr_drbg_context _ctrDrbg;
+    bool _cryptoInitialized;
+    char _publicKeyHex[257]; // 128-byte modulus N in hex
+
+    bool initCrypto();
+    void freeCrypto();
+    bool decryptField(const String& cipherHex, String& outPlaintext);
+
     void performScan();
-    void processDnsRequests();
-    bool captivePortal();
     void handleRedirect();
 #endif
     bool _running;
@@ -78,7 +87,6 @@ private:
     void handleRoot();
     void handleSave();
     void handleScan();
-    void handleNotFound();
     String buildHtml();
 #endif
 };

@@ -39,6 +39,7 @@
 // Captive Portal Onboarding Configuration
 // ==============================================================================
 #define PORTAL_AP_SSID_PREFIX   "RoofGarden-Setup"
+#define PORTAL_AP_PASSWORD      ""     // Empty for Open AP (instant auto-detect), >= 8 chars for WPA2-PSK
 #define PORTAL_TIMEOUT_MS       300000 // 5 minutes inactivity timeout
 #define PORTAL_DNS_PORT         53
 #define PORTAL_HTTP_PORT        80
