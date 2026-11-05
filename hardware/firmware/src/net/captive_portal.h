@@ -6,11 +6,15 @@
 #include <DNSServer.h>
 #include <WebServer.h>
 #include <vector>
+#include "mbedtls/rsa.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 #endif
 #include <cstddef>
 #include <cstdint>
 
 #include "config_storage.h"
+#include "config.h"
 
 struct ScannedAp {
     char ssid[64];
@@ -44,8 +48,10 @@ public:
     bool isConfigSaved() const;
     DeviceConfig getSavedConfig() const;
 
-    // Helper function for captive portal detection & redirection (unit testable)
+    // Helper functions for captive portal detection & credential processing (unit testable)
     static bool isCaptiveProbe(const char* path);
+    static bool isHex256(const char* str);
+    static bool hexToBytes(const char* hexStr, uint8_t* outBytes, size_t maxLen);
 
 private:
 #if defined(ARDUINO)
@@ -54,6 +60,18 @@ private:
     std::vector<ScannedAp> _scannedAps;
     unsigned long _lastScanMillis;
     unsigned long _lastDnsMillis;
+
+    // Ephemeral RSA-1024 context for client-side encrypted credentials
+    mbedtls_rsa_context _rsa;
+    mbedtls_entropy_context _entropy;
+    mbedtls_ctr_drbg_context _ctrDrbg;
+    bool _cryptoInitialized;
+    char _publicKeyHex[257]; // 128-byte modulus N in hex
+
+    bool initCrypto();
+    void freeCrypto();
+    bool decryptField(const String& cipherHex, String& outPlaintext);
+
     void performScan();
     void handleRedirect();
 #endif

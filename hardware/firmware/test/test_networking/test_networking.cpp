@@ -127,6 +127,20 @@ void test_api_client_command_struct_layout(void) {
     TEST_ASSERT_TRUE(client.ackCommand("cmd-9999", "acked", "OK", "2026-11-05T12:00:00Z"));
 }
 
+void test_api_client_https_detection(void) {
+    ApiClient clientHttp("http://192.168.1.100:8000/api/v1", "node-1", "key1");
+    TEST_ASSERT_FALSE(clientHttp.isHttps());
+
+    ApiClient clientHttps("https://api.menara.example.com", "node-2", "key2");
+    TEST_ASSERT_TRUE(clientHttps.isHttps());
+
+    ApiClient clientEmpty("", "", "");
+    TEST_ASSERT_FALSE(clientEmpty.isHttps());
+
+    clientEmpty.setConfig("https://10.0.0.5/iot", "node-3", "key3");
+    TEST_ASSERT_TRUE(clientEmpty.isHttps());
+}
+
 // ==============================================================================
 // 4. TimeSync Unit Tests
 // ==============================================================================
@@ -222,6 +236,58 @@ void test_captive_portal_lifecycle(void) {
     TEST_ASSERT_FALSE(portal.isRunning());
 }
 
+void test_captive_portal_hex256_validation(void) {
+    char validHex[257];
+    for (int i = 0; i < 256; ++i) {
+        validHex[i] = (i % 2 == 0) ? 'a' : '9';
+    }
+    validHex[256] = '\0';
+
+    TEST_ASSERT_TRUE(CaptivePortal::isHex256(validHex));
+
+    // Uppercase hex
+    for (int i = 0; i < 256; ++i) {
+        validHex[i] = (i % 2 == 0) ? 'F' : '3';
+    }
+    TEST_ASSERT_TRUE(CaptivePortal::isHex256(validHex));
+
+    // Too short (255 chars)
+    validHex[255] = '\0';
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(validHex));
+
+    // Invalid non-hex char
+    validHex[255] = 'g';
+    validHex[256] = '\0';
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(validHex));
+
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(nullptr));
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256(""));
+    TEST_ASSERT_FALSE(CaptivePortal::isHex256("plaintext_password"));
+}
+
+void test_captive_portal_hex_to_bytes(void) {
+    const char* hexStr = "01a2ff";
+    uint8_t outBytes[4] = {0};
+
+    TEST_ASSERT_TRUE(CaptivePortal::hexToBytes(hexStr, outBytes, sizeof(outBytes)));
+    TEST_ASSERT_EQUAL_HEX8(0x01, outBytes[0]);
+    TEST_ASSERT_EQUAL_HEX8(0xA2, outBytes[1]);
+    TEST_ASSERT_EQUAL_HEX8(0xFF, outBytes[2]);
+
+    // Odd length string
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes("123", outBytes, sizeof(outBytes)));
+
+    // Non-hex characters
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes("123g", outBytes, sizeof(outBytes)));
+
+    // Buffer too small
+    uint8_t smallBuf[2];
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes(hexStr, smallBuf, sizeof(smallBuf)));
+
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes(nullptr, outBytes, sizeof(outBytes)));
+    TEST_ASSERT_FALSE(CaptivePortal::hexToBytes(hexStr, nullptr, sizeof(outBytes)));
+}
+
 // ==============================================================================
 // Test Runner
 // ==============================================================================
@@ -243,6 +309,7 @@ int run_networking_tests() {
     // 3. ApiClient
     RUN_TEST(test_api_client_config_getters);
     RUN_TEST(test_api_client_command_struct_layout);
+    RUN_TEST(test_api_client_https_detection);
 
     // 4. TimeSync
     RUN_TEST(test_time_sync_begin_and_sync_state);
@@ -252,6 +319,8 @@ int run_networking_tests() {
     RUN_TEST(test_captive_portal_ap_sorting);
     RUN_TEST(test_captive_portal_probe_recognition);
     RUN_TEST(test_captive_portal_lifecycle);
+    RUN_TEST(test_captive_portal_hex256_validation);
+    RUN_TEST(test_captive_portal_hex_to_bytes);
 
     return UNITY_END();
 }

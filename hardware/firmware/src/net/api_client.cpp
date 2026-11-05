@@ -4,7 +4,17 @@
 
 #if defined(ARDUINO)
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
+
+static bool beginHttpClient(HTTPClient& http, WiFiClient& plainClient, WiFiClientSecure& secureClient, bool isHttps, const String& url) {
+    if (isHttps) {
+        secureClient.setInsecure();
+        return http.begin(secureClient, url);
+    } else {
+        return http.begin(plainClient, url);
+    }
+}
 #endif
 
 ApiClient::ApiClient(const char* baseUrl, const char* nodeId, const char* apiKey) {
@@ -29,6 +39,10 @@ const char* ApiClient::getNodeId() const {
     return _nodeId;
 }
 
+bool ApiClient::isHttps() const {
+    return (strncmp(_baseUrl, "https://", 8) == 0);
+}
+
 bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
     if (isRetryable) *isRetryable = true;
 #if defined(ARDUINO)
@@ -38,9 +52,14 @@ bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
     }
 
     HTTPClient http;
+    WiFiClient plainClient;
+    WiFiClientSecure secureClient;
     String url = String(_baseUrl) + "/ingest/readings";
     
-    http.begin(url);
+    if (!beginHttpClient(http, plainClient, secureClient, isHttps(), url)) {
+        if (isRetryable) *isRetryable = false;
+        return false;
+    }
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Node-Key", _apiKey);
     http.setTimeout(8000);
@@ -94,9 +113,13 @@ bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasComman
     }
 
     HTTPClient http;
+    WiFiClient plainClient;
+    WiFiClientSecure secureClient;
     String url = String(_baseUrl) + "/nodes/" + _nodeId + "/commands";
 
-    http.begin(url);
+    if (!beginHttpClient(http, plainClient, secureClient, isHttps(), url)) {
+        return false;
+    }
     http.addHeader("X-Node-Key", _apiKey);
     http.setTimeout(8000);
 
@@ -140,9 +163,13 @@ bool ApiClient::ackCommand(const char* commandId, const char* status, const char
     }
 
     HTTPClient http;
+    WiFiClient plainClient;
+    WiFiClientSecure secureClient;
     String url = String(_baseUrl) + "/nodes/" + _nodeId + "/commands/" + commandId + "/ack";
 
-    http.begin(url);
+    if (!beginHttpClient(http, plainClient, secureClient, isHttps(), url)) {
+        return false;
+    }
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Node-Key", _apiKey);
     http.setTimeout(8000);

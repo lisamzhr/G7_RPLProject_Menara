@@ -19,6 +19,41 @@ bool CaptivePortal::isCaptiveProbe(const char* path) {
     return false;
 }
 
+bool CaptivePortal::isHex256(const char* str) {
+    if (!str) return false;
+    size_t len = 0;
+    while (str[len] != '\0') {
+        char c = str[len];
+        bool isHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        if (!isHex) return false;
+        len++;
+        if (len > 256) return false;
+    }
+    return len == 256;
+}
+
+bool CaptivePortal::hexToBytes(const char* hexStr, uint8_t* outBytes, size_t maxLen) {
+    if (!hexStr || !outBytes) return false;
+    size_t hexLen = strlen(hexStr);
+    if (hexLen % 2 != 0 || hexLen / 2 > maxLen) return false;
+
+    auto hexVal = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
+
+    size_t byteCount = hexLen / 2;
+    for (size_t i = 0; i < byteCount; ++i) {
+        int hi = hexVal(hexStr[i * 2]);
+        int lo = hexVal(hexStr[i * 2 + 1]);
+        if (hi < 0 || lo < 0) return false;
+        outBytes[i] = static_cast<uint8_t>((hi << 4) | lo);
+    }
+    return true;
+}
+
 #if defined(ARDUINO)
 #include <algorithm>
 #include <esp_wifi.h>
@@ -33,15 +68,116 @@ static const uint8_t MAX_CLIENTS = 4;
 static const unsigned long DNS_INTERVAL = 30;
 
 CaptivePortal::CaptivePortal()
-    : _server(nullptr), _lastScanMillis(0), _lastDnsMillis(0),
-      _running(false), _configSaved(false), _startedMillis(0) {
+    : _server(nullptr)
+    , _lastScanMillis(0)
+    , _lastDnsMillis(0)
+    , _cryptoInitialized(false)
+    , _running(false)
+    , _configSaved(false)
+    , _startedMillis(0) {
     memset(&_config, 0, sizeof(DeviceConfig));
     memset(&_savedConfig, 0, sizeof(DeviceConfig));
     memset(_apSsid, 0, sizeof(_apSsid));
+    memset(_publicKeyHex, 0, sizeof(_publicKeyHex));
 }
 
 CaptivePortal::~CaptivePortal() {
     stop();
+    freeCrypto();
+}
+
+bool CaptivePortal::initCrypto() {
+    if (_cryptoInitialized) return true;
+
+    mbedtls_rsa_init(&_rsa, MBEDTLS_RSA_PKCS_V15, 0);
+    mbedtls_entropy_init(&_entropy);
+    mbedtls_ctr_drbg_init(&_ctrDrbg);
+
+    const char* pers = "rg_portal_seed";
+    int ret = mbedtls_ctr_drbg_seed(
+        &_ctrDrbg,
+        mbedtls_entropy_func,
+        &_entropy,
+        reinterpret_cast<const unsigned char*>(pers),
+        strlen(pers)
+    );
+    if (ret != 0) {
+        Serial.printf("[Portal] CTR_DRBG seed failed: -0x%04x\n", -ret);
+        mbedtls_rsa_free(&_rsa);
+        mbedtls_ctr_drbg_free(&_ctrDrbg);
+        mbedtls_entropy_free(&_entropy);
+        return false;
+    }
+
+    ret = mbedtls_rsa_gen_key(&_rsa, mbedtls_ctr_drbg_random, &_ctrDrbg, 1024, 65537);
+    if (ret != 0) {
+        Serial.printf("[Portal] RSA keygen failed: -0x%04x\n", -ret);
+        mbedtls_rsa_free(&_rsa);
+        mbedtls_ctr_drbg_free(&_ctrDrbg);
+        mbedtls_entropy_free(&_entropy);
+        return false;
+    }
+
+    uint8_t nBytes[128];
+    ret = mbedtls_rsa_export_raw(&_rsa, nBytes, sizeof(nBytes), nullptr, 0, nullptr, 0, nullptr, 0, nullptr, 0);
+    if (ret != 0) {
+        Serial.printf("[Portal] RSA export failed: -0x%04x\n", -ret);
+        mbedtls_rsa_free(&_rsa);
+        mbedtls_ctr_drbg_free(&_ctrDrbg);
+        mbedtls_entropy_free(&_entropy);
+        return false;
+    }
+
+    for (size_t i = 0; i < 128; ++i) {
+        snprintf(_publicKeyHex + (i * 2), 3, "%02x", nBytes[i]);
+    }
+    _publicKeyHex[256] = '\0';
+    _cryptoInitialized = true;
+    Serial.println("[Portal] Ephemeral RSA-1024 keypair generated for credential payload encryption.");
+    return true;
+}
+
+void CaptivePortal::freeCrypto() {
+    if (_cryptoInitialized) {
+        mbedtls_rsa_free(&_rsa);
+        mbedtls_ctr_drbg_free(&_ctrDrbg);
+        mbedtls_entropy_free(&_entropy);
+        _cryptoInitialized = false;
+        memset(_publicKeyHex, 0, sizeof(_publicKeyHex));
+    }
+}
+
+bool CaptivePortal::decryptField(const String& cipherHex, String& outPlaintext) {
+    if (!_cryptoInitialized || !isHex256(cipherHex.c_str())) {
+        return false;
+    }
+
+    uint8_t cipherBytes[128];
+    if (!hexToBytes(cipherHex.c_str(), cipherBytes, sizeof(cipherBytes))) {
+        return false;
+    }
+
+    uint8_t decrypted[128];
+    size_t outLen = 0;
+    int ret = mbedtls_rsa_pkcs1_decrypt(
+        &_rsa,
+        mbedtls_ctr_drbg_random,
+        &_ctrDrbg,
+        MBEDTLS_RSA_PRIVATE,
+        &outLen,
+        cipherBytes,
+        decrypted,
+        sizeof(decrypted) - 1
+    );
+
+    if (ret != 0 || outLen >= sizeof(decrypted)) {
+        Serial.printf("[Portal] Decryption failed: -0x%04x\n", -ret);
+        return false;
+    }
+
+    decrypted[outLen] = '\0';
+    outPlaintext = reinterpret_cast<char*>(decrypted);
+    return true;
 }
 
 void CaptivePortal::performScan() {
@@ -91,6 +227,9 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     _config = initialConfig;
     _configSaved = false;
 
+    // Initialize ephemeral RSA crypto for credential payload encryption
+    initCrypto();
+
     // 1. Explicitly disconnect Station and disable auto-reconnect
     WiFi.setAutoReconnect(false);
     WiFi.disconnect(true, true);
@@ -119,7 +258,8 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     // - Disable AMPDU RX on ESP32 Wi-Fi to fix Android connectivity bug
     WiFi.mode(WIFI_MODE_AP);
     WiFi.softAPConfig(localIP, gatewayIP, subnetMask);
-    if (!WiFi.softAP(_apSsid, nullptr, WIFI_CHANNEL, 0, MAX_CLIENTS)) {
+    const char* apPassword = (strlen(PORTAL_AP_PASSWORD) >= 8) ? PORTAL_AP_PASSWORD : nullptr;
+    if (!WiFi.softAP(_apSsid, apPassword, WIFI_CHANNEL, 0, MAX_CLIENTS)) {
         Serial.println("[Portal] Failed to start SoftAP.");
         return false;
     }
@@ -173,6 +313,7 @@ void CaptivePortal::stop() {
     if (!_running) return;
 
     Serial.println("[Portal] Stopping captive portal services...");
+    freeCrypto();
     if (_server) {
         _server->stop();
         delete _server;
@@ -287,6 +428,23 @@ void CaptivePortal::handleSave() {
     String apiUrl = _server->arg("api_url");
     String nodeId = _server->arg("node_id");
     String nodeKey = _server->arg("node_key");
+    String enc = _server->arg("enc");
+
+    // Decrypt credentials if submitted as ciphertext
+    if (enc == "1" || isHex256(pass.c_str())) {
+        String decryptedPass;
+        if (decryptField(pass, decryptedPass)) {
+            pass = decryptedPass;
+            Serial.println("[Portal] Wi-Fi password decrypted successfully.");
+        }
+    }
+    if (enc == "1" || isHex256(nodeKey.c_str())) {
+        String decryptedKey;
+        if (decryptField(nodeKey, decryptedKey)) {
+            nodeKey = decryptedKey;
+            Serial.println("[Portal] Node API key decrypted successfully.");
+        }
+    }
 
     String finalSsid = (chosenSsid == "__custom__" || chosenSsid.length() == 0) ? customSsid : chosenSsid;
     finalSsid.trim();
@@ -463,6 +621,63 @@ String CaptivePortal::buildHtml() {
         customGroup.style.display = "none";
       }
     }
+    function modPow(b, e, m) {
+      let r = 1n; b = b % m;
+      while (e > 0n) {
+        if (e & 1n) r = (r * b) % m;
+        b = (b * b) % m;
+        e >>= 1n;
+      }
+      return r;
+    }
+    function encryptRsa(text, nStr, eStr) {
+      if (!text || text.length === 0) return "";
+      const n = BigInt("0x" + nStr);
+      const e = BigInt("0x" + eStr);
+      const k = Math.floor(nStr.length / 2);
+      const utf8 = new TextEncoder().encode(text);
+      if (utf8.length > k - 11) throw new Error("Input too long");
+      const padLen = k - 3 - utf8.length;
+      const block = new Uint8Array(k);
+      block[0] = 0x00;
+      block[1] = 0x02;
+      for (let i = 0; i < padLen; i++) {
+        let r = 0;
+        while (r === 0) { r = Math.floor(Math.random() * 255) + 1; }
+        block[2 + i] = r;
+      }
+      block[2 + padLen] = 0x00;
+      block.set(utf8, 3 + padLen);
+      let m = 0n;
+      for (let i = 0; i < k; i++) {
+        m = (m << 8n) | BigInt(block[i]);
+      }
+      const c = modPow(m, e, n);
+      let hex = c.toString(16);
+      while (hex.length < k * 2) hex = "0" + hex;
+      return hex;
+    }
+    function handleSubmit(e) {
+      try {
+        const pkElem = document.getElementById("pk");
+        if (pkElem && pkElem.value && pkElem.value.length === 256) {
+          const pk = pkElem.value;
+          const passElem = document.getElementById("pass");
+          const keyElem = document.getElementById("node_key");
+          if (passElem && passElem.value.length > 0) {
+            passElem.value = encryptRsa(passElem.value, pk, "010001");
+          }
+          if (keyElem && keyElem.value.length > 0) {
+            keyElem.value = encryptRsa(keyElem.value, pk, "010001");
+          }
+          const encElem = document.getElementById("enc");
+          if (encElem) encElem.value = "1";
+        }
+      } catch (err) {
+        console.warn("Encryption fallback:", err);
+      }
+      return true;
+    }
   </script>
 </head>
 <body>
@@ -473,7 +688,9 @@ String CaptivePortal::buildHtml() {
       <p class="sub">Configure Wi-Fi credentials for node sensor</p>
     </div>
 
-    <form action="/save" method="POST">
+    <form action="/save" method="POST" onsubmit="return handleSubmit(event)">
+      <input type="hidden" id="enc" name="enc" value="0">
+      <input type="hidden" id="pk" value=")rawliteral" + String(_publicKeyHex) + R"rawliteral(">
       <div class="form-group">
         <div class="flex-row">
           <label for="ssid_select">Available Networks</label>
