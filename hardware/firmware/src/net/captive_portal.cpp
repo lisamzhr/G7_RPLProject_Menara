@@ -27,14 +27,19 @@ bool CaptivePortal::isCaptiveProbe(const char* path) {
     static const char* const probes[] = {
         "/generate_204",
         "/gen_204",
+        "/generate204",
         "/mobile/status",
+        "/mobile/status.php",
+        "/check_network_status.txt",
         "/hotspot-detect.html",
         "/library/test/success.html",
         "/success.txt",
         "/ncsi.txt",
         "/connecttest.txt",
         "/fwlink",
-        "/canonical.html"
+        "/redirect",
+        "/canonical.html",
+        "/success.html"
     };
     for (const char* probe : probes) {
         if (strcmp(path, probe) == 0) {
@@ -114,7 +119,14 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     WiFi.disconnect(false, false);
     delay(50);
 
-    // 2. Generate unique AP SSID using last 2 bytes of MAC
+    // 2. Initial Wi-Fi scan in STA mode BEFORE starting SoftAP
+    // Scanning before AP broadcast prevents dropping client association frames,
+    // avoids 3-4s off-channel radio hopping while clients connect, and ensures
+    // the SSID list is already populated when the mobile device opens the portal.
+    WiFi.mode(WIFI_STA);
+    performScan();
+
+    // 3. Generate unique AP SSID using last 2 bytes of MAC
     uint8_t mac[6];
     WiFi.macAddress(mac);
     snprintf(_apSsid, sizeof(_apSsid), "%s-%02X%02X", apPrefix, mac[4], mac[5]);
@@ -122,32 +134,38 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     Serial.print("[Portal] Starting SoftAP: ");
     Serial.println(_apSsid);
 
-    // Use AP_STA mode so we can scan nearby 2.4GHz routers while broadcasting the hotspot
+    // Use AP_STA mode so the ESP32 can both run the hotspot and allow on-demand rescans
     WiFi.mode(WIFI_AP_STA);
     IPAddress apIP(192, 168, 4, 1);
     IPAddress netMsk(255, 255, 255, 0);
     WiFi.softAPConfig(apIP, apIP, netMsk);
-    
+
+    // 4. Start DNS server immediately (UDP 53) redirecting all domain requests to AP IP
+    if (_dnsServer) {
+        delete _dnsServer;
+    }
+    _dnsServer = new DNSServer();
+    _dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
+    _dnsServer->setTTL(60);
+    _dnsServer->start(53, "*", apIP);
+
+    // 5. Start HTTP WebServer (TCP 80) immediately
+    if (_server) {
+        delete _server;
+    }
+    _server = new WebServer(80);
+    setupRoutes();
+    _server->begin();
+
+    // 6. Broadcast SoftAP beacon now that DNS and HTTP listeners are armed and ready
     if (!WiFi.softAP(_apSsid)) {
         Serial.println("[Portal] Failed to start SoftAP.");
+        stop();
         return false;
     }
 
     Serial.print("[Portal] SoftAP IP address: ");
     Serial.println(WiFi.softAPIP());
-
-    // 3. Initial Wi-Fi scan so the list is ready when the phone loads the web page
-    performScan();
-
-    // 4. Start DNS server redirecting all domain requests to our AP IP (Captive Portal trigger)
-    _dnsServer = new DNSServer();
-    _dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
-    _dnsServer->start(53, "*", apIP);
-
-    // 5. Start HTTP WebServer
-    _server = new WebServer(80);
-    setupRoutes();
-    _server->begin();
 
     _running = true;
     _startedMillis = millis();
@@ -158,7 +176,7 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
 bool CaptivePortal::captivePortal() {
     if (!_server) return false;
     String host = _server->hostHeader();
-    if (!isIpAddress(host.c_str())) {
+    if (host.length() > 0 && !isIpAddress(host.c_str())) {
         Serial.printf("[Portal] Hijacked external probe for '%s' -> 302 Redirect to http://192.168.4.1/\n", host.c_str());
         handleRedirect();
         return true;
@@ -172,8 +190,12 @@ void CaptivePortal::handleRedirect() {
     _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     _server->sendHeader("Pragma", "no-cache");
     _server->sendHeader("Expires", "0");
-    _server->send(302, "text/plain", "");
-    _server->client().stop();
+    static const char REDIRECT_HTML[] =
+        "<!DOCTYPE html><html><head>"
+        "<meta http-equiv=\"refresh\" content=\"0; url=http://192.168.4.1/\"/>"
+        "<title>Redirecting</title></head>"
+        "<body><p>Redirecting to <a href=\"http://192.168.4.1/\">WiFi Setup</a>...</p></body></html>";
+    _server->send(302, "text/html", REDIRECT_HTML);
 }
 
 void CaptivePortal::setupRoutes() {
@@ -185,22 +207,27 @@ void CaptivePortal::setupRoutes() {
 
     // Operating system captive portal probe intercepts
     // Android / Google connectivity probes:
-    _server->on("/generate_204", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/gen_204", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/mobile/status", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/generate_204", [this]() { handleRedirect(); });
+    _server->on("/gen_204", [this]() { handleRedirect(); });
+    _server->on("/generate204", [this]() { handleRedirect(); });
+    _server->on("/mobile/status", [this]() { handleRedirect(); });
+    _server->on("/mobile/status.php", [this]() { handleRedirect(); });
+    _server->on("/check_network_status.txt", [this]() { handleRedirect(); });
 
     // Apple iOS / macOS Captive Network Assistant (CNA) probes:
-    _server->on("/hotspot-detect.html", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/library/test/success.html", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/success.txt", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/hotspot-detect.html", [this]() { handleRedirect(); });
+    _server->on("/library/test/success.html", [this]() { handleRedirect(); });
+    _server->on("/success.txt", [this]() { handleRedirect(); });
 
     // Microsoft Windows network connectivity probes:
-    _server->on("/ncsi.txt", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/connecttest.txt", HTTP_GET, [this]() { handleRedirect(); });
-    _server->on("/fwlink", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/ncsi.txt", [this]() { handleRedirect(); });
+    _server->on("/connecttest.txt", [this]() { handleRedirect(); });
+    _server->on("/fwlink", [this]() { handleRedirect(); });
+    _server->on("/redirect", [this]() { handleRedirect(); });
 
     // ChromeOS / Firefox probes:
-    _server->on("/canonical.html", HTTP_GET, [this]() { handleRedirect(); });
+    _server->on("/canonical.html", [this]() { handleRedirect(); });
+    _server->on("/success.html", [this]() { handleRedirect(); });
 
     _server->onNotFound([this]() { handleNotFound(); });
 }

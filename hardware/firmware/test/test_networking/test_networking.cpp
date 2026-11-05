@@ -205,7 +205,10 @@ void test_captive_portal_probe_recognition(void) {
     // Android / Google connectivity probes
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/generate_204"));
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/gen_204"));
+    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/generate204"));
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/mobile/status"));
+    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/mobile/status.php"));
+    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/check_network_status.txt"));
 
     // Apple CNA probes
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/hotspot-detect.html"));
@@ -216,9 +219,11 @@ void test_captive_portal_probe_recognition(void) {
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/ncsi.txt"));
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/connecttest.txt"));
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/fwlink"));
+    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/redirect"));
 
     // ChromeOS / Firefox probes
     TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/canonical.html"));
+    TEST_ASSERT_TRUE(CaptivePortal::isCaptiveProbe("/success.html"));
 
     // Normal application endpoints should NOT be marked as probes
     TEST_ASSERT_FALSE(CaptivePortal::isCaptiveProbe("/"));
