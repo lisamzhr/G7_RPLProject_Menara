@@ -113,6 +113,18 @@ void test_api_client_command_struct_layout(void) {
     TEST_ASSERT_EQUAL_STRING("cmd-9999", cmd.command_id);
     TEST_ASSERT_EQUAL_STRING("turn_on", cmd.command);
     TEST_ASSERT_EQUAL_UINT32(45, cmd.duration_seconds);
+
+    ApiClient client("http://localhost:8000/api/v1", "esp32-node-01", "secret");
+    SensorReading r{};
+    r.soil_moisture_pct = 75.0f;
+    r.temperature_c = 26.0f;
+    r.humidity_pct = 70.0f;
+    r.lux = 15000.0f;
+    r.is_valid = true;
+    bool retryable = false;
+    TEST_ASSERT_TRUE(client.postReading(r, &retryable));
+    TEST_ASSERT_TRUE(retryable);
+    TEST_ASSERT_TRUE(client.ackCommand("cmd-9999", "acked", "OK", "2026-11-05T12:00:00Z"));
 }
 
 // ==============================================================================

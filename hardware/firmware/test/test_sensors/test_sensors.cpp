@@ -83,6 +83,20 @@ void test_light_sensor_valid_lux(void) {
     TEST_ASSERT_TRUE(sensor.begin());
     sensor.setMockLux(38000.0f);
     TEST_ASSERT_EQUAL_FLOAT(38000.0f, sensor.readLux());
+
+    float outLux = 0.0f;
+    TEST_ASSERT_TRUE(sensor.read(outLux));
+    TEST_ASSERT_EQUAL_FLOAT(38000.0f, outLux);
+}
+
+void test_light_sensor_read_fault_detection(void) {
+    LightSensor sensor(21, 22);
+    sensor.begin();
+    // Simulate I2C error code (-1.0f / -2.0f) from BH1750 library
+    sensor.setMockLux(-1.0f);
+    float outLux = 100.0f;
+    TEST_ASSERT_FALSE(sensor.read(outLux));
+    TEST_ASSERT_EQUAL_FLOAT(-1.0f, outLux);
 }
 
 void test_dht_sensor_validate_reading_valid(void) {
@@ -157,6 +171,7 @@ int run_sensor_tests() {
     RUN_TEST(test_soil_moisture_read_pct_with_median);
     RUN_TEST(test_light_sensor_lux_clamping_negative);
     RUN_TEST(test_light_sensor_valid_lux);
+    RUN_TEST(test_light_sensor_read_fault_detection);
     RUN_TEST(test_dht_sensor_validate_reading_valid);
     RUN_TEST(test_dht_sensor_validate_reading_nan_temp);
     RUN_TEST(test_dht_sensor_validate_reading_nan_hum);

@@ -15,6 +15,9 @@ class ReadingIngestRequest(BaseModel):
     humidity_pct: float = Field(..., description="Relative humidity percentage (0-100)")
     lux: float = Field(..., description="Solar illuminance in lux (0 to 120,000)")
     battery_v: float | None = Field(None, description="Optional battery voltage")
+    is_valid: bool | None = Field(
+        None, description="Optional hardware-reported sensor validity flag"
+    )
 
 
 class ReadingIngestResponse(BaseModel):

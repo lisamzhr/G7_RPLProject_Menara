@@ -20,10 +20,11 @@ Base URL: `/api/v1`
   "temperature_c": 28.2,
   "humidity_pct": 74.0,
   "lux": 34500.0,
-  "battery_v": 3.95
+  "battery_v": 3.95,
+  "is_valid": true
 }
 ```
-*Note: `ts` is optional; defaults to server time if omitted. `battery_v` is optional.*
+*Note: `ts` is optional (defaults to server UTC time if omitted or unsynced < year 2000). `battery_v` and `is_valid` are optional.*
 - **Response `201 Created`**:
 ```json
 {

@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
+from app.models.base import ensure_utc
 from app.models.plant_zone import PlantZone
 from app.models.recommendation import Recommendation
 from app.models.sensor_reading import SensorReading
@@ -59,7 +60,7 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
         )
         if latest:
             latest_reading = LatestReadingSummary(
-                ts=latest.ts,
+                ts=ensure_utc(latest.ts),
                 soil_moisture_pct=latest.soil_moisture_pct,
                 temperature_c=latest.temperature_c,
                 humidity_pct=latest.humidity_pct,
@@ -165,7 +166,7 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
             status_level=latest_rec_model.status_level,
             message=latest_rec_model.message,
             reasons=latest_rec_model.reasons if isinstance(latest_rec_model.reasons, list) else [],
-            created_at=latest_rec_model.created_at,
+            created_at=ensure_utc(latest_rec_model.created_at),
         )
 
     return ZoneStatusResponse(
@@ -210,7 +211,8 @@ def get_zone_readings_history(
     if agg_str == "hourly":
         buckets: dict[str, list[SensorReading]] = {}
         for r in rows:
-            bucket_key = r.ts.strftime("%Y-%m-%dT%H:00:00Z")
+            r_ts = ensure_utc(r.ts)
+            bucket_key = r_ts.strftime("%Y-%m-%dT%H:00:00Z")
             buckets.setdefault(bucket_key, []).append(r)
 
         result = []
@@ -234,7 +236,7 @@ def get_zone_readings_history(
 
     return [
         {
-            "ts": r.ts.isoformat(),
+            "ts": ensure_utc(r.ts).isoformat(),
             "soil_moisture_pct": r.soil_moisture_pct,
             "temperature_c": r.temperature_c,
             "humidity_pct": r.humidity_pct,

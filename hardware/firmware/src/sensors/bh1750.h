@@ -14,6 +14,7 @@ public:
     LightSensor(uint8_t sdaPin, uint8_t sclPin, uint8_t address = 0x23);
     bool begin();
     float readLux();
+    bool read(float& luxOut);
     static float clampLux(float rawLux);
 
 #if !defined(ARDUINO)

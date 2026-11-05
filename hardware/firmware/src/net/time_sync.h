@@ -10,7 +10,7 @@
 
 class TimeSync {
 public:
-    TimeSync(const char* ntpServer = "pool.ntp.org", long gmtOffsetSec = 25200, int daylightOffsetSec = 0);
+    TimeSync(const char* ntpServer = "pool.ntp.org", long gmtOffsetSec = 0, int daylightOffsetSec = 0);
     bool begin();
     bool getISO8601Timestamp(char* buffer, size_t maxLen);
     bool isSynchronized();

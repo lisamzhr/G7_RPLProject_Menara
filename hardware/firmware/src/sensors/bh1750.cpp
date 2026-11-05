@@ -25,6 +25,25 @@ float LightSensor::clampLux(float lux) {
     return lux;
 }
 
+bool LightSensor::read(float& luxOut) {
+#if defined(ARDUINO)
+    float raw = _lightMeter.readLightLevel();
+    if (raw < 0.0f) {
+        luxOut = -1.0f;
+        return false;
+    }
+    luxOut = raw;
+    return true;
+#else
+    if (_mockLux < 0.0f) {
+        luxOut = -1.0f;
+        return false;
+    }
+    luxOut = _mockLux;
+    return true;
+#endif
+}
+
 float LightSensor::readLux() {
 #if defined(ARDUINO)
     float lux = _lightMeter.readLightLevel();

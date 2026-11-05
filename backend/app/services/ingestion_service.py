@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import verify_api_key
+from app.models.base import ensure_utc
 from app.models.sensor_node import SensorNode
 from app.models.sensor_reading import SensorReading
 from app.schemas.readings import ReadingIngestRequest, ReadingIngestResponse
@@ -48,9 +49,16 @@ def ingest_reading(
             detail="Invalid node API key credentials",
         )
 
-    # 2. Determine Timestamp & Range Validity
-    ts = req.ts or datetime.now(UTC)
-    is_valid = validate_reading_ranges(req)
+    # 2. Determine Timestamp & Validity
+    # If ts is omitted or an unsynced epoch (e.g. 1970-01-01), fallback to current UTC time
+    if req.ts is None or req.ts.year < 2000:
+        ts = datetime.now(UTC)
+    else:
+        ts = ensure_utc(req.ts)
+
+    ranges_valid = validate_reading_ranges(req)
+    # Hardware validity flag (if provided) is combined with physical range validation
+    is_valid = (req.is_valid is not False) and ranges_valid
 
     # 3. Deduplication Check (drop duplicates with same node_id and ts)
     existing = (
@@ -59,6 +67,10 @@ def ingest_reading(
         .first()
     )
     if existing:
+        # Refresh node health even on duplicates
+        node.last_seen_at = datetime.now(UTC)
+        node.status = "active"
+        db.commit()
         return ReadingIngestResponse(
             status="duplicate_dropped",
             reading_id=existing.id,

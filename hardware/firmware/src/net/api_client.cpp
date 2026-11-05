@@ -1,5 +1,6 @@
 #include "api_client.h"
 #include <cstring>
+#include <cmath>
 
 #if defined(ARDUINO)
 #include <HTTPClient.h>
@@ -28,9 +29,11 @@ const char* ApiClient::getNodeId() const {
     return _nodeId;
 }
 
-bool ApiClient::postReading(const SensorReading& reading) {
+bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
+    if (isRetryable) *isRetryable = true;
 #if defined(ARDUINO)
     if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
+        if (isRetryable) *isRetryable = false;
         return false;
     }
 
@@ -44,24 +47,39 @@ bool ApiClient::postReading(const SensorReading& reading) {
 
     JsonDocument doc;
     doc["node_id"] = _nodeId;
-    if (strlen(reading.timestamp) > 0) {
+    if (strlen(reading.timestamp) > 0 && strncmp(reading.timestamp, "1970-01-01", 10) != 0) {
         doc["ts"] = reading.timestamp;
     }
-    doc["soil_moisture_pct"] = reading.soil_moisture_pct;
-    doc["temperature_c"] = reading.temperature_c;
-    doc["humidity_pct"] = reading.humidity_pct;
-    doc["lux"] = reading.lux;
-    if (reading.battery_v > 0.0f) {
+
+    float soil = isnan(reading.soil_moisture_pct) ? 0.0f : reading.soil_moisture_pct;
+    float temp = isnan(reading.temperature_c) ? -999.0f : reading.temperature_c;
+    float hum  = isnan(reading.humidity_pct) ? -999.0f : reading.humidity_pct;
+    float lux  = isnan(reading.lux) ? 0.0f : reading.lux;
+
+    doc["soil_moisture_pct"] = soil;
+    doc["temperature_c"] = temp;
+    doc["humidity_pct"] = hum;
+    doc["lux"] = lux;
+    if (reading.battery_v > 0.0f && !isnan(reading.battery_v)) {
         doc["battery_v"] = reading.battery_v;
     }
+    doc["is_valid"] = reading.is_valid;
 
     String payload;
     serializeJson(doc, payload);
 
     int httpCode = http.POST(payload);
     bool success = (httpCode == 200 || httpCode == 201);
-    http.end();
 
+    if (isRetryable) {
+        if (httpCode >= 400 && httpCode < 500) {
+            *isRetryable = false;
+        } else {
+            *isRetryable = true;
+        }
+    }
+
+    http.end();
     return success;
 #else
     return true;
@@ -115,7 +133,7 @@ bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasComman
 #endif
 }
 
-bool ApiClient::ackCommand(const char* commandId, const char* status, const char* result) {
+bool ApiClient::ackCommand(const char* commandId, const char* status, const char* result, const char* executedAt) {
 #if defined(ARDUINO)
     if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
         return false;
@@ -131,7 +149,12 @@ bool ApiClient::ackCommand(const char* commandId, const char* status, const char
 
     JsonDocument doc;
     doc["status"] = status;
-    doc["result"] = result;
+    if (result && strlen(result) > 0) {
+        doc["result"] = result;
+    }
+    if (executedAt && strlen(executedAt) > 0) {
+        doc["executed_at"] = executedAt;
+    }
 
     String payload;
     serializeJson(doc, payload);
@@ -142,6 +165,10 @@ bool ApiClient::ackCommand(const char* commandId, const char* status, const char
 
     return success;
 #else
+    (void)commandId;
+    (void)status;
+    (void)result;
+    (void)executedAt;
     return true;
 #endif
 }

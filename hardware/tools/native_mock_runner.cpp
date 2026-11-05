@@ -15,6 +15,7 @@
 #include <iomanip>
 #include <cstring>
 #include <cstdlib>
+#include <vector>
 
 #include "sensors/mock_sensors.h"
 #include "core/reading_buffer.h"
@@ -139,7 +140,74 @@ static std::string getIsoUtcTimestamp() {
     return ss.str();
 }
 
+struct NativeCommand {
+    std::string command_id;
+    std::string actuator_id;
+    std::string command;
+    uint32_t duration_seconds = 30;
+};
+
+static std::vector<NativeCommand> parseCommandsJson(const std::string& json) {
+    std::vector<NativeCommand> list;
+    size_t pos = 0;
+    while ((pos = json.find("command_id", pos)) != std::string::npos) {
+        NativeCommand cmd;
+        size_t idStart = json.find('"', pos + 11);
+        if (idStart != std::string::npos) {
+            size_t idEnd = json.find('"', idStart + 1);
+            if (idEnd != std::string::npos) {
+                cmd.command_id = json.substr(idStart + 1, idEnd - idStart - 1);
+            }
+        }
+
+        size_t cmdPos = json.find("\"command\"", pos);
+        if (cmdPos != std::string::npos && cmdPos < pos + 300) {
+            size_t cmdValStart = json.find('"', cmdPos + 9);
+            if (cmdValStart != std::string::npos) {
+                size_t cmdValEnd = json.find('"', cmdValStart + 1);
+                if (cmdValEnd != std::string::npos) {
+                    cmd.command = json.substr(cmdValStart + 1, cmdValEnd - cmdValStart - 1);
+                }
+            }
+        }
+
+        size_t durPos = json.find("\"duration_seconds\"", pos);
+        if (durPos != std::string::npos && durPos < pos + 300) {
+            size_t colon = json.find(':', durPos);
+            if (colon != std::string::npos) {
+                cmd.duration_seconds = std::atoi(json.c_str() + colon + 1);
+                if (cmd.duration_seconds == 0) cmd.duration_seconds = 30;
+            }
+        }
+
+        if (!cmd.command_id.empty()) {
+            list.push_back(cmd);
+        }
+        pos += 20;
+    }
+    return list;
+}
+
+static std::string formatTelemetryJson(const std::string& nodeId, const SensorReading& r) {
+    std::ostringstream json;
+    json << "{\"node_id\":\"" << nodeId << "\"";
+    if (std::strlen(r.timestamp) > 0) {
+        json << ",\"ts\":\"" << r.timestamp << "\"";
+    }
+    json << ",\"soil_moisture_pct\":" << r.soil_moisture_pct
+         << ",\"temperature_c\":" << r.temperature_c
+         << ",\"humidity_pct\":" << r.humidity_pct
+         << ",\"lux\":" << r.lux;
+    if (r.battery_v > 0.0f) {
+        json << ",\"battery_v\":" << r.battery_v;
+    }
+    json << ",\"is_valid\":" << (r.is_valid ? "true" : "false") << "}";
+    return json.str();
+}
+
 int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
     std::string host = DEFAULT_API_HOST;
     int port = DEFAULT_API_PORT;
     std::string nodeId = DEFAULT_NODE_ID;
@@ -211,27 +279,46 @@ int main(int argc, char* argv[]) {
             lastSendTime = now;
             mockSensors.update((float)sendIntervalS);
 
-            float soil = mockSensors.readSoilMoisturePct();
+            SensorReading reading{};
+            reading.soil_moisture_pct = mockSensors.readSoilMoisturePct();
             float temp = 0.0f, hum = 0.0f;
             mockSensors.readDHT(temp, hum);
-            float lux = mockSensors.readLux();
-            float batt = mockSensors.readBatteryVoltage();
+            reading.temperature_c = temp;
+            reading.humidity_pct = hum;
+            reading.lux = mockSensors.readLux();
+            reading.battery_v = mockSensors.readBatteryVoltage();
+            reading.is_valid = !mockSensors.isAnomalyActive();
             std::string ts = getIsoUtcTimestamp();
+            strncpy(reading.timestamp, ts.c_str(), sizeof(reading.timestamp) - 1);
 
-            std::ostringstream json;
-            json << "{\"node_id\":\"" << nodeId << "\",\"ts\":\"" << ts << "\","
-                 << "\"soil_moisture_pct\":" << soil << ",\"temperature_c\":" << temp << ","
-                 << "\"humidity_pct\":" << hum << ",\"lux\":" << lux << ",\"battery_v\":" << batt << "}";
+            // Flush buffered readings first
+            while (!buffer.isEmpty()) {
+                SensorReading buffered{};
+                if (buffer.peek(buffered)) {
+                    std::string bufJson = formatTelemetryJson(nodeId, buffered);
+                    std::string resp;
+                    if (http.post(DEFAULT_API_PATH + "/ingest/readings", bufJson, apiKey, resp)) {
+                        buffer.pop(buffered);
+                        std::cout << "  [Buffer] Flushed 1 buffered reading to web app ("
+                                  << buffer.size() << " remaining).\n";
+                    } else {
+                        break; // Server offline, keep in buffer
+                    }
+                }
+            }
 
-            std::cout << "[Telemetry] Moisture: " << soil << "% | Temp: " << temp
-                      << "C | Hum: " << hum << "% | Lux: " << lux << " lx\n";
+            std::cout << "[Telemetry] Moisture: " << reading.soil_moisture_pct << "% | Temp: " << reading.temperature_c
+                      << "C | Hum: " << reading.humidity_pct << "% | Lux: " << reading.lux
+                      << " lx | Valid: " << (reading.is_valid ? "true" : "false") << "\n";
 
+            std::string currentJson = formatTelemetryJson(nodeId, reading);
             std::string response;
-            bool ok = http.post(DEFAULT_API_PATH + "/ingest/readings", json.str(), apiKey, response);
+            bool ok = http.post(DEFAULT_API_PATH + "/ingest/readings", currentJson, apiKey, response);
             if (ok) {
                 std::cout << "  -> Ingested successfully into web app.\n";
             } else {
-                std::cout << "  -> Ingestion failed or backend offline. Buffering reading.\n";
+                std::cout << "  -> Ingestion failed or backend offline. Buffering reading to memory.\n";
+                buffer.push(reading);
             }
         }
 
@@ -240,14 +327,41 @@ int main(int argc, char* argv[]) {
             lastPollTime = now;
             std::string response;
             if (http.get(DEFAULT_API_PATH + "/nodes/" + nodeId + "/commands", apiKey, response)) {
-                if (response.find("\"command\"") != std::string::npos) {
-                    std::cout << "[Command] Received pending command from web app!\n";
-                    if (response.find("turn_on") != std::string::npos) {
+                auto commands = parseCommandsJson(response);
+                for (const auto& cmd : commands) {
+                    std::cout << "[Command] Received pending command from web app: " << cmd.command
+                              << " (ID: " << cmd.command_id << ", Duration: " << cmd.duration_seconds << "s)\n";
+                    std::string execTs = getIsoUtcTimestamp();
+                    std::string ackResult;
+
+                    if (cmd.command == "turn_on") {
                         relayActive = true;
                         relayTurnOnTime = now;
-                        relayDurationS = 30;
+                        relayDurationS = std::min(cmd.duration_seconds, HARD_MAX_RELAY_SECONDS);
                         mockSensors.notifyWatering(relayDurationS);
-                        std::cout << "  -> Sprinkler turned ON for 30s! Moisture replenished.\n";
+                        ackResult = "Valve opened for " + std::to_string(relayDurationS) + "s successfully";
+                        std::cout << "  -> Sprinkler turned ON for " << relayDurationS << "s! Moisture replenished.\n";
+                    } else if (cmd.command == "turn_off") {
+                        relayActive = false;
+                        relayDurationS = 0;
+                        ackResult = "Valve closed successfully";
+                        std::cout << "  -> Sprinkler turned OFF.\n";
+                    } else {
+                        ackResult = "Unsupported command";
+                        std::cout << "  -> Unknown command: " << cmd.command << "\n";
+                    }
+
+                    // Acknowledge command execution to unblock backend queue
+                    std::ostringstream ackBody;
+                    ackBody << "{\"status\":\"" << (cmd.command == "turn_on" || cmd.command == "turn_off" ? "acked" : "failed")
+                            << "\",\"executed_at\":\"" << execTs << "\",\"result\":\"" << ackResult << "\"}";
+                    std::string ackResp;
+                    bool ackOk = http.post(DEFAULT_API_PATH + "/nodes/" + nodeId + "/commands/" + cmd.command_id + "/ack",
+                                           ackBody.str(), apiKey, ackResp);
+                    if (ackOk) {
+                        std::cout << "  -> Acknowledged command " << cmd.command_id << " to backend.\n";
+                    } else {
+                        std::cout << "  -> Failed to acknowledge command " << cmd.command_id << ".\n";
                     }
                 }
             }

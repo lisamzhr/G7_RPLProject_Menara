@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from app.core.config import settings
 from app.core.database import SessionLocal
+from app.models.base import ensure_utc
 from app.models.sensor_node import SensorNode
 from app.services.notification_service import create_system_alert
 
@@ -24,7 +25,8 @@ def job_check_node_health():
         cutoff = now - timedelta(seconds=offline_threshold_sec)
 
         for node in nodes:
-            if (not node.last_seen_at or node.last_seen_at < cutoff) and node.status != "offline":
+            last_seen = ensure_utc(node.last_seen_at)
+            if (not last_seen or last_seen < cutoff) and node.status != "offline":
                 node.status = "offline"
                 create_system_alert(
                     db=db,
