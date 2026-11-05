@@ -3,7 +3,7 @@
 #if defined(ARDUINO)
 #include <Arduino.h>
 #include <WiFi.h>
-#include <WiFiUdp.h>
+#include <DNSServer.h>
 #include <WebServer.h>
 #include <vector>
 #endif
@@ -44,26 +44,17 @@ public:
     bool isConfigSaved() const;
     DeviceConfig getSavedConfig() const;
 
-    // Helper functions for captive portal detection & redirection (unit testable)
-    static bool isIpAddress(const char* host);
+    // Helper function for captive portal detection & redirection (unit testable)
     static bool isCaptiveProbe(const char* path);
-    static size_t buildDnsResponse(
-        const uint8_t* req,
-        size_t reqLen,
-        const uint8_t resolvedIp[4],
-        uint8_t* resp,
-        size_t maxRespLen
-    );
 
 private:
 #if defined(ARDUINO)
     WebServer* _server;
-    WiFiUDP _dnsUdp;
+    DNSServer _dnsServer;
     std::vector<ScannedAp> _scannedAps;
     unsigned long _lastScanMillis;
+    unsigned long _lastDnsMillis;
     void performScan();
-    void processDnsRequests();
-    bool captivePortal();
     void handleRedirect();
 #endif
     bool _running;
@@ -78,7 +69,6 @@ private:
     void handleRoot();
     void handleSave();
     void handleScan();
-    void handleNotFound();
     String buildHtml();
 #endif
 };

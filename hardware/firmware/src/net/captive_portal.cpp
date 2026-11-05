@@ -1,45 +1,15 @@
 #include "captive_portal.h"
 #include <cstring>
 
-bool CaptivePortal::isIpAddress(const char* host) {
-    if (!host || *host == '\0') return false;
-
-    int dotCount = 0;
-    int numCount = 0;
-    const char* p = host;
-
-    while (*p && *p != ':') {
-        if (*p >= '0' && *p <= '9') {
-            numCount++;
-        } else if (*p == '.') {
-            dotCount++;
-        } else {
-            return false;
-        }
-        p++;
-    }
-
-    return (dotCount == 3 && numCount >= 4);
-}
-
 bool CaptivePortal::isCaptiveProbe(const char* path) {
     if (!path) return false;
     static const char* const probes[] = {
         "/generate_204",
-        "/gen_204",
-        "/generate204",
-        "/mobile/status",
-        "/mobile/status.php",
-        "/check_network_status.txt",
-        "/hotspot-detect.html",
-        "/library/test/success.html",
-        "/success.txt",
-        "/ncsi.txt",
         "/connecttest.txt",
-        "/fwlink",
         "/redirect",
+        "/hotspot-detect.html",
         "/canonical.html",
-        "/success.html"
+        "/ncsi.txt"
     };
     for (const char* probe : probes) {
         if (strcmp(path, probe) == 0) {
@@ -49,103 +19,22 @@ bool CaptivePortal::isCaptiveProbe(const char* path) {
     return false;
 }
 
-size_t CaptivePortal::buildDnsResponse(
-    const uint8_t* req,
-    size_t reqLen,
-    const uint8_t resolvedIp[4],
-    uint8_t* resp,
-    size_t maxRespLen
-) {
-    // Minimum DNS header (12 bytes) + 1 byte root QName + 4 bytes (QType + QClass) = 17 bytes
-    if (!req || !resolvedIp || !resp || reqLen < 17 || maxRespLen < 33) {
-        return 0;
-    }
-
-    // Must be a standard query (QR == 0, Opcode == 0)
-    if ((req[2] & 0xF8) != 0x00) {
-        return 0;
-    }
-
-    uint16_t qdCount = (static_cast<uint16_t>(req[4]) << 8) | req[5];
-    if (qdCount == 0) {
-        return 0;
-    }
-
-    // Parse first Question QName starting at offset 12 (tolerates EDNS0 ARCount > 0)
-    size_t pos = 12;
-    while (pos < reqLen) {
-        uint8_t labelLen = req[pos];
-        if (labelLen == 0) {
-            pos += 1;
-            break;
-        }
-        if ((labelLen & 0xC0) != 0 || (pos + 1 + labelLen) >= reqLen) {
-            return 0;
-        }
-        pos += 1 + labelLen;
-    }
-
-    // Need 4 bytes after QName for QType (2) and QClass (2)
-    if (pos + 4 > reqLen) {
-        return 0;
-    }
-
-    uint16_t qType = (static_cast<uint16_t>(req[pos]) << 8) | req[pos + 1];
-    size_t questionLen = (pos + 4) - 12;
-
-    // Answer with IPv4 A record for Type A (1) or ANY (255); return clean NoError NODATA (ANCount=0) for AAAA (28) / HTTPS (65)
-    bool includeARecord = (qType == 1 || qType == 255);
-    size_t totalRespLen = 12 + questionLen + (includeARecord ? 16 : 0);
-    if (totalRespLen > maxRespLen) {
-        return 0;
-    }
-
-    // 1. DNS Response Header (12 bytes)
-    resp[0] = req[0];
-    resp[1] = req[1];
-    resp[2] = 0x84 | (req[2] & 0x01); // QR=1 (Response), AA=1 (Authoritative), copy RD
-    resp[3] = 0x80;                   // RA=1, Z=0, RCode=0 (NoError)
-    resp[4] = 0x00;
-    resp[5] = 0x01;                   // QDCount = 1
-    resp[6] = 0x00;
-    resp[7] = includeARecord ? 0x01 : 0x00; // ANCount = 1 for A/ANY, 0 for AAAA/HTTPS
-    resp[8] = 0x00;
-    resp[9] = 0x00;                   // NSCount = 0
-    resp[10] = 0x00;
-    resp[11] = 0x00;                  // ARCount = 0
-
-    // 2. Echo Question section
-    memcpy(resp + 12, req + 12, questionLen);
-
-    // 3. Append Answer RR for IPv4 A query
-    if (includeARecord) {
-        size_t ansOffset = 12 + questionLen;
-        resp[ansOffset + 0] = 0xC0; // Name pointer to offset 12
-        resp[ansOffset + 1] = 0x0C;
-        resp[ansOffset + 2] = 0x00; // TYPE = A (1)
-        resp[ansOffset + 3] = 0x01;
-        resp[ansOffset + 4] = 0x00; // CLASS = IN (1)
-        resp[ansOffset + 5] = 0x01;
-        resp[ansOffset + 6] = 0x00; // TTL = 60 seconds
-        resp[ansOffset + 7] = 0x00;
-        resp[ansOffset + 8] = 0x00;
-        resp[ansOffset + 9] = 0x3C;
-        resp[ansOffset + 10] = 0x00; // RDLENGTH = 4
-        resp[ansOffset + 11] = 0x04;
-        resp[ansOffset + 12] = resolvedIp[0];
-        resp[ansOffset + 13] = resolvedIp[1];
-        resp[ansOffset + 14] = resolvedIp[2];
-        resp[ansOffset + 15] = resolvedIp[3];
-    }
-
-    return totalRespLen;
-}
-
 #if defined(ARDUINO)
 #include <algorithm>
+#include <esp_wifi.h>
+
+// Configuration constants matching CDFER/Captive-Portal-ESP32
+static const IPAddress localIP(4, 3, 2, 1);
+static const IPAddress gatewayIP(4, 3, 2, 1);
+static const IPAddress subnetMask(255, 255, 255, 0);
+static const char LOCAL_IP_URL[] = "http://4.3.2.1/";
+static const uint8_t WIFI_CHANNEL = 6;
+static const uint8_t MAX_CLIENTS = 4;
+static const unsigned long DNS_INTERVAL = 30;
 
 CaptivePortal::CaptivePortal()
-    : _server(nullptr), _lastScanMillis(0), _running(false), _configSaved(false), _startedMillis(0) {
+    : _server(nullptr), _lastScanMillis(0), _lastDnsMillis(0),
+      _running(false), _configSaved(false), _startedMillis(0) {
     memset(&_config, 0, sizeof(DeviceConfig));
     memset(&_savedConfig, 0, sizeof(DeviceConfig));
     memset(_apSsid, 0, sizeof(_apSsid));
@@ -157,7 +46,6 @@ CaptivePortal::~CaptivePortal() {
 
 void CaptivePortal::performScan() {
     Serial.println("[Portal] Scanning 2.4 GHz Wi-Fi channels...");
-    // Synchronous scan with show_hidden=false, passive=false
     int n = WiFi.scanNetworks(false, false);
     _scannedAps.clear();
 
@@ -168,7 +56,6 @@ void CaptivePortal::performScan() {
             if (s.length() == 0) continue;
 
             int rssi = WiFi.RSSI(i);
-            // Check for existing SSID and keep strongest signal
             bool found = false;
             for (auto& existing : _scannedAps) {
                 if (strcmp(existing.ssid, s.c_str()) == 0) {
@@ -188,12 +75,10 @@ void CaptivePortal::performScan() {
             }
         }
 
-        // Sort descending by RSSI (strongest signal first)
         std::sort(_scannedAps.begin(), _scannedAps.end(), [](const ScannedAp& a, const ScannedAp& b) {
             return a.rssi > b.rssi;
         });
 
-        // Clean up internal scan memory
         WiFi.scanDelete();
         Serial.printf("[Portal] Scan complete: %u access points found.\n", (unsigned int)_scannedAps.size());
     } else {
@@ -206,19 +91,20 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     _config = initialConfig;
     _configSaved = false;
 
-    // 1. Explicitly disconnect Station to stop background auto-reconnect
-    // This immediately stops the ESP-IDF driver from emitting NO_AP_FOUND (reason 201)
-    WiFi.disconnect(false, false);
+    // 1. Explicitly disconnect Station and disable auto-reconnect
+    WiFi.setAutoReconnect(false);
+    WiFi.disconnect(true, true);
     delay(50);
 
-    // 2. Initial Wi-Fi scan in STA mode BEFORE starting SoftAP
-    // Scanning before AP broadcast prevents dropping client association frames,
-    // avoids 3-4s off-channel radio hopping while clients connect, and ensures
-    // the SSID list is already populated when the mobile device opens the portal.
+    // 2. Initial Wi-Fi scan in STA mode before starting SoftAP
     WiFi.mode(WIFI_STA);
     performScan();
 
-    // 3. Generate unique AP SSID using last 2 bytes of MAC
+    // 3. Wipe station configuration again after scan
+    WiFi.disconnect(true, true);
+    delay(50);
+
+    // 4. Generate unique AP SSID using last 2 bytes of MAC
     uint8_t mac[6];
     WiFi.macAddress(mac);
     snprintf(_apSsid, sizeof(_apSsid), "%s-%02X%02X", apPrefix, mac[4], mac[5]);
@@ -226,24 +112,33 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     Serial.print("[Portal] Starting SoftAP: ");
     Serial.println(_apSsid);
 
-    // Use AP_STA mode so the ESP32 can both run the hotspot and allow on-demand rescans
-    WiFi.mode(WIFI_AP_STA);
-    if (!WiFi.softAP(_apSsid)) {
+    // 5. Configure SoftAP matching CDFER/Captive-Portal-ESP32:
+    // - Mode: WIFI_MODE_AP
+    // - Public space IP: 4.3.2.1
+    // - Channel 6, max 4 clients
+    // - Disable AMPDU RX on ESP32 Wi-Fi to fix Android connectivity bug
+    WiFi.mode(WIFI_MODE_AP);
+    WiFi.softAPConfig(localIP, gatewayIP, subnetMask);
+    if (!WiFi.softAP(_apSsid, nullptr, WIFI_CHANNEL, 0, MAX_CLIENTS)) {
         Serial.println("[Portal] Failed to start SoftAP.");
         return false;
     }
-    // Allow WIFI_EVENT_AP_START to initialize the SoftAP netif before configuring IP & DHCP
-    delay(100);
 
-    IPAddress apIP(192, 168, 4, 1);
-    IPAddress netMsk(255, 255, 255, 0);
-    WiFi.softAPConfig(apIP, apIP, netMsk);
+    // Disable AMPDU RX on ESP32 to prevent packet drops on Android
+    esp_wifi_stop();
+    esp_wifi_deinit();
+    wifi_init_config_t my_config = WIFI_INIT_CONFIG_DEFAULT();
+    my_config.ampdu_rx_enable = false;
+    esp_wifi_init(&my_config);
+    esp_wifi_start();
+    vTaskDelay(100 / portTICK_PERIOD_MS);
 
-    // 4. Start RFC-compliant DNS responder on UDP port 53 (supports EDNS0 and AAAA/HTTPS NODATA)
-    _dnsUdp.stop();
-    _dnsUdp.begin(53);
+    // 6. Start DNSServer matching CDFER/Captive-Portal-ESP32
+    _dnsServer.setTTL(3600);
+    _dnsServer.start(53, "*", localIP);
+    _lastDnsMillis = millis();
 
-    // 5. Start HTTP WebServer (TCP 80) immediately
+    // 7. Start WebServer (port 80) and set up probe routes
     if (_server) {
         delete _server;
     }
@@ -256,96 +151,18 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
 
     _running = true;
     _startedMillis = millis();
-    Serial.println("[Portal] Web server and DNS redirection active. Waiting for mobile client...");
+    Serial.println("[Portal] Captive portal active at http://4.3.2.1/. Waiting for mobile client...");
     return true;
-}
-
-void CaptivePortal::processDnsRequests() {
-    static const uint8_t AP_IP[4] = {192, 168, 4, 1};
-    uint8_t reqBuf[512];
-    uint8_t respBuf[540];
-
-    for (int i = 0; i < 8; ++i) {
-        int packetSize = _dnsUdp.parsePacket();
-        if (packetSize <= 0) {
-            break;
-        }
-        int len = _dnsUdp.read(reqBuf, sizeof(reqBuf));
-        if (len <= 0) {
-            continue;
-        }
-        size_t respLen = buildDnsResponse(reqBuf, static_cast<size_t>(len), AP_IP, respBuf, sizeof(respBuf));
-        if (respLen > 0) {
-            _dnsUdp.beginPacket(_dnsUdp.remoteIP(), _dnsUdp.remotePort());
-            _dnsUdp.write(respBuf, respLen);
-            _dnsUdp.endPacket();
-        }
-    }
-}
-
-bool CaptivePortal::captivePortal() {
-    if (!_server) return false;
-    String host = _server->hostHeader();
-    if (host.length() > 0 && !isIpAddress(host.c_str())) {
-        Serial.printf("[Portal] Hijacked external probe for '%s' -> 302 Redirect to http://192.168.4.1/\n", host.c_str());
-        handleRedirect();
-        return true;
-    }
-    return false;
-}
-
-void CaptivePortal::handleRedirect() {
-    if (!_server) return;
-    _server->sendHeader("Location", "http://192.168.4.1/", true);
-    _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    _server->sendHeader("Pragma", "no-cache");
-    _server->sendHeader("Expires", "0");
-    static const char REDIRECT_HTML[] =
-        "<!DOCTYPE html><html><head>"
-        "<meta http-equiv=\"refresh\" content=\"0; url=http://192.168.4.1/\"/>"
-        "<title>Redirecting</title></head>"
-        "<body><p>Redirecting to <a href=\"http://192.168.4.1/\">WiFi Setup</a>...</p></body></html>";
-    _server->send(302, "text/html", REDIRECT_HTML);
-}
-
-void CaptivePortal::setupRoutes() {
-    if (!_server) return;
-
-    _server->on("/", HTTP_GET, [this]() { handleRoot(); });
-    _server->on("/save", HTTP_POST, [this]() { handleSave(); });
-    _server->on("/scan", HTTP_GET, [this]() { handleScan(); });
-
-    // Operating system captive portal probe intercepts
-    // Android / Google connectivity probes:
-    _server->on("/generate_204", [this]() { handleRedirect(); });
-    _server->on("/gen_204", [this]() { handleRedirect(); });
-    _server->on("/generate204", [this]() { handleRedirect(); });
-    _server->on("/mobile/status", [this]() { handleRedirect(); });
-    _server->on("/mobile/status.php", [this]() { handleRedirect(); });
-    _server->on("/check_network_status.txt", [this]() { handleRedirect(); });
-
-    // Apple iOS / macOS Captive Network Assistant (CNA) probes:
-    _server->on("/hotspot-detect.html", [this]() { handleRedirect(); });
-    _server->on("/library/test/success.html", [this]() { handleRedirect(); });
-    _server->on("/success.txt", [this]() { handleRedirect(); });
-
-    // Microsoft Windows network connectivity probes:
-    _server->on("/ncsi.txt", [this]() { handleRedirect(); });
-    _server->on("/connecttest.txt", [this]() { handleRedirect(); });
-    _server->on("/fwlink", [this]() { handleRedirect(); });
-    _server->on("/redirect", [this]() { handleRedirect(); });
-
-    // ChromeOS / Firefox probes:
-    _server->on("/canonical.html", [this]() { handleRedirect(); });
-    _server->on("/success.html", [this]() { handleRedirect(); });
-
-    _server->onNotFound([this]() { handleNotFound(); });
 }
 
 void CaptivePortal::update() {
     if (!_running) return;
 
-    processDnsRequests();
+    // Process DNS queries every DNS_INTERVAL (30 ms)
+    if (millis() - _lastDnsMillis >= DNS_INTERVAL) {
+        _dnsServer.processNextRequest();
+        _lastDnsMillis = millis();
+    }
 
     if (_server) {
         _server->handleClient();
@@ -361,7 +178,7 @@ void CaptivePortal::stop() {
         delete _server;
         _server = nullptr;
     }
-    _dnsUdp.stop();
+    _dnsServer.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
     _scannedAps.clear();
@@ -380,16 +197,67 @@ DeviceConfig CaptivePortal::getSavedConfig() const {
     return _savedConfig;
 }
 
-void CaptivePortal::handleNotFound() {
-    if (captivePortal()) {
-        return;
-    }
-    // Any unrecognized path on 192.168.4.1 redirects to root
-    handleRedirect();
+void CaptivePortal::handleRedirect() {
+    if (!_server) return;
+    _server->sendHeader("Location", LOCAL_IP_URL, true);
+    _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    _server->sendHeader("Pragma", "no-cache");
+    _server->sendHeader("Expires", "0");
+    static const char REDIRECT_HTML[] =
+        "<!DOCTYPE html><html><head>"
+        "<meta http-equiv=\"refresh\" content=\"0; url=http://4.3.2.1/\"/>"
+        "<title>Redirecting</title></head>"
+        "<body><p>Redirecting to <a href=\"http://4.3.2.1/\">WiFi Setup</a>...</p></body></html>";
+    _server->send(302, "text/html", REDIRECT_HTML);
+}
+
+void CaptivePortal::setupRoutes() {
+    if (!_server) return;
+
+    // Exact route mapping from CDFER/Captive-Portal-ESP32
+    // Windows NCSI connect test: redirect to logout.net
+    _server->on("/connecttest.txt", [this]() {
+        _server->sendHeader("Location", "http://logout.net", true);
+        _server->send(302, "text/plain", "");
+    });
+    // Windows WPAD proxy search: respond with 404 to stop spam
+    _server->on("/wpad.dat", [this]() {
+        _server->send(404);
+    });
+
+    // Android / Google connectivity check
+    _server->on("/generate_204", [this]() { handleRedirect(); });
+    // Microsoft redirect check
+    _server->on("/redirect", [this]() { handleRedirect(); });
+    // Apple iOS / macOS Captive Network Assistant (CNA)
+    _server->on("/hotspot-detect.html", [this]() { handleRedirect(); });
+    // Canonical / Firefox check
+    _server->on("/canonical.html", [this]() { handleRedirect(); });
+    // Success text check
+    _server->on("/success.txt", [this]() {
+        _server->send(200);
+    });
+    // NCSI text check
+    _server->on("/ncsi.txt", [this]() { handleRedirect(); });
+    // Favicon request: 404
+    _server->on("/favicon.ico", [this]() {
+        _server->send(404);
+    });
+
+    // Application portal endpoints
+    _server->on("/", HTTP_GET, [this]() { handleRoot(); });
+    _server->on("/save", HTTP_POST, [this]() { handleSave(); });
+    _server->on("/scan", HTTP_GET, [this]() { handleScan(); });
+
+    // Catch-all: redirect any unknown probe or domain to http://4.3.2.1/
+    _server->onNotFound([this]() { handleRedirect(); });
 }
 
 void CaptivePortal::handleScan() {
     performScan();
+    WiFi.enableSTA(false);
+    WiFi.mode(WIFI_MODE_AP);
+
     String json = "[";
     for (size_t i = 0; i < _scannedAps.size(); ++i) {
         if (i > 0) json += ",";
@@ -401,12 +269,10 @@ void CaptivePortal::handleScan() {
 }
 
 void CaptivePortal::handleRoot() {
-    if (captivePortal()) {
-        return; // External domain intercepted, redirected to 192.168.4.1
-    }
-
     if (_server->hasArg("rescan")) {
         performScan();
+        WiFi.enableSTA(false);
+        WiFi.mode(WIFI_MODE_AP);
     }
     _server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     _server->sendHeader("Pragma", "no-cache");
