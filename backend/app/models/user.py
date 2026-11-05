@@ -12,6 +12,7 @@ class User(Base, TimestampMixin):
     name = Column(String(255), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=True)
     role = Column(String(50), default="gardener", nullable=False)
+    password_hash = Column(String(255), nullable=True)
 
     gardens = relationship("Garden", back_populates="user", cascade="all, delete-orphan")
     feedbacks = relationship("Feedback", back_populates="user")

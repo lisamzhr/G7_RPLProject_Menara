@@ -70,4 +70,5 @@ compile_commands.json
 .cache/
 .DS_Store
 Thumbs.db
-.idea/
+.idea/.env
+*.db
