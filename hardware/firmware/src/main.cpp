@@ -314,19 +314,23 @@ void loop() {
         // Read physical sensors
         reading.soil_moisture_pct = soilSensor.readMoisturePct();
         float temp = 0.0f, hum = 0.0f;
-        if (dhtSensor.read(temp, hum)) {
+        bool dhtOk = dhtSensor.read(temp, hum);
+        if (dhtOk) {
             reading.temperature_c = temp;
             reading.humidity_pct = hum;
         } else {
             reading.temperature_c = -999.0f;
             reading.humidity_pct = -999.0f;
         }
-        reading.lux = lightSensor.readLux();
+        float lux = 0.0f;
+        bool luxOk = lightSensor.read(lux);
+        reading.lux = luxOk ? lux : 0.0f;
         reading.battery_v = 3.95f; // Estimated 1S LiPo voltage
-        reading.is_valid = (reading.temperature_c > -50.0f);
+        reading.is_valid = dhtOk && luxOk && (reading.soil_moisture_pct >= 0.0f && reading.soil_moisture_pct <= 100.0f);
 
-        Serial.printf("[Sensor] Moisture: %.1f%% | Temp: %.1fC | Hum: %.1f%% | Lux: %.0f lx\n",
-                      reading.soil_moisture_pct, reading.temperature_c, reading.humidity_pct, reading.lux);
+        Serial.printf("[Sensor] Moisture: %.1f%% | Temp: %.1fC | Hum: %.1f%% | Lux: %.0f lx | Valid: %s\n",
+                      reading.soil_moisture_pct, reading.temperature_c, reading.humidity_pct, reading.lux,
+                      reading.is_valid ? "true" : "false");
 #endif
 
         // Send or Buffer
@@ -335,19 +339,28 @@ void loop() {
             while (!readingBuffer.isEmpty()) {
                 SensorReading buffered;
                 if (readingBuffer.peek(buffered)) {
-                    if (apiClient.postReading(buffered)) {
+                    bool retryable = true;
+                    if (apiClient.postReading(buffered, &retryable)) {
                         readingBuffer.pop(buffered);
                         Serial.println("[Buffer] Successfully flushed buffered reading to backend.");
+                    } else if (!retryable) {
+                        readingBuffer.pop(buffered);
+                        Serial.println("[Buffer] Dropped unprocessable buffered reading (4xx non-retryable error).");
                     } else {
-                        break; // Failed to send, keep remaining in buffer
+                        break; // Failed to send due to network/server, keep remaining in buffer
                     }
                 }
             }
 
             // Send current reading
-            if (!apiClient.postReading(reading)) {
-                Serial.println("[API] Failed to POST reading. Buffering to RAM.");
-                readingBuffer.push(reading);
+            bool currRetryable = true;
+            if (!apiClient.postReading(reading, &currRetryable)) {
+                if (currRetryable) {
+                    Serial.println("[API] Failed to POST reading. Buffering to RAM.");
+                    readingBuffer.push(reading);
+                } else {
+                    Serial.println("[API] Reading rejected with non-retryable error (4xx). Not buffering.");
+                }
             } else {
                 Serial.println("[API] Sensor telemetry successfully sent to web app.");
             }
@@ -366,18 +379,27 @@ void loop() {
             bool hasCommand = false;
             if (apiClient.pollPendingCommands(cmd, hasCommand) && hasCommand) {
                 Serial.printf("[Command] Received from web app: %s (Duration: %us)\n", cmd.command, cmd.duration_seconds);
+                char execTs[32] = {0};
+                timeSync.getISO8601Timestamp(execTs, sizeof(execTs));
+
                 if (strcmp(cmd.command, "turn_on") == 0) {
-                    sprinklerRelay.turnOn(cmd.duration_seconds);
+                    if (cmd.duration_seconds > 0 && sprinklerRelay.turnOn(cmd.duration_seconds)) {
 #if MOCK_ENVIRONMENT
-                    // React physically to irrigation event: replenish mock soil moisture!
-                    mockSensors.notifyWatering(cmd.duration_seconds);
-                    Serial.printf("[Mock] Irrigation active! Soil moisture replenished by ~%.1f%%.\n",
-                                  (float)cmd.duration_seconds * 0.45f);
+                        // React physically to irrigation event: replenish mock soil moisture!
+                        mockSensors.notifyWatering(cmd.duration_seconds);
+                        Serial.printf("[Mock] Irrigation active! Soil moisture replenished by ~%.1f%%.\n",
+                                      (float)cmd.duration_seconds * 0.45f);
 #endif
-                    apiClient.ackCommand(cmd.command_id, "acked", "Valve opened successfully");
+                        apiClient.ackCommand(cmd.command_id, "acked", "Valve opened successfully", execTs);
+                    } else {
+                        apiClient.ackCommand(cmd.command_id, "failed", "Invalid duration or relay turnOn failed", execTs);
+                    }
                 } else if (strcmp(cmd.command, "turn_off") == 0) {
                     sprinklerRelay.turnOff();
-                    apiClient.ackCommand(cmd.command_id, "acked", "Valve closed successfully");
+                    apiClient.ackCommand(cmd.command_id, "acked", "Valve closed successfully", execTs);
+                } else {
+                    Serial.printf("[Command] Unknown command '%s'. Acknowledging as failed to unblock queue.\n", cmd.command);
+                    apiClient.ackCommand(cmd.command_id, "failed", "Unsupported command", execTs);
                 }
             }
         }

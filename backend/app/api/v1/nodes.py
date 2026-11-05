@@ -1,5 +1,7 @@
 """Sensor node polling and command confirmation router."""
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -28,6 +30,11 @@ def get_node_commands(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Node not found")
     if not verify_api_key(x_node_key, node.api_key_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+
+    # Refresh node heartbeat upon polling
+    node.last_seen_at = datetime.now(UTC)
+    node.status = "active"
+    db.commit()
 
     pending = get_pending_commands_for_node(db, id)
     return [
@@ -60,8 +67,22 @@ def ack_node_command(
     if not verify_api_key(x_node_key, node.api_key_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
 
-    success = acknowledge_command(db, cid, ack.status, ack.result)
-    if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Command not found")
+    node.last_seen_at = datetime.now(UTC)
+    node.status = "active"
 
+    success = acknowledge_command(
+        db=db,
+        command_id=cid,
+        status=ack.status,
+        result=ack.result,
+        executed_at=ack.executed_at,
+        node_id=id,
+    )
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Command not found or does not belong to this node",
+        )
+
+    db.commit()
     return CommandAckResponse(status="acknowledged", command_id=cid)

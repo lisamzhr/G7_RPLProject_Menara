@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.alert import Alert
+from app.models.base import ensure_utc
 from app.models.control_action import ControlAction
 from app.models.plant_zone import PlantZone
 from app.models.recommendation import Recommendation
@@ -41,7 +42,7 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
         )
         recent_rows = (
             db.query(SensorReading.soil_moisture_pct)
-            .filter(SensorReading.node_id.in_(node_ids))
+            .filter(SensorReading.node_id.in_(node_ids), SensorReading.is_valid.is_(True))
             .order_by(desc(SensorReading.ts))
             .limit(6)
             .all()
@@ -55,8 +56,9 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
     is_valid = latest.is_valid if latest else True
 
     reading_age = 0.0
-    if latest:
-        reading_age = (datetime.now(UTC) - latest.ts).total_seconds()
+    if latest and latest.ts:
+        latest_ts = ensure_utc(latest.ts)
+        reading_age = (datetime.now(UTC) - latest_ts).total_seconds()
 
     # Query actuator history for autonomy safety gate
     last_watered_min = None
@@ -77,7 +79,8 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
             .first()
         )
         if last_action and last_action.requested_at:
-            last_watered_min = (datetime.now(UTC) - last_action.requested_at).total_seconds() / 60.0
+            last_req = ensure_utc(last_action.requested_at)
+            last_watered_min = (datetime.now(UTC) - last_req).total_seconds() / 60.0
 
         today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         daily_sum = (

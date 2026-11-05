@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.deps import get_current_user
 from app.models.actuator import Actuator
+from app.models.base import ensure_utc
 from app.models.control_action import ControlAction
 from app.models.user import User
 from app.schemas.alerts import ActuatorCommandRequest, ActuatorOut
@@ -48,7 +49,8 @@ def command_actuator(
         )
         if last_action:
             min_cooldown = timedelta(minutes=actuator.min_interval_minutes)
-            if datetime.now(UTC) - last_action.requested_at < min_cooldown:
+            last_req = ensure_utc(last_action.requested_at)
+            if last_req and (datetime.now(UTC) - last_req < min_cooldown):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Actuator cooldown active. Minimum interval is {actuator.min_interval_minutes} minutes.",

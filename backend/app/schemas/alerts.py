@@ -1,8 +1,9 @@
 """Pydantic schemas for alerts, feedback, and actuators."""
 
 from datetime import datetime
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AlertOut(BaseModel):
@@ -45,5 +46,5 @@ class ActuatorOut(BaseModel):
 
 
 class ActuatorCommandRequest(BaseModel):
-    command: str = "turn_on"
-    duration_seconds: int = 30
+    command: Literal["turn_on", "turn_off"] = "turn_on"
+    duration_seconds: int = Field(30, ge=1, le=3600)

@@ -42,6 +42,10 @@ public:
     bool isConfigSaved() const;
     DeviceConfig getSavedConfig() const;
 
+    // Helper functions for captive portal detection & redirection (unit testable)
+    static bool isIpAddress(const char* host);
+    static bool isCaptiveProbe(const char* path);
+
 private:
 #if defined(ARDUINO)
     WebServer* _server;
@@ -49,6 +53,8 @@ private:
     std::vector<ScannedAp> _scannedAps;
     unsigned long _lastScanMillis;
     void performScan();
+    bool captivePortal();
+    void handleRedirect();
 #endif
     bool _running;
     bool _configSaved;

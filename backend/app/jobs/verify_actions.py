@@ -4,6 +4,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 
 from app.core.database import SessionLocal
+from app.models.base import ensure_utc
 from app.models.control_action import ControlAction
 from app.models.sensor_reading import SensorReading
 from app.services.notification_service import create_system_alert
@@ -16,7 +17,7 @@ def job_verify_actuator_responses():
     db = SessionLocal()
     try:
         now = datetime.now(UTC)
-        # Check auto watering actions executed between 10 and 20 minutes ago
+        # Check watering actions executed between 10 and 20 minutes ago
         window_start = now - timedelta(minutes=20)
         window_end = now - timedelta(minutes=10)
 
@@ -24,7 +25,7 @@ def job_verify_actuator_responses():
             db.query(ControlAction)
             .filter(
                 ControlAction.command == "turn_on",
-                ControlAction.source == "auto",
+                ControlAction.source.in_(["auto", "user", "human_confirmed"]),
                 ControlAction.status == "acked",
                 ControlAction.executed_at >= window_start,
                 ControlAction.executed_at <= window_end,
@@ -33,27 +34,40 @@ def job_verify_actuator_responses():
         )
 
         for act in actions:
+            exec_at = ensure_utc(act.executed_at)
+            if not exec_at:
+                continue
+
             zone = act.actuator.zone
             node_ids = [n.id for n in zone.sensor_nodes]
             if not node_ids:
                 continue
 
-            # Query readings right before execution vs post execution
+            # Query valid readings right before execution vs peak reading post execution
             prior_reading = (
                 db.query(SensorReading)
-                .filter(SensorReading.node_id.in_(node_ids), SensorReading.ts <= act.executed_at)
+                .filter(
+                    SensorReading.node_id.in_(node_ids),
+                    SensorReading.is_valid.is_(True),
+                    SensorReading.ts <= exec_at,
+                )
                 .order_by(SensorReading.ts.desc())
                 .first()
             )
-            post_reading = (
+            peak_post_reading = (
                 db.query(SensorReading)
-                .filter(SensorReading.node_id.in_(node_ids), SensorReading.ts > act.executed_at)
-                .order_by(SensorReading.ts.desc())
+                .filter(
+                    SensorReading.node_id.in_(node_ids),
+                    SensorReading.is_valid.is_(True),
+                    SensorReading.ts > exec_at,
+                    SensorReading.ts <= exec_at + timedelta(minutes=20),
+                )
+                .order_by(SensorReading.soil_moisture_pct.desc())
                 .first()
             )
 
-            if prior_reading and post_reading:
-                delta = post_reading.soil_moisture_pct - prior_reading.soil_moisture_pct
+            if prior_reading and peak_post_reading:
+                delta = peak_post_reading.soil_moisture_pct - prior_reading.soil_moisture_pct
                 if delta < 1.0:  # Moisture failed to increase after watering
                     create_system_alert(
                         db=db,
@@ -63,7 +77,7 @@ def job_verify_actuator_responses():
                         message=(
                             f"Possible irrigation line/valve failure on '{zone.label}': "
                             f"Sprinkler was commanded ON for {act.duration_seconds}s, "
-                            f"but moisture did not rise (prior: {prior_reading.soil_moisture_pct:.1f}%, current: {post_reading.soil_moisture_pct:.1f}%)."
+                            f"but moisture did not rise (prior: {prior_reading.soil_moisture_pct:.1f}%, peak post: {peak_post_reading.soil_moisture_pct:.1f}%)."
                         ),
                         requires_confirmation=True,
                     )

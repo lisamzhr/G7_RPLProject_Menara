@@ -2,6 +2,9 @@
 
 #if defined(ARDUINO)
 #include <Arduino.h>
+#else
+#include <cstdint>
+#include <cstddef>
 #endif
 
 #include "../core/reading_buffer.h"
@@ -17,9 +20,9 @@ class ApiClient {
 public:
     ApiClient(const char* baseUrl = "", const char* nodeId = "", const char* apiKey = "");
     void setConfig(const char* baseUrl, const char* nodeId, const char* apiKey);
-    bool postReading(const SensorReading& reading);
+    bool postReading(const SensorReading& reading, bool* isRetryable = nullptr);
     bool pollPendingCommands(ActuatorCommand& outCommand, bool& hasCommand);
-    bool ackCommand(const char* commandId, const char* status, const char* result);
+    bool ackCommand(const char* commandId, const char* status, const char* result, const char* executedAt = nullptr);
 
     const char* getBaseUrl() const;
     const char* getNodeId() const;

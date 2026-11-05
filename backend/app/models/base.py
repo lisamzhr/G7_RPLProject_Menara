@@ -16,6 +16,15 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
+def ensure_utc(dt: datetime | None) -> datetime | None:
+    """Ensure a datetime is timezone-aware in UTC (avoids offset-naive/aware TypeError with SQLite)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
+
+
 class TimestampMixin:
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)

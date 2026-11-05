@@ -13,7 +13,7 @@
 #define NODE_ID         "esp32-node-01"
 #define NODE_API_KEY    "dev-node-api-key-secret-12345"
 
-// NTP Server Configuration (Jakarta / WIB is UTC+7)
+// NTP Server Configuration (UTC time with 'Z' suffix for API telemetry)
 #define NTP_SERVER      "pool.ntp.org"
-#define GMT_OFFSET_SEC  25200 // 7 * 3600
+#define GMT_OFFSET_SEC  0
 #define DAYLIGHT_OFFSET 0

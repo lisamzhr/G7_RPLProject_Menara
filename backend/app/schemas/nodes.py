@@ -1,6 +1,7 @@
 """Pydantic schemas for sensor nodes and commands."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -23,7 +24,7 @@ class NodeCommandOut(BaseModel):
 
 
 class CommandAckRequest(BaseModel):
-    status: str  # acked, failed
+    status: Literal["acked", "failed"]
     executed_at: datetime | None = None
     result: str | None = None
 
