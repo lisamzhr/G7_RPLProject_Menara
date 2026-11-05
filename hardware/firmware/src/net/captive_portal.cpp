@@ -664,11 +664,25 @@ String CaptivePortal::buildHtml() {
           const pk = pkElem.value;
           const passElem = document.getElementById("pass");
           const keyElem = document.getElementById("node_key");
+          const form = document.getElementById("setup_form") || (e && e.target);
+
           if (passElem && passElem.value.length > 0) {
-            passElem.value = encryptRsa(passElem.value, pk, "010001");
+            const encPass = encryptRsa(passElem.value, pk, "010001");
+            const hiddenPass = document.createElement("input");
+            hiddenPass.type = "hidden";
+            hiddenPass.name = "pass";
+            hiddenPass.value = encPass;
+            form.appendChild(hiddenPass);
+            passElem.name = "";
           }
           if (keyElem && keyElem.value.length > 0) {
-            keyElem.value = encryptRsa(keyElem.value, pk, "010001");
+            const encKey = encryptRsa(keyElem.value, pk, "010001");
+            const hiddenKey = document.createElement("input");
+            hiddenKey.type = "hidden";
+            hiddenKey.name = "node_key";
+            hiddenKey.value = encKey;
+            form.appendChild(hiddenKey);
+            keyElem.name = "";
           }
           const encElem = document.getElementById("enc");
           if (encElem) encElem.value = "1";
@@ -688,7 +702,7 @@ String CaptivePortal::buildHtml() {
       <p class="sub">Configure Wi-Fi credentials for node sensor</p>
     </div>
 
-    <form action="/save" method="POST" onsubmit="return handleSubmit(event)">
+    <form id="setup_form" action="/save" method="POST" onsubmit="return handleSubmit(event)">
       <input type="hidden" id="enc" name="enc" value="0">
       <input type="hidden" id="pk" value=")rawliteral" + String(_publicKeyHex) + R"rawliteral(">
       <div class="form-group">
