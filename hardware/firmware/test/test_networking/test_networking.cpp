@@ -248,6 +248,56 @@ void test_captive_portal_lifecycle(void) {
     TEST_ASSERT_FALSE(portal.isRunning());
 }
 
+void test_captive_portal_dns_edns0_and_aaaa_handling(void) {
+    const uint8_t apIp[4] = {192, 168, 4, 1};
+    uint8_t resp[128];
+
+    // 1. EDNS0 Type-A Query for "captive.apple.com" (QDCount=1, ARCount=1 with trailing OPT record)
+    const uint8_t edns0QueryA[] = {
+        0x12, 0x34, 0x01, 0x20, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+        0x07, 'c', 'a', 'p', 't', 'i', 'v', 'e',
+        0x05, 'a', 'p', 'p', 'l', 'e',
+        0x03, 'c', 'o', 'm', 0x00,
+        0x00, 0x01, // QType = A (1)
+        0x00, 0x01, // QClass = IN (1)
+        // EDNS0 OPT pseudo-record (11 bytes)
+        0x00, 0x00, 0x29, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+
+    memset(resp, 0, sizeof(resp));
+    size_t lenA = CaptivePortal::buildDnsResponse(edns0QueryA, sizeof(edns0QueryA), apIp, resp, sizeof(resp));
+    TEST_ASSERT_EQUAL_UINT32(51, (uint32_t)lenA);
+    TEST_ASSERT_EQUAL_UINT8(0x12, resp[0]);
+    TEST_ASSERT_EQUAL_UINT8(0x34, resp[1]);
+    TEST_ASSERT_EQUAL_UINT8(0x01, resp[5]); // QDCount = 1
+    TEST_ASSERT_EQUAL_UINT8(0x01, resp[7]); // ANCount = 1 (A record returned despite ARCount=1)
+    TEST_ASSERT_EQUAL_UINT8(0x00, resp[11]); // ARCount = 0 in response
+    // Last 4 bytes must be 192.168.4.1
+    TEST_ASSERT_EQUAL_UINT8(192, resp[lenA - 4]);
+    TEST_ASSERT_EQUAL_UINT8(168, resp[lenA - 3]);
+    TEST_ASSERT_EQUAL_UINT8(4, resp[lenA - 2]);
+    TEST_ASSERT_EQUAL_UINT8(1, resp[lenA - 1]);
+
+    // 2. Type-AAAA (IPv6, QType=28) Query -> must return clean NoError NODATA (ANCount=0)
+    const uint8_t queryAAAA[] = {
+        0xAB, 0xCD, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x07, 'c', 'a', 'p', 't', 'i', 'v', 'e',
+        0x05, 'a', 'p', 'p', 'l', 'e',
+        0x03, 'c', 'o', 'm', 0x00,
+        0x00, 0x1C, // QType = AAAA (28)
+        0x00, 0x01  // QClass = IN (1)
+    };
+
+    memset(resp, 0, sizeof(resp));
+    size_t lenAAAA = CaptivePortal::buildDnsResponse(queryAAAA, sizeof(queryAAAA), apIp, resp, sizeof(resp));
+    TEST_ASSERT_EQUAL_UINT32(35, (uint32_t)lenAAAA); // 12-byte header + 23-byte question, 0 answers
+    TEST_ASSERT_EQUAL_UINT8(0xAB, resp[0]);
+    TEST_ASSERT_EQUAL_UINT8(0xCD, resp[1]);
+    TEST_ASSERT_EQUAL_UINT8(0x01, resp[5]); // QDCount = 1
+    TEST_ASSERT_EQUAL_UINT8(0x00, resp[7]); // ANCount = 0 (NODATA)
+    TEST_ASSERT_EQUAL_UINT8(0x00, resp[3] & 0x0F); // RCode = 0 (NoError)
+}
+
 // ==============================================================================
 // Test Runner
 // ==============================================================================
@@ -279,6 +329,7 @@ int run_networking_tests() {
     RUN_TEST(test_captive_portal_ip_address_detection);
     RUN_TEST(test_captive_portal_probe_recognition);
     RUN_TEST(test_captive_portal_lifecycle);
+    RUN_TEST(test_captive_portal_dns_edns0_and_aaaa_handling);
 
     return UNITY_END();
 }

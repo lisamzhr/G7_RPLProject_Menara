@@ -49,11 +49,103 @@ bool CaptivePortal::isCaptiveProbe(const char* path) {
     return false;
 }
 
+size_t CaptivePortal::buildDnsResponse(
+    const uint8_t* req,
+    size_t reqLen,
+    const uint8_t resolvedIp[4],
+    uint8_t* resp,
+    size_t maxRespLen
+) {
+    // Minimum DNS header (12 bytes) + 1 byte root QName + 4 bytes (QType + QClass) = 17 bytes
+    if (!req || !resolvedIp || !resp || reqLen < 17 || maxRespLen < 33) {
+        return 0;
+    }
+
+    // Must be a standard query (QR == 0, Opcode == 0)
+    if ((req[2] & 0xF8) != 0x00) {
+        return 0;
+    }
+
+    uint16_t qdCount = (static_cast<uint16_t>(req[4]) << 8) | req[5];
+    if (qdCount == 0) {
+        return 0;
+    }
+
+    // Parse first Question QName starting at offset 12 (tolerates EDNS0 ARCount > 0)
+    size_t pos = 12;
+    while (pos < reqLen) {
+        uint8_t labelLen = req[pos];
+        if (labelLen == 0) {
+            pos += 1;
+            break;
+        }
+        if ((labelLen & 0xC0) != 0 || (pos + 1 + labelLen) >= reqLen) {
+            return 0;
+        }
+        pos += 1 + labelLen;
+    }
+
+    // Need 4 bytes after QName for QType (2) and QClass (2)
+    if (pos + 4 > reqLen) {
+        return 0;
+    }
+
+    uint16_t qType = (static_cast<uint16_t>(req[pos]) << 8) | req[pos + 1];
+    size_t questionLen = (pos + 4) - 12;
+
+    // Answer with IPv4 A record for Type A (1) or ANY (255); return clean NoError NODATA (ANCount=0) for AAAA (28) / HTTPS (65)
+    bool includeARecord = (qType == 1 || qType == 255);
+    size_t totalRespLen = 12 + questionLen + (includeARecord ? 16 : 0);
+    if (totalRespLen > maxRespLen) {
+        return 0;
+    }
+
+    // 1. DNS Response Header (12 bytes)
+    resp[0] = req[0];
+    resp[1] = req[1];
+    resp[2] = 0x84 | (req[2] & 0x01); // QR=1 (Response), AA=1 (Authoritative), copy RD
+    resp[3] = 0x80;                   // RA=1, Z=0, RCode=0 (NoError)
+    resp[4] = 0x00;
+    resp[5] = 0x01;                   // QDCount = 1
+    resp[6] = 0x00;
+    resp[7] = includeARecord ? 0x01 : 0x00; // ANCount = 1 for A/ANY, 0 for AAAA/HTTPS
+    resp[8] = 0x00;
+    resp[9] = 0x00;                   // NSCount = 0
+    resp[10] = 0x00;
+    resp[11] = 0x00;                  // ARCount = 0
+
+    // 2. Echo Question section
+    memcpy(resp + 12, req + 12, questionLen);
+
+    // 3. Append Answer RR for IPv4 A query
+    if (includeARecord) {
+        size_t ansOffset = 12 + questionLen;
+        resp[ansOffset + 0] = 0xC0; // Name pointer to offset 12
+        resp[ansOffset + 1] = 0x0C;
+        resp[ansOffset + 2] = 0x00; // TYPE = A (1)
+        resp[ansOffset + 3] = 0x01;
+        resp[ansOffset + 4] = 0x00; // CLASS = IN (1)
+        resp[ansOffset + 5] = 0x01;
+        resp[ansOffset + 6] = 0x00; // TTL = 60 seconds
+        resp[ansOffset + 7] = 0x00;
+        resp[ansOffset + 8] = 0x00;
+        resp[ansOffset + 9] = 0x3C;
+        resp[ansOffset + 10] = 0x00; // RDLENGTH = 4
+        resp[ansOffset + 11] = 0x04;
+        resp[ansOffset + 12] = resolvedIp[0];
+        resp[ansOffset + 13] = resolvedIp[1];
+        resp[ansOffset + 14] = resolvedIp[2];
+        resp[ansOffset + 15] = resolvedIp[3];
+    }
+
+    return totalRespLen;
+}
+
 #if defined(ARDUINO)
 #include <algorithm>
 
 CaptivePortal::CaptivePortal()
-    : _server(nullptr), _dnsServer(nullptr), _lastScanMillis(0), _running(false), _configSaved(false), _startedMillis(0) {
+    : _server(nullptr), _lastScanMillis(0), _running(false), _configSaved(false), _startedMillis(0) {
     memset(&_config, 0, sizeof(DeviceConfig));
     memset(&_savedConfig, 0, sizeof(DeviceConfig));
     memset(_apSsid, 0, sizeof(_apSsid));
@@ -136,18 +228,20 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
 
     // Use AP_STA mode so the ESP32 can both run the hotspot and allow on-demand rescans
     WiFi.mode(WIFI_AP_STA);
+    if (!WiFi.softAP(_apSsid)) {
+        Serial.println("[Portal] Failed to start SoftAP.");
+        return false;
+    }
+    // Allow WIFI_EVENT_AP_START to initialize the SoftAP netif before configuring IP & DHCP
+    delay(100);
+
     IPAddress apIP(192, 168, 4, 1);
     IPAddress netMsk(255, 255, 255, 0);
     WiFi.softAPConfig(apIP, apIP, netMsk);
 
-    // 4. Start DNS server immediately (UDP 53) redirecting all domain requests to AP IP
-    if (_dnsServer) {
-        delete _dnsServer;
-    }
-    _dnsServer = new DNSServer();
-    _dnsServer->setErrorReplyCode(DNSReplyCode::NoError);
-    _dnsServer->setTTL(60);
-    _dnsServer->start(53, "*", apIP);
+    // 4. Start RFC-compliant DNS responder on UDP port 53 (supports EDNS0 and AAAA/HTTPS NODATA)
+    _dnsUdp.stop();
+    _dnsUdp.begin(53);
 
     // 5. Start HTTP WebServer (TCP 80) immediately
     if (_server) {
@@ -157,13 +251,6 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     setupRoutes();
     _server->begin();
 
-    // 6. Broadcast SoftAP beacon now that DNS and HTTP listeners are armed and ready
-    if (!WiFi.softAP(_apSsid)) {
-        Serial.println("[Portal] Failed to start SoftAP.");
-        stop();
-        return false;
-    }
-
     Serial.print("[Portal] SoftAP IP address: ");
     Serial.println(WiFi.softAPIP());
 
@@ -171,6 +258,29 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     _startedMillis = millis();
     Serial.println("[Portal] Web server and DNS redirection active. Waiting for mobile client...");
     return true;
+}
+
+void CaptivePortal::processDnsRequests() {
+    static const uint8_t AP_IP[4] = {192, 168, 4, 1};
+    uint8_t reqBuf[512];
+    uint8_t respBuf[540];
+
+    for (int i = 0; i < 8; ++i) {
+        int packetSize = _dnsUdp.parsePacket();
+        if (packetSize <= 0) {
+            break;
+        }
+        int len = _dnsUdp.read(reqBuf, sizeof(reqBuf));
+        if (len <= 0) {
+            continue;
+        }
+        size_t respLen = buildDnsResponse(reqBuf, static_cast<size_t>(len), AP_IP, respBuf, sizeof(respBuf));
+        if (respLen > 0) {
+            _dnsUdp.beginPacket(_dnsUdp.remoteIP(), _dnsUdp.remotePort());
+            _dnsUdp.write(respBuf, respLen);
+            _dnsUdp.endPacket();
+        }
+    }
 }
 
 bool CaptivePortal::captivePortal() {
@@ -235,12 +345,8 @@ void CaptivePortal::setupRoutes() {
 void CaptivePortal::update() {
     if (!_running) return;
 
-    if (_dnsServer) {
-        // Drain pending DNS requests in queue
-        for (int i = 0; i < 5; ++i) {
-            _dnsServer->processNextRequest();
-        }
-    }
+    processDnsRequests();
+
     if (_server) {
         _server->handleClient();
     }
@@ -255,11 +361,7 @@ void CaptivePortal::stop() {
         delete _server;
         _server = nullptr;
     }
-    if (_dnsServer) {
-        _dnsServer->stop();
-        delete _dnsServer;
-        _dnsServer = nullptr;
-    }
+    _dnsUdp.stop();
     WiFi.softAPdisconnect(true);
     WiFi.mode(WIFI_STA);
     _scannedAps.clear();
