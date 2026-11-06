@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
@@ -22,82 +22,39 @@ import {
   Sparkles,
   House,
   UserRound,
-  MoreVertical,
-  Check,
   LogOut,
+  Check,
 } from "lucide-react";
+
+import { api } from "../api/client";
+import type {
+  Garden,
+  PlantZone,
+  ZoneStatus,
+  DashboardSummary,
+  ParameterMetric,
+} from "../types";
 
 import "../styles/dashboard.css";
 
-const sensorData = [
-  {
-    title: "AIR TEMPERATURE",
-    sensor: "DHT22 Sensor",
-    value: "31.2",
-    unit: "°C",
-    status: "Normal Range",
-    recommendation: "Rec: 26–33°C",
-    icon: Thermometer,
-    level: 6,
-    color: "green",
-  },
-  {
-    title: "AIR HUMIDITY",
-    sensor: "DHT22 Sensor",
-    value: "64",
-    unit: "%",
-    status: "Optimal",
-    recommendation: "Rec: 60–75%",
-    icon: Droplet,
-    level: 6,
-    color: "green",
-  },
-  {
-    title: "SOIL MOISTURE",
-    sensor: "Capacitive v1.2",
-    value: "71",
-    unit: "%",
-    status: "Adequate",
-    recommendation: "Depth 15cm • B3",
-    icon: Sprout,
-    level: 7,
-    color: "green",
-  },
-  {
-    title: "LIGHT INTENSITY",
-    sensor: "BH1750 Lux Sensor",
-    value: "42,500",
-    unit: "lux",
-    status: "High Sunlight",
-    recommendation: "",
-    icon: Sun,
-    level: 7,
-    color: "gold",
-  },
-];
+interface SensorCardData {
+  title: string;
+  sensor: string;
+  value: string;
+  unit: string;
+  status: string;
+  recommendation: string;
+  icon: React.ElementType;
+  level: number;
+  color: string;
+}
 
-const recommendations = [
-  {
-    title: "Delay Afternoon Misting",
-    description:
-      "Rain forecast at 16:00 combined with 71% soil moisture indicates sufficient hydration. Postponing misting prevents root saturation.",
-    device: "Solenoid Bank 02 (Valve A)",
-    priority: "High Priority",
-    action: "Postpone",
-    icon: Droplet,
-    type: "high",
-  },
-  {
-    title: "Deploy Canopy Shade Cloth",
-    description:
-      "Ambient light exceeds 40,000 lux peak irradiance. Adjust motorized shade net over Bok Choy beds to mitigate solar leaf scorch.",
-    device: "Motorized Retractable Pergola",
-    priority: "Medium Priority",
-    action: "Engage",
-    icon: House,
-    type: "medium",
-  },
-];
+interface RecommendationData {
+  title: string;
+  description: string;
+  priority: string;
+  type: string;
+}
 
 const sidebarLinks = [
   { label: "Dashboard", icon: LayoutDashboard, to: "/dashboard", active: true },
@@ -112,11 +69,9 @@ const sidebarLinks = [
   { label: "Settings", icon: Settings, to: "/settings" },
 ];
 
-
 function Sidebar() {
   const navigate = useNavigate();
 
-  // Get the authenticated user's profile
   const storedUser =
     localStorage.getItem("roofgarden_user") ||
     sessionStorage.getItem("roofgarden_user");
@@ -130,17 +85,15 @@ function Sidebar() {
       userName = user.name || "Gardener";
       userRole = user.role || "Gardener";
     } catch {
-      // Use fallback profile if stored data is invalid
+      // Use fallback profile
     }
   }
 
   const handleLogout = () => {
     localStorage.removeItem("roofgarden_token");
     sessionStorage.removeItem("roofgarden_token");
-
     localStorage.removeItem("roofgarden_user");
     sessionStorage.removeItem("roofgarden_user");
-
     localStorage.removeItem("roofgarden_email");
 
     navigate("/login", { replace: true });
@@ -214,11 +167,7 @@ function Sidebar() {
   );
 }
 
-function SensorCard({
-  sensor,
-}: {
-  sensor: (typeof sensorData)[number];
-}) {
+function SensorCard({ sensor }: { sensor: SensorCardData }) {
   const Icon = sensor.icon;
 
   return (
@@ -257,7 +206,15 @@ function SensorCard({
   );
 }
 
-function WeatherSection() {
+function WeatherSection({
+  weather,
+}: {
+  weather: DashboardSummary["weather_summary"] | null;
+}) {
+  const forecast = weather?.forecast || "Weather data unavailable";
+  const isRainy = forecast.toLowerCase().includes("hujan") ||
+    forecast.toLowerCase().includes("rain");
+
   return (
     <section className="dashboard-panel weather-panel">
       <div className="panel-heading">
@@ -267,63 +224,91 @@ function WeatherSection() {
           </span>
           <h2>BMKG Weather Integration</h2>
         </div>
-        <span className="source-tag">BMKG Jakarta Pusat</span>
+        <span className="source-tag">
+          {weather?.location || "BMKG"}
+        </span>
       </div>
 
       <div className="weather-current">
         <div className="weather-current-main">
-          <CloudSun className="weather-main-icon" size={34} />
+          {isRainy ? (
+            <CloudRain className="weather-main-icon" size={34} />
+          ) : (
+            <CloudSun className="weather-main-icon" size={34} />
+          )}
+
           <div>
-            <strong>32°C</strong>
-            <span>Feels 36°C • Partly Cloudy (Cerah Berawan)</span>
+            <strong>
+              {weather ? `${weather.temp_c}°C` : "—"}
+            </strong>
+            <span>{forecast}</span>
           </div>
         </div>
 
         <div className="rain-probability">
           <small>RAIN PROB.</small>
-          <strong>65%</strong>
+          <strong>
+            {weather ? `${weather.rain_probability_pct}%` : "—"}
+          </strong>
         </div>
       </div>
 
       <p className="weather-alert">
-        Afternoon convective rain expected <strong>15:30 - 17:00 WIB</strong>{" "}
-        with localized wind gusts up to 14 km/h over rooftop canopy structures.
+        {weather
+          ? `Weather information for ${weather.location} based on BMKG forecast data.`
+          : "Weather information is currently unavailable."}
       </p>
 
       <div className="weather-forecast">
         <div className="forecast-item">
-          <small>14:00 WIB</small>
+          <small>Forecast</small>
           <Sun size={17} className="sunny-icon" />
-          <strong>33°C</strong>
-          <span>Sunny</span>
+          <strong>{weather ? `${weather.temp_c}°C` : "—"}</strong>
+          <span>{forecast}</span>
         </div>
 
         <div className="forecast-item active">
-          <small>16:00 WIB</small>
+          <small>Rain Probability</small>
           <CloudRain size={17} />
-          <strong>29°C</strong>
-          <span>Light Rain</span>
+          <strong>
+            {weather ? `${weather.rain_probability_pct}%` : "—"}
+          </strong>
+          <span>BMKG Data</span>
         </div>
 
         <div className="forecast-item">
-          <small>18:00 WIB</small>
+          <small>Hourly Forecast</small>
           <Cloud size={17} />
-          <strong>27°C</strong>
-          <span>Overcast</span>
+          <strong>—</strong>
+          <span>Not available</span>
         </div>
       </div>
 
       <div className="weather-footer">
         <span>
           <span className="status-small-dot" />
-          Live Sync Valid
+          {weather
+            ? `Source: ${weather.attribution}`
+            : "Weather data unavailable"}
         </span>
       </div>
     </section>
   );
 }
 
-function RecommendationsSection() {
+function RecommendationsSection({
+  recommendations,
+  generating,
+  generateError,
+  generateMessage,
+  onGenerate,
+}: {
+  recommendations: RecommendationData[];
+  generating: boolean;
+  generateError: string;
+  generateMessage: string;
+  onGenerate: () => void;
+}) {
   return (
     <section className="dashboard-panel recommendations-panel">
       <div className="panel-heading">
@@ -333,20 +318,47 @@ function RecommendationsSection() {
           </span>
           <h2>AI Recommendations</h2>
         </div>
-        <span className="engine-tag">Agronomy Engine Active</span>
+        <span className="engine-tag">Agronomy Engine</span>
+      </div>
+
+      <div className="generate-rec-container">
+        <p>
+          Generate personalized recommendations based on your
+          latest environmental sensor readings.
+        </p>
+
+        <button
+          type="button"
+          className="recommendation-action generate-button"
+          onClick={onGenerate}
+          disabled={generating}
+        >
+          <Sparkles size={15} />
+          {generating ? "Generating..." : "Generate AI Recommendations"}
+        </button>
+
+        {generateError && (
+          <p className="generate-error">{generateError}</p>
+        )}
+
+        {generateMessage && (
+          <p className="generate-success">{generateMessage}</p>
+        )}
       </div>
 
       <div className="recommendation-list">
-        {recommendations.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <article className="recommendation-card" key={item.title}>
+        {recommendations.length > 0 ? (
+          recommendations.map((item, index) => (
+            <article
+              className="recommendation-card"
+              key={`${item.title}-${index}`}
+            >
               <div className="recommendation-top">
                 <h3>
-                  <Icon size={15} />
+                  <Sparkles size={15} />
                   {item.title}
                 </h3>
+
                 <span className={`priority-tag ${item.type}`}>
                   {item.priority}
                 </span>
@@ -355,26 +367,321 @@ function RecommendationsSection() {
               <p>{item.description}</p>
 
               <div className="recommendation-bottom">
-                <small>{item.device}</small>
-                <button className="recommendation-action">
-                  {item.action}
+                <small>MENARA Recommendation</small>
+                <span className="recommendation-action">
+                  View
                   <Check size={12} />
-                </button>
+                </span>
               </div>
             </article>
-          );
-        })}
+          ))
+        ) : (
+          <p>No recommendations available at the moment.</p>
+        )}
       </div>
 
       <div className="recommendation-footer">
-        <span>Rule confidence: 96.4%</span>
-        <strong>2 Actions Suggested</strong>
+        <span>Based on latest zone status</span>
+        <strong>{recommendations.length} Recommendations</strong>
       </div>
     </section>
   );
 }
 
+function getMetric(
+  parameterStatus: Record<string, ParameterMetric>,
+  possibleKeys: string[],
+): ParameterMetric | undefined {
+  const normalizedEntries = Object.entries(parameterStatus).map(
+    ([key, value]) => [key.toLowerCase(), value] as const,
+  );
+
+  return normalizedEntries.find(([key]) =>
+    possibleKeys.some((possibleKey) => key === possibleKey.toLowerCase()),
+  )?.[1];
+}
+
+function formatSensorValue(value: number | undefined, decimals = 1): string {
+  if (value === undefined || value === null || Number.isNaN(value)) {
+    return "—";
+  }
+
+  return Number(value.toFixed(decimals)).toLocaleString("en-US");
+}
+
+function getSensorStatus(metric?: ParameterMetric): string {
+  if (!metric) return "No data";
+
+  if (metric.status === "ok") return "Optimal";
+  if (metric.status === "low") return "Below Ideal";
+  if (metric.status === "high") return "Above Ideal";
+
+  return metric.status;
+}
+
+function getSensorColor(metric?: ParameterMetric): string {
+  if (!metric) return "gold";
+  if (metric.status === "ok") return "green";
+  if (metric.status === "low" || metric.status === "high") return "gold";
+
+  return "gold";
+}
+
+function getSensorLevel(metric?: ParameterMetric): number {
+  if (!metric) return 0;
+
+  const { value, ideal_min, ideal_max } = metric;
+
+  if (ideal_max <= ideal_min) return 3;
+
+  const ratio = (value - ideal_min) / (ideal_max - ideal_min);
+  return Math.max(1, Math.min(7, Math.round(ratio * 6) + 1));
+}
+
+function buildSensorData(zoneStatus: ZoneStatus | null): SensorCardData[] {
+  const reading = zoneStatus?.latest_reading;
+  const parameters = (zoneStatus?.parameter_status || {}) as Record<
+    string,
+    ParameterMetric
+  >;
+
+  const temperatureMetric = getMetric(parameters, [
+    "temperature",
+    "temperature_c",
+    "air_temperature",
+  ]);
+
+  const humidityMetric = getMetric(parameters, [
+    "humidity",
+    "humidity_pct",
+    "air_humidity",
+  ]);
+
+  const soilMetric = getMetric(parameters, [
+    "soil_moisture",
+    "soil_moisture_pct",
+    "moisture",
+  ]);
+
+  const lightMetric = getMetric(parameters, [
+    "light",
+    "lux",
+    "light_intensity",
+  ]);
+
+  const getValue = (
+    readingValue: number | undefined,
+    metric?: ParameterMetric,
+  ) => readingValue ?? metric?.value;
+
+  return [
+    {
+      title: "AIR TEMPERATURE",
+      sensor: "DHT22 Sensor",
+      value: formatSensorValue(
+        getValue(reading?.temperature_c, temperatureMetric),
+      ),
+      unit: "°C",
+      status: getSensorStatus(temperatureMetric),
+      recommendation: temperatureMetric
+        ? `Ideal: ${temperatureMetric.ideal_min}–${temperatureMetric.ideal_max}°C`
+        : "No parameter data",
+      icon: Thermometer,
+      level: getSensorLevel(temperatureMetric),
+      color: getSensorColor(temperatureMetric),
+    },
+    {
+      title: "AIR HUMIDITY",
+      sensor: "DHT22 Sensor",
+      value: formatSensorValue(
+        getValue(reading?.humidity_pct, humidityMetric),
+      ),
+      unit: "%",
+      status: getSensorStatus(humidityMetric),
+      recommendation: humidityMetric
+        ? `Ideal: ${humidityMetric.ideal_min}–${humidityMetric.ideal_max}%`
+        : "No parameter data",
+      icon: Droplet,
+      level: getSensorLevel(humidityMetric),
+      color: getSensorColor(humidityMetric),
+    },
+    {
+      title: "SOIL MOISTURE",
+      sensor: "Capacitive v1.2",
+      value: formatSensorValue(
+        getValue(reading?.soil_moisture_pct, soilMetric),
+        0,
+      ),
+      unit: "%",
+      status: getSensorStatus(soilMetric),
+      recommendation: soilMetric
+        ? `Ideal: ${soilMetric.ideal_min}–${soilMetric.ideal_max}%`
+        : "No parameter data",
+      icon: Sprout,
+      level: getSensorLevel(soilMetric),
+      color: getSensorColor(soilMetric),
+    },
+    {
+      title: "LIGHT INTENSITY",
+      sensor: "BH1750 Lux Sensor",
+      value: formatSensorValue(getValue(reading?.lux, lightMetric), 0),
+      unit: "lux",
+      status: getSensorStatus(lightMetric),
+      recommendation: lightMetric
+        ? `Ideal: ${lightMetric.ideal_min}–${lightMetric.ideal_max} lux`
+        : "No parameter data",
+      icon: Sun,
+      level: getSensorLevel(lightMetric),
+      color: getSensorColor(lightMetric),
+    },
+  ];
+}
+
+function buildRecommendations(
+  summary: DashboardSummary | null,
+  zoneStatuses: ZoneStatus[],
+): RecommendationData[] {
+  if (summary?.top_recommendations?.length) {
+    return summary.top_recommendations.map((item) => {
+      const isHigh = item.status_level === "warning";
+      const isMedium = item.status_level === "advisory";
+
+      return {
+        title: item.zone_label,
+        description: item.message,
+        priority: isHigh
+          ? "High Priority"
+          : isMedium
+            ? "Medium Priority"
+            : "Normal",
+        type: isHigh ? "high" : isMedium ? "medium" : "low",
+      };
+    });
+  }
+
+  return zoneStatuses
+    .filter((zone) => zone.latest_recommendation)
+    .map((zone) => {
+      const recommendation = zone.latest_recommendation!;
+      const isHigh = recommendation.status_level === "warning";
+      const isMedium = recommendation.status_level === "advisory";
+
+      return {
+        title: zone.zone_label,
+        description: recommendation.message,
+        priority: isHigh
+          ? "High Priority"
+          : isMedium
+            ? "Medium Priority"
+            : "Normal",
+        type: isHigh ? "high" : isMedium ? "medium" : "low",
+      };
+    });
+}
+
 export const Dashboard: React.FC = () => {
+  const [garden, setGarden] = useState<Garden | null>(null);
+  const [zones, setZones] = useState<PlantZone[]>([]);
+  const [zoneStatuses, setZoneStatuses] = useState<ZoneStatus[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // AI Recommendation states
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+  const [generateMessage, setGenerateMessage] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadDashboard = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [gardensData, summaryData] = await Promise.all([
+          api.getGardens(),
+          api.getDashboardSummary(),
+        ]);
+
+        if (!isMounted) return;
+
+        setSummary(summaryData);
+
+        // Use the first garden for now.
+        // This structure can later support multiple garden selection.
+        const selectedGarden = gardensData[0] || null;
+        setGarden(selectedGarden);
+
+        if (!selectedGarden) {
+          setZones([]);
+          setZoneStatuses([]);
+          return;
+        }
+
+        const zonesData = await api.getZones(selectedGarden.id);
+
+        if (!isMounted) return;
+
+        setZones(zonesData);
+
+        const statuses = await Promise.all(
+          zonesData.map((zone) => api.getZoneStatus(zone.id)),
+        );
+
+        if (!isMounted) return;
+
+        setZoneStatuses(statuses);
+      } catch (err) {
+        if (!isMounted) return;
+
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load dashboard data.",
+        );
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleGenerateRecommendations = async () => {
+      setGenerateError("");
+      setGenerateMessage("");
+
+      // The internal endpoint requires X-Internal-Token.
+      // Do not call it directly from the browser.
+      setGenerateError(
+        "AI generation endpoint is not yet connected to the frontend. Please configure a secure backend endpoint first."
+      );
+    };
+
+  const firstZoneStatus = zoneStatuses[0] || null;
+  const sensorData = buildSensorData(firstZoneStatus);
+  const recommendations = buildRecommendations(summary, zoneStatuses);
+
+  const overallStatus = firstZoneStatus?.overall_status;
+
+  const gardenStatusLabel =
+    overallStatus === "normal"
+      ? "Healthy Microclimate"
+      : overallStatus === "advisory"
+        ? "Needs Attention"
+        : overallStatus === "warning"
+          ? "Critical Condition"
+          : "Status Unavailable";
+
+  const gardenLocation = garden?.location_name || "Location unavailable";
+
   return (
     <div className="menara-dashboard">
       <Sidebar />
@@ -386,21 +693,39 @@ export const Dashboard: React.FC = () => {
               <h1>Dashboard</h1>
               <span className="sync-label">
                 <Activity size={12} />
-                Synced 3m ago
+                {loading ? "Syncing..." : "Connected to API"}
               </span>
             </div>
 
-            <button className="garden-selector">
+            <button className="garden-selector" type="button">
               <span className="garden-selector-icon">
                 <House size={16} />
               </span>
               <span className="garden-selector-text">
-                <strong>Kebun Atap Menteng - Rooftop Block B</strong>
-                <small>Central Jakarta • Zone 2B</small>
+                <strong>{garden?.name || "No Garden Available"}</strong>
+                <small>{gardenLocation}</small>
               </span>
               <ChevronDown size={15} />
             </button>
           </header>
+
+          {error && (
+            <div className="dashboard-error">
+              Failed to load dashboard: {error}
+            </div>
+          )}
+
+          {loading && (
+            <div className="dashboard-loading">
+              Loading dashboard data...
+            </div>
+          )}
+
+          {!loading && !garden && !error && (
+            <div className="dashboard-loading">
+              No garden has been registered for this account yet.
+            </div>
+          )}
 
           <section className="garden-overview">
             <div className="garden-overview-info">
@@ -408,17 +733,19 @@ export const Dashboard: React.FC = () => {
                 <Sprout size={19} />
               </span>
               <div>
-                <strong>Kebun Atap Menteng</strong>
+                <strong>{garden?.name || "Garden Overview"}</strong>
                 <small>
                   <MapPin size={11} />
-                  Central Jakarta (Zone 2B)
+                  {gardenLocation}
                 </small>
               </div>
             </div>
 
             <div className="garden-condition">
-              <span>• Healthy Microclimate</span>
-              <span>• Optimal Growth Conditions</span>
+              <span>• {gardenStatusLabel}</span>
+              <span>
+                • {summary?.zones_ok ?? 0} Healthy Zones
+              </span>
             </div>
 
             <div className="overview-divider" />
@@ -426,19 +753,21 @@ export const Dashboard: React.FC = () => {
             <div className="sensor-connection">
               <strong>
                 <span className="status-small-dot" />
-                4/4 Sensors Online
+                {zones.length} Registered Zones
               </strong>
-              <small>(DHT22, Soil, BH1750, ESP32)</small>
+              <small>
+                {summary?.total_zones ?? zones.length} Total Zones
+              </small>
             </div>
 
             <div className="hardware-status">
               <span>
                 <BatteryFull size={15} />
-                Solar Battery 94%
+                Battery: Not reported
               </span>
               <span>
                 <Wifi size={15} />
-                Strong Signal
+                Signal: Not reported
               </span>
             </div>
           </section>
@@ -449,9 +778,15 @@ export const Dashboard: React.FC = () => {
             ))}
           </section>
 
-          <WeatherSection />
+          <WeatherSection weather={summary?.weather_summary || null} />
 
-          <RecommendationsSection />
+          <RecommendationsSection
+            recommendations={recommendations}
+            generating={generating}
+            generateError={generateError}
+            generateMessage={generateMessage}
+            onGenerate={handleGenerateRecommendations}
+          />
 
           <footer className="dashboard-footer">
             <span className="footer-decoration">• • •</span>

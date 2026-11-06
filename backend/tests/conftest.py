@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
-from app.core.security import hash_api_key
+from app.core.security import hash_api_key, create_access_token
 from app.main import app
 from app.models.garden import Garden
 from app.models.plant_category import PlantCategory
@@ -101,18 +101,28 @@ def db_session():
     session.close()
     Base.metadata.drop_all(bind=engine)
 
-
 @pytest.fixture(scope="function")
 def client(db_session):
-    """Override get_db dependency with test session."""
+    """Create authenticated test client using the seeded gardener."""
 
     def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
+        yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
+
+    try:
+        user = db_session.query(User).first()
+
+        token = create_access_token({
+            "sub": user.id,
+            "email": user.email,
+            "role": user.role,
+        })
+
+        with TestClient(app) as test_client:
+            test_client.headers.update({
+                "Authorization": f"Bearer {token}"
+            })
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
