@@ -19,6 +19,15 @@ export interface AuthResponse {
   };
 }
 
+export interface RecommendationItem {
+  id: string;
+  zone_id: string;
+  status_level: "normal" | "advisory" | "warning";
+  message: string;
+  reasons: string[];
+  created_at: string;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -137,4 +146,12 @@ export const api = {
         body: JSON.stringify({ command, duration_seconds })
       }
     ),
+
+    // AI RECOMMENDATIONS
+    getRecommendations: (zoneId?: string) =>
+      request<RecommendationItem[]>(
+        zoneId
+          ? `/recommendations?zone_id=${encodeURIComponent(zoneId)}`
+          : "/recommendations"
+      ),
 };
