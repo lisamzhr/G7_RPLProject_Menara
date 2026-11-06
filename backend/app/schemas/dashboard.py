@@ -9,6 +9,10 @@ class WeatherSummary(BaseModel):
     temp_c: float
     rain_probability_pct: float
     attribution: str
+    humidity_pct: float | None = None
+    wind_speed_kmh: float | None = None
+    icon_url: str | None = None
+    local_datetime: str | None = None
 
 
 class TopRecommendation(BaseModel):

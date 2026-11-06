@@ -136,6 +136,10 @@ export interface WeatherSummary {
   temp_c: number;
   rain_probability_pct: number;
   attribution: string;
+  humidity_pct?: number;
+  wind_speed_kmh?: number;
+  icon_url?: string;
+  local_datetime?: string;
 }
 
 export interface DashboardSummary {

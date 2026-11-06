@@ -106,7 +106,14 @@ function WeatherSection({
 
       <div className="weather-current">
         <div className="weather-current-main">
-          {isRainy ? (
+          {weather?.icon_url ? (
+            <img
+              src={weather.icon_url}
+              alt={forecast}
+              className="weather-main-icon"
+              style={{ width: 36, height: 36, objectFit: "contain" }}
+            />
+          ) : isRainy ? (
             <CloudRain className="weather-main-icon" size={36} />
           ) : (
             <CloudSun className="weather-main-icon" size={36} />
@@ -125,9 +132,15 @@ function WeatherSection({
       </div>
 
       <p className="weather-alert">
-        {weather
-          ? `Microclimate forecast for ${weather.location} based on real-time BMKG meteorological radar.`
-          : "Weather data is currently unavailable."}
+        {weather ? (
+          <>
+            Microclimate forecast for <strong>{weather.location}</strong> based on real-time BMKG meteorological radar.
+            {weather.humidity_pct !== undefined && ` Humidity: ${weather.humidity_pct}%.`}
+            {weather.wind_speed_kmh !== undefined && ` Wind: ${weather.wind_speed_kmh} km/h.`}
+          </>
+        ) : (
+          "Weather data is currently unavailable."
+        )}
       </p>
 
       <div className="weather-footer">
