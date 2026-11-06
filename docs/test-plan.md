@@ -332,12 +332,3 @@ sequenceDiagram
 ```
 
 ---
-
-## 10. Approvals & Sign-Off
-
-| Role | Responsibility | Approval Status |
-|---|---|---|
-| **Lead Quality Engineer** | Test strategy, test plan authoring, automated test coverage | Approved |
-| **Backend & Cloud Architect** | API contract compliance, actuator safeguards, database isolation | Approved |
-| **AI / Machine Learning Engineer** | Deterministic rule engine, LLM guardrails, autonomy gates | Approved |
-| **Frontend UI/UX Lead** | Design system unification, accessibility standards, theme shell | Approved |
