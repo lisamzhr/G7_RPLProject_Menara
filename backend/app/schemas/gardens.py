@@ -17,3 +17,22 @@ class GardenOut(BaseModel):
     elevation_m: float
     adm4_code: str
     created_at: datetime
+
+class GardenCreate(BaseModel):
+    name: str
+    location_name: str
+    lat: float
+    lon: float
+    elevation_m: float = 15.0
+    adm4_code: str
+
+
+class AddMemberRequest(BaseModel):
+    email: str
+
+
+class MemberOut(BaseModel):
+    user_id: str
+    name: str
+    email: str | None
+    role: str

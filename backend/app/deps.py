@@ -3,7 +3,10 @@
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
+from app.models.garden import Garden
+from app.models.garden_member import GardenMember
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
@@ -54,3 +57,25 @@ def verify_internal_token(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid or missing X-Internal-Token header",
         )
+
+def member_garden_ids(user: User):
+    """Subquery of garden ids the user belongs to. Use: Model.garden_id.in_(member_garden_ids(user))."""
+    return select(GardenMember.garden_id).where(GardenMember.user_id == user.id)
+
+
+def get_garden_for_member(
+    db: Session, garden_id: str, user: User, owner_only: bool = False
+) -> Garden:
+    """Return the garden if user is a member. 404 if not a member, 403 if owner required."""
+    row = (
+        db.query(Garden, GardenMember.role)
+        .join(GardenMember, GardenMember.garden_id == Garden.id)
+        .filter(Garden.id == garden_id, GardenMember.user_id == user.id)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Garden not found")
+    garden, role = row
+    if owner_only and role != "owner":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner access required")
+    return garden

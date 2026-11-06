@@ -15,6 +15,7 @@ from app.models.sensor_reading import SensorReading
 from app.models.threshold_profile import ThresholdProfile
 from app.models.user import User
 from app.models.weather_cache import WeatherCache
+from app.models.garden_member import GardenMember
 
 __all__ = [
     "Actuator",
