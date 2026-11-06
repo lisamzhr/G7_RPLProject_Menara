@@ -5,6 +5,22 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class ThresholdProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    category_id: str
+    moisture_min: float
+    moisture_max: float
+    temp_min: float
+    temp_max: float
+    humidity_min: float
+    humidity_max: float
+    lux_min: float
+    lux_max: float
+    source_note: str
+
+
 class CategoryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -12,6 +28,13 @@ class CategoryOut(BaseModel):
     key: str
     name: str
     response_timescale: str
+    threshold_profile: ThresholdProfileOut | None = None
+
+
+class ZoneCreate(BaseModel):
+    category_key: str
+    label: str
+    plant_names: list[str] = []
 
 
 class ZoneOut(BaseModel):

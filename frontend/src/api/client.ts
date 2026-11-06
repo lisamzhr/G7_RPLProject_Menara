@@ -3,12 +3,18 @@ import {
   Garden,
   GardenCreate,
   GardenMember,
+  PlantCategory,
   PlantZone,
+  ZoneCreate,
   ZoneStatus,
   Reading,
   DashboardSummary,
   AlertItem,
   ActuatorItem,
+  SensorNodeItem,
+  UserProfile,
+  UpdateProfileRequest,
+  RecommendationItem,
 } from "../types";
 
 export interface AuthResponse {
@@ -20,15 +26,6 @@ export interface AuthResponse {
     email?: string;
     role: string;
   };
-}
-
-export interface RecommendationItem {
-  id: string;
-  zone_id: string;
-  status_level: "normal" | "advisory" | "warning";
-  message: string;
-  reasons: string[];
-  created_at: string;
 }
 
 async function request<T>(
@@ -105,13 +102,29 @@ export const api = {
       body: JSON.stringify({ new_password }),
     }),
 
-  // GARDENS
+  // AUTH: CURRENT USER & PROFILE
+  getMe: () => request<UserProfile>("/auth/me"),
+
+  updateProfile: (payload: UpdateProfileRequest) =>
+    request<UserProfile>("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  // GARDENS & CATEGORIES
   getGardens: () => request<Garden[]>("/gardens"),
+
+  getCategories: () => request<PlantCategory[]>("/gardens/categories"),
 
   createGarden: (payload: GardenCreate) =>
     request<Garden>("/gardens", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+
+  deleteGarden: (gardenId: string) =>
+    request<void>(`/gardens/${gardenId}`, {
+      method: "DELETE",
     }),
 
   getGardenMembers: (gardenId: string) =>
@@ -131,6 +144,17 @@ export const api = {
   getZones: (gardenId: string) =>
     request<PlantZone[]>(`/gardens/${gardenId}/zones`),
 
+  createZone: (gardenId: string, payload: ZoneCreate) =>
+    request<PlantZone>(`/gardens/${gardenId}/zones`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteZone: (zoneId: string) =>
+    request<void>(`/zones/${zoneId}`, {
+      method: "DELETE",
+    }),
+
   getZoneStatus: (zoneId: string) =>
     request<ZoneStatus>(`/zones/${zoneId}/status`),
 
@@ -144,9 +168,15 @@ export const api = {
     ),
 
   evaluateZone: (zoneId: string) =>
-    request<{ status: string; zone_id: string }>(`/zones/${zoneId}/evaluate`, {
+    request<RecommendationItem>(`/zones/${zoneId}/evaluate`, {
       method: "POST",
     }),
+
+  // SENSOR NODES
+  getNodes: (zoneId?: string) =>
+    request<SensorNodeItem[]>(
+      zoneId ? `/nodes?zone_id=${encodeURIComponent(zoneId)}` : "/nodes"
+    ),
 
   getDashboardSummary: (gardenId?: string) =>
     request<DashboardSummary>(

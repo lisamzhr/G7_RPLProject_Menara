@@ -30,11 +30,30 @@ export interface GardenMember {
   role: string;
 }
 
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string | null;
+  role: string;
+}
+
+export interface UpdateProfileRequest {
+  name: string;
+  email: string;
+}
+
 export interface PlantCategory {
   id: string;
   key: PlantCategoryKey;
   name: string;
   response_timescale: "days" | "weeks";
+  threshold_profile?: ThresholdProfile;
+}
+
+export interface ZoneCreate {
+  category_key: PlantCategoryKey | string;
+  label: string;
+  plant_names?: string[];
 }
 
 export interface ThresholdProfile {
@@ -143,6 +162,14 @@ export interface AlertItem {
   requires_confirmation: boolean;
   resolved_at: string | null;
   created_at: string;
+}
+
+export interface SensorNodeItem {
+  id: string;
+  zone_id: string;
+  zone_label?: string;
+  last_seen_at: string | null;
+  status: "active" | "offline" | "maintenance" | string;
 }
 
 export interface ActuatorItem {

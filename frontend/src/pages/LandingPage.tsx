@@ -65,8 +65,8 @@ const capabilities = [
     icon: Sprout,
     title: "IoT Automation & Control",
     description:
-      "Monitor supported devices and control systems such as sprinklers where implemented.",
-    tags: ["Automatic watering", "Device monitoring", "IoT control"],
+      "Monitor sensor nodes and control automated actuators such as irrigation sprinklers and shade nets.",
+    tags: ["Automatic watering", "Sensor nodes", "Actuator control"],
   },
 ];
 
@@ -92,7 +92,7 @@ const audiences = [
     number: "03",
     title: "Building Managers Operating Rooftop Farms",
     description:
-      "Monitor rooftop growing environments and manage supported IoT devices to help maintain suitable conditions for plants.",
+      "Monitor rooftop growing environments, inspect sensor nodes, and manage automated irrigation actuators to help maintain suitable conditions for plants.",
     label: "For managed rooftop farms",
   },
 ];

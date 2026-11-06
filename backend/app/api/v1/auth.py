@@ -91,3 +91,44 @@ def reset_password(
     user.password_hash = get_password_hash(req.new_password)
     db.commit()
     return {"email": user.email, "status": "password updated"}
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    email: str = Field(min_length=3, max_length=255)
+
+
+@router.get("/me", summary="Get profile of currently logged-in user")
+def get_me(user: User = Depends(get_current_user)):
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+    }
+
+
+@router.patch("/me", summary="Update profile (name, email) of currently logged-in user")
+def update_me(
+    req: UpdateProfileRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    clean_email = req.email.strip().lower()
+    clean_name = req.name.strip()
+    existing = db.query(User).filter(User.email == clean_email, User.id != user.id).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email is already in use by another account",
+        )
+    user.name = clean_name
+    user.email = clean_email
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+    }

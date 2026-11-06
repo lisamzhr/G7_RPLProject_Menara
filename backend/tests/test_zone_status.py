@@ -58,5 +58,6 @@ def test_zone_evaluate_endpoint(client, db_session):
     zone = db_session.query(PlantZone).first()
     res = client.post(f"/api/v1/zones/{zone.id}/evaluate")
     assert res.status_code == 200
-    assert res.json()["status"] == "completed"
-    assert res.json()["zone_id"] == zone.id
+    data = res.json()
+    assert "status_level" in data
+    assert data["zone_id"] == zone.id
