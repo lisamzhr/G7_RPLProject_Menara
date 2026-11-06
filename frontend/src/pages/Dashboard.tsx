@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Activity,
   Sprout,
@@ -24,6 +24,7 @@ import {
   UserRound,
   MoreVertical,
   Check,
+  LogOut,
 } from "lucide-react";
 
 import "../styles/dashboard.css";
@@ -111,13 +112,47 @@ const sidebarLinks = [
   { label: "Settings", icon: Settings, to: "/settings" },
 ];
 
+
 function Sidebar() {
+  const navigate = useNavigate();
+
+  // Get the authenticated user's profile
+  const storedUser =
+    localStorage.getItem("roofgarden_user") ||
+    sessionStorage.getItem("roofgarden_user");
+
+  let userName = "Gardener";
+  let userRole = "Gardener";
+
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      userName = user.name || "Gardener";
+      userRole = user.role || "Gardener";
+    } catch {
+      // Use fallback profile if stored data is invalid
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("roofgarden_token");
+    sessionStorage.removeItem("roofgarden_token");
+
+    localStorage.removeItem("roofgarden_user");
+    sessionStorage.removeItem("roofgarden_user");
+
+    localStorage.removeItem("roofgarden_email");
+
+    navigate("/login", { replace: true });
+  };
+
   return (
     <aside className="dashboard-sidebar">
       <Link to="/dashboard" className="dashboard-brand">
         <span className="dashboard-brand-logo">
           <img src="/LogoMenara.png" alt="MENARA Logo" />
         </span>
+
         <span className="dashboard-brand-text">
           <strong>
             MENARA<span className="brand-online-dot" />
@@ -134,7 +169,9 @@ function Sidebar() {
             <Link
               to={item.to}
               key={item.label}
-              className={`dashboard-nav-link ${item.active ? "active" : ""}`}
+              className={`dashboard-nav-link ${
+                item.active ? "active" : ""
+              }`}
             >
               <Icon size={17} />
               <span>{item.label}</span>
@@ -156,12 +193,20 @@ function Sidebar() {
           <div className="profile-avatar">
             <UserRound size={19} />
           </div>
+
           <div className="profile-info">
-            <strong>Dr. Ezzedine Ruzash</strong>
-            <small>Lead Agronomist</small>
+            <strong title={userName}>{userName}</strong>
+            <small>{userRole}</small>
           </div>
-          <button className="profile-menu" aria-label="Profile menu">
-            <MoreVertical size={18} />
+
+          <button
+            className="profile-menu"
+            type="button"
+            onClick={handleLogout}
+            aria-label="Log out"
+            title="Log out"
+          >
+            <LogOut size={18} />
           </button>
         </div>
       </div>
