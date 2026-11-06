@@ -19,3 +19,4 @@ class Garden(Base, TimestampMixin):
 
     user = relationship("User", back_populates="gardens")
     zones = relationship("PlantZone", back_populates="garden", cascade="all, delete-orphan")
+    members = relationship("GardenMember", back_populates="garden", cascade="all, delete-orphan")

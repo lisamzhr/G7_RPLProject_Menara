@@ -16,3 +16,4 @@ class User(Base, TimestampMixin):
 
     gardens = relationship("Garden", back_populates="user", cascade="all, delete-orphan")
     feedbacks = relationship("Feedback", back_populates="user")
+    memberships = relationship("GardenMember", back_populates="user", cascade="all, delete-orphan")
