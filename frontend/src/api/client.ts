@@ -12,6 +12,7 @@ import {
   AlertItem,
   ActuatorItem,
   SensorNodeItem,
+  SensorNodeRegisterPayload,
   UserProfile,
   UpdateProfileRequest,
   RecommendationItem,
@@ -177,6 +178,17 @@ export const api = {
     request<SensorNodeItem[]>(
       zoneId ? `/nodes?zone_id=${encodeURIComponent(zoneId)}` : "/nodes"
     ),
+
+  registerNode: (zoneId: string, payload: SensorNodeRegisterPayload) =>
+    request<SensorNodeItem>(`/zones/${zoneId}/nodes`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteNode: (nodeId: string) =>
+    request<void>(`/nodes/${nodeId}`, {
+      method: "DELETE",
+    }),
 
   getDashboardSummary: (gardenId?: string) =>
     request<DashboardSummary>(

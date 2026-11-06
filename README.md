@@ -17,9 +17,9 @@ flowchart TD
     end
 
     subgraph Backend ["FastAPI Backend & Ingestion Engine"]
-        IngestAPI["/api/v1/ingest/readings<br/>(X-Node-Key Header)"]
+        IngestAPI["/api/v1/ingest/readings<br/>(X-Node-MAC Header or Key)"]
         ActuatorsAPI["/api/v1/actuators<br/>Manual Commands & Cooldown"]
-        NodesAPI["/api/v1/nodes<br/>Health & Command Queue"]
+        NodesAPI["/api/v1/nodes & /zones/{id}/nodes<br/>Dynamic MAC Registration & Queues"]
         AuthAPI["/api/v1/auth<br/>Register, Login, Me, Reset"]
         BMKG["BMKG Meteorological Client<br/>Live Forecast, SVG Icons, Rain Chance"]
         Elev["Elevation Client<br/>Open-Elevation API"]
@@ -73,6 +73,7 @@ flowchart TD
 ## Key Features
 
 - **Domain-Specific Hardware Abstraction**: Strict architectural separation between **Sensor Nodes** (telemetry inputs) and **Actuators** (controllable outputs like irrigation pumps, misters, and grow lights).
+- **Dynamic ESP32 Sensor Node Registration**: Register sensor nodes directly to plant zones from the web app using hardware MAC addresses (`WiFi.macAddress()`), eliminating pre-shared API keys. Unregistered MAC addresses are rejected with 401 Unauthorized (auto-discovery disabled).
 - **Multi-Tenant Garden Lifecycle**: Create, update, share, and delete gardens with cascading cleanups and role-based permissions (`owner` vs. `member`).
 - **Live Meteorological Integration (BMKG)**: Real-time multi-day weather forecasts parsed for Indonesian sub-districts (`adm4`), featuring automated precipitation chance heuristics and official BMKG SVG weather icons.
 - **Botanical Threshold Profiles**: Pre-calibrated baseline microclimate profiles for Leafy Greens, Fruiting Vegetables, Herbs, and Potted Fruit Trees (*Tabulampot*) accessible via `/api/v1/gardens/categories`.
@@ -161,13 +162,13 @@ pio run -t upload
 
 The project enforces comprehensive test coverage across backend business logic, agentic AI modules, and API contracts. For the formal ISO/IEC/IEEE 29119 compliant test strategy, quality gates, and traceability matrix, see the [Software Test Plan](file:///C:/Projects/G7_RPLProject_Menara/docs/test-plan.md).
 
-### 1. Backend Pytest Suite (91% Coverage)
-Run unit and integration tests across auth, garden lifecycles, actuator cooldowns, background jobs, and alert feedback:
+### 1. Backend Pytest Suite (89% Coverage)
+Run unit and integration tests across auth, garden lifecycles, dynamic MAC registration, actuator cooldowns, background jobs, and alert feedback:
 ```bash
 cd backend
 pytest -v --cov=app --cov-report=term-missing tests/
 ```
-*Current test metrics: **60 passing tests**, 91% code coverage.*
+*Current test metrics: **69 passing tests**, 89% code coverage.*
 
 ### 2. AI Module Pytest Suite
 Verify botanical status categorization, linear moisture slope forecasting, autonomy gating, and guardrail verification:
@@ -178,11 +179,11 @@ pytest -v
 *Current test metrics: **31 passing tests**, 0 failures.*
 
 ### 3. End-to-End API Test Suite
-Run comprehensive live REST contract tests against the running backend (88 assertions covering all endpoints, auto-generating [`api_docs.md`](file:///C:/Projects/G7_RPLProject_Menara/api_docs.md)):
+Run comprehensive live REST contract tests against the running backend (93 assertions covering all endpoints, auto-generating [`api_docs.md`](file:///C:/Projects/G7_RPLProject_Menara/api_docs.md)):
 ```bash
 python scripts/test_endpoints.py
 ```
-*Current test metrics: **88/88 passed (100%)**.*
+*Current test metrics: **93/93 passed (100%)**.*
 
 ### 4. Frontend Lint & Build
 Verify React TypeScript typing, ESLint rules, and production bundle build:

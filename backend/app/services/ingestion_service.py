@@ -9,6 +9,7 @@ from app.core.security import verify_api_key
 from app.models.base import ensure_utc
 from app.models.sensor_node import SensorNode
 from app.models.sensor_reading import SensorReading
+from app.schemas.nodes import normalize_mac
 from app.schemas.readings import ReadingIngestRequest, ReadingIngestResponse
 
 # Botanical & physical range constraints
@@ -32,42 +33,70 @@ def validate_reading_ranges(req: ReadingIngestRequest) -> bool:
 def ingest_reading(
     db: Session,
     req: ReadingIngestRequest,
-    x_node_key: str,
+    x_node_key: str | None = None,
+    x_node_mac: str | None = None,
 ) -> ReadingIngestResponse:
-    """Process incoming sensor reading from ESP32 node."""
+    """Process incoming sensor reading from ESP32 node authenticated by MAC or API Key."""
     # 1. Authenticate Node
-    node = db.query(SensorNode).filter(SensorNode.id == req.node_id).first()
-    if not node:
+    node = None
+    mac_candidate = x_node_mac or req.mac_address
+
+    if mac_candidate:
+        try:
+            clean_mac = normalize_mac(mac_candidate)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Malformed MAC address: {mac_candidate}",
+            )
+        node = db.query(SensorNode).filter(SensorNode.mac_address == clean_mac).first()
+        if not node:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Sensor node with MAC '{clean_mac}' is not registered",
+            )
+    elif req.node_id:
+        node = db.query(SensorNode).filter(SensorNode.id == req.node_id).first()
+        if not node:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Sensor node '{req.node_id}' is not registered",
+            )
+        if node.api_key_hash:
+            if not x_node_key or not verify_api_key(x_node_key, node.api_key_hash):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid node API key credentials",
+                )
+        elif node.mac_address:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing required X-Node-MAC header for this sensor node",
+            )
+    else:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Sensor node '{req.node_id}' is not registered",
+            detail="Missing node credentials. Provide X-Node-MAC header, mac_address, or node_id with X-Node-Key.",
         )
 
-    if not verify_api_key(x_node_key, node.api_key_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid node API key credentials",
-        )
+    node_id = node.id
 
     # 2. Determine Timestamp & Validity
-    # If ts is omitted or an unsynced epoch (e.g. 1970-01-01), fallback to current UTC time
     if req.ts is None or req.ts.year < 2000:
         ts = datetime.now(UTC)
     else:
         ts = ensure_utc(req.ts)
 
     ranges_valid = validate_reading_ranges(req)
-    # Hardware validity flag (if provided) is combined with physical range validation
     is_valid = (req.is_valid is not False) and ranges_valid
 
     # 3. Deduplication Check (drop duplicates with same node_id and ts)
     existing = (
         db.query(SensorReading)
-        .filter(SensorReading.node_id == req.node_id, SensorReading.ts == ts)
+        .filter(SensorReading.node_id == node_id, SensorReading.ts == ts)
         .first()
     )
     if existing:
-        # Refresh node health even on duplicates
         node.last_seen_at = datetime.now(UTC)
         node.status = "active"
         db.commit()
@@ -81,7 +110,7 @@ def ingest_reading(
 
     # 4. Persist Reading
     new_reading = SensorReading(
-        node_id=req.node_id,
+        node_id=node_id,
         ts=ts,
         soil_moisture_pct=req.soil_moisture_pct,
         temperature_c=req.temperature_c,

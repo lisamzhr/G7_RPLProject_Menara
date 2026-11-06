@@ -191,24 +191,32 @@ def seed_database():
                 "cat_key": "leafy",
                 "plants": ["Pak Choy", "Caisim", "Bok Choy"],
                 "node_id": "esp32-node-01",
+                "mac": "24:6F:28:01:00:01",
+                "name": "Zone A Greens Node",
             },
             {
                 "label": "Zone B - Capsicum & Tomatoes",
                 "cat_key": "fruiting_veg",
                 "plants": ["Cabai Rawit", "Cherry Tomato"],
                 "node_id": "esp32-node-02",
+                "mac": "24:6F:28:01:00:02",
+                "name": "Zone B Solanaceae Node",
             },
             {
                 "label": "Zone C - Aromatic Herbs",
                 "cat_key": "herbs",
                 "plants": ["Kemangi", "Peppermint", "Lemongrass"],
                 "node_id": "esp32-node-03",
+                "mac": "24:6F:28:01:00:03",
+                "name": "Zone C Herbs Node",
             },
             {
                 "label": "Zone D - Citrus Tabulampot",
                 "cat_key": "fruit_potted",
                 "plants": ["Jeruk Limau", "Jambu Kristal"],
                 "node_id": "esp32-node-04",
+                "mac": "24:6F:28:01:00:04",
+                "name": "Zone D Citrus Node",
             },
         ]
 
@@ -231,6 +239,8 @@ def seed_database():
                 # Sensor Node
                 node = SensorNode(
                     id=zdata["node_id"],
+                    mac_address=zdata["mac"],
+                    name=zdata["name"],
                     zone_id=zone.id,
                     api_key_hash=key_hash,
                     last_seen_at=datetime.now(UTC),

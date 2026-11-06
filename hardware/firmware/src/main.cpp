@@ -85,6 +85,12 @@ void setup() {
     wifiManager.setCredentials(currentConfig.wifi_ssid, currentConfig.wifi_pass);
     apiClient.setConfig(currentConfig.api_base_url, currentConfig.node_id, currentConfig.node_api_key);
 
+#if defined(ARDUINO)
+    WiFi.mode(WIFI_STA);
+    String mac = WiFi.macAddress();
+    apiClient.setMacAddress(mac.c_str());
+#endif
+
 #if MOCK_ENVIRONMENT
     Serial.println("\n============================================================");
     Serial.println("  ROOFGARDEN ESP32 FIRMWARE - MOCK ENVIRONMENT ACTIVE");

@@ -170,10 +170,18 @@ export interface AlertItem {
 
 export interface SensorNodeItem {
   id: string;
+  mac_address?: string | null;
+  name?: string | null;
   zone_id: string;
   zone_label?: string;
   last_seen_at: string | null;
   status: "active" | "offline" | "maintenance" | string;
+  created_at?: string | null;
+}
+
+export interface SensorNodeRegisterPayload {
+  mac_address: string;
+  name?: string;
 }
 
 export interface ActuatorItem {
