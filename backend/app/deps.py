@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
+from app.models.plant_zone import PlantZone
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -79,3 +80,17 @@ def get_garden_for_member(
     if owner_only and role != "owner":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner access required")
     return garden
+
+def member_zone_ids(user: User):
+    """Subquery of zone ids inside gardens the user belongs to."""
+    return select(PlantZone.id).where(PlantZone.garden_id.in_(member_garden_ids(user)))
+
+def get_zone_for_member(db: Session, zone_id: str, user: User) -> PlantZone:
+    zone = (
+        db.query(PlantZone)
+        .filter(PlantZone.id == zone_id, PlantZone.id.in_(member_zone_ids(user)))
+        .first()
+    )
+    if not zone:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Zone not found")
+    return zone

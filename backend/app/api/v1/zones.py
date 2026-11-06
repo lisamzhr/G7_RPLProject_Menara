@@ -40,3 +40,13 @@ def get_readings(
     db: Session = Depends(get_db),
 ):
     return get_zone_readings_history(db, id, range, agg)
+
+@router.post("/{id}/evaluate", summary="Run AI evaluation for a zone (garden members)")
+def evaluate_zone(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    zone = get_zone_for_member(db, id, current_user)
+    run_evaluation_for_zone(db, zone)
+    return {"status": "completed", "zone_id": zone.id}

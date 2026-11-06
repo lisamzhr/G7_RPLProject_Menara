@@ -1,4 +1,4 @@
-"""Alerts and human-in-the-loop feedback router."""
+"""Alerts and human-in-the-loop feedback router (scoped to the user's gardens)."""
 
 from datetime import UTC, datetime
 
@@ -7,7 +7,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, member_zone_ids
 from app.models.alert import Alert
 from app.models.control_action import ControlAction
 from app.models.feedback import Feedback
@@ -17,6 +17,17 @@ from app.schemas.alerts import AlertFeedbackRequest, AlertOut
 router = APIRouter()
 
 
+def _get_member_alert(db: Session, alert_id: str, user: User) -> Alert:
+    alert = (
+        db.query(Alert)
+        .filter(Alert.id == alert_id, Alert.zone_id.in_(member_zone_ids(user)))
+        .first()
+    )
+    if not alert:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    return alert
+
+
 @router.get("", response_model=list[AlertOut], summary="List active or filtered alerts")
 def list_alerts(
     zone_id: str | None = Query(None),
@@ -24,7 +35,7 @@ def list_alerts(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Alert)
+    query = db.query(Alert).filter(Alert.zone_id.in_(member_zone_ids(current_user)))
     if zone_id:
         query = query.filter(Alert.zone_id == zone_id)
     if status_filter == "active":
@@ -42,9 +53,7 @@ def confirm_alert(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    alert = db.query(Alert).filter(Alert.id == id).first()
-    if not alert:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    alert = _get_member_alert(db, id, current_user)
 
     alert.resolved_at = datetime.now(UTC)
 
@@ -83,9 +92,7 @@ def override_alert(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    alert = db.query(Alert).filter(Alert.id == id).first()
-    if not alert:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alert not found")
+    alert = _get_member_alert(db, id, current_user)
 
     alert.resolved_at = datetime.now(UTC)
 

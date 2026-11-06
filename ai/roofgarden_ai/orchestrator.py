@@ -10,6 +10,7 @@ from roofgarden_ai.llm.prompts import build_evaluation_prompt
 from roofgarden_ai.rule_engine.autonomy import evaluate_action_autonomy
 from roofgarden_ai.rule_engine.predictor import LinearSlopePredictor, MoisturePredictor
 from roofgarden_ai.rule_engine.status import determine_zone_level, evaluate_parameters
+from roofgarden_ai.rule_engine.predictor import MoisturePredictor, get_default_predictor
 
 logger = logging.getLogger("roofgarden_ai.orchestrator")
 
@@ -21,7 +22,7 @@ def evaluate(
 ) -> Decision:
     """Evaluate plant zone context and return verified Decision."""
     if predictor is None:
-        predictor = LinearSlopePredictor()
+        predictor = get_default_predictor()
     if llm_client is None:
         llm_client = MockLLMClient()
 

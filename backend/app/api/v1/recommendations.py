@@ -1,11 +1,11 @@
-"""Horticultural recommendations router."""
+"""Horticultural recommendations router (scoped to the user's gardens)."""
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, member_zone_ids
 from app.models.recommendation import Recommendation
 from app.models.user import User
 from app.schemas.alerts import RecommendationOut
@@ -19,7 +19,9 @@ def list_recommendations(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(Recommendation)
+    query = db.query(Recommendation).filter(
+        Recommendation.zone_id.in_(member_zone_ids(current_user))
+    )
     if zone_id:
         query = query.filter(Recommendation.zone_id == zone_id)
 
