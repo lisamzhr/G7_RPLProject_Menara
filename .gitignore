@@ -26,6 +26,10 @@ wheels/
 *.egg
 .pytest_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+coverage/
+htmlcov/
 uv.lock
 
 # ==============================

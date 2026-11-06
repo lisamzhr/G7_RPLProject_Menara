@@ -27,6 +27,15 @@ class GardenCreate(BaseModel):
     adm4_code: str
 
 
+class GardenUpdate(BaseModel):
+    name: str | None = None
+    location_name: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    elevation_m: float | None = None
+    adm4_code: str | None = None
+
+
 class AddMemberRequest(BaseModel):
     email: str
 

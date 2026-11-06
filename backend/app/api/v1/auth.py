@@ -2,6 +2,7 @@ import secrets
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -34,11 +35,12 @@ def _token_response(user: User) -> dict:
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, summary="Register new gardener")
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == req.email).first():
+    email_clean = req.email.strip().lower()
+    if db.query(User).filter(func.lower(User.email) == email_clean).first():
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
         name=req.name,
-        email=req.email.strip().lower(),
+        email=email_clean,
         role="gardener",
         password_hash=get_password_hash(req.password),
     )
@@ -50,7 +52,8 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", summary="Login and retrieve JWT token")
 def login(req: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
+    email_clean = req.email.strip().lower()
+    user = db.query(User).filter(func.lower(User.email) == email_clean).first()
     if not user or not user.password_hash or not verify_password(req.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     return _token_response(user)
