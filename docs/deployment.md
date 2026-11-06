@@ -60,20 +60,36 @@ This guide covers deployment instructions for the **RoofGarden Monitoring System
 
 ---
 
-## 3. Frontend Deployment on Vercel
+## 3. Frontend Deployment
 
-1. **Import Repository in Vercel**:
-   - Select the `roofgarden` repo.
+### Option A: Docker Container / Docker Compose (Recommended for Unified Stack)
+
+The frontend is packaged as a lightweight multi-stage Docker container (`node:20-alpine` for building static assets &rarr; `nginx:stable-alpine` for serving with gzip compression, SPA fallback routing, and reverse proxy):
+
+1. **Run via Docker Compose**:
+   From the repository root:
+   ```bash
+   docker compose up -d
+   ```
+   The frontend will be available at `http://localhost:5173` (or configured host port), routing API requests directly to the backend service.
+
+2. **Standalone Docker Build**:
+   ```bash
+   docker build -t roofgarden-frontend ./frontend
+   docker run -p 80:80 roofgarden-frontend
+   ```
+
+### Option B: Managed Static Hosting (Vercel / Cloudflare Pages)
+
+1. **Import Repository in Hosting Provider**:
    - **Framework Preset**: `Vite`
    - **Root Directory**: `frontend`
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
-2. **Set Environment Variables on Vercel**:
-   - `VITE_API_BASE_URL`: `https://your-render-app.onrender.com/api/v1`
+2. **Set Environment Variables**:
+   - `VITE_API_BASE_URL`: `https://your-backend-api.com/api/v1`
    - `VITE_SUPABASE_URL`: `https://your-project.supabase.co`
    - `VITE_SUPABASE_ANON_KEY`: `your-supabase-anon-key`
-3. **Deploy**:
-   - Hit **Deploy**. The SPA routes are properly handled via [`vercel.json`](../frontend/vercel.json).
 
 ---
 

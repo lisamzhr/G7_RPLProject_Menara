@@ -52,3 +52,11 @@ def test_zone_status_low_moisture_warning(client, db_session):
 def test_zone_status_404(client):
     res = client.get("/api/v1/zones/non-existent-zone-id/status")
     assert res.status_code == 404
+
+
+def test_zone_evaluate_endpoint(client, db_session):
+    zone = db_session.query(PlantZone).first()
+    res = client.post(f"/api/v1/zones/{zone.id}/evaluate")
+    assert res.status_code == 200
+    assert res.json()["status"] == "completed"
+    assert res.json()["zone_id"] == zone.id

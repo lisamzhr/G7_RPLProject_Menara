@@ -4,6 +4,7 @@ export type PlantCategoryKey = "leafy" | "fruiting_veg" | "herbs" | "fruit_potte
 
 export interface Garden {
   id: string;
+  user_id?: string;
   name: string;
   location_name: string;
   lat: number;
@@ -11,6 +12,22 @@ export interface Garden {
   elevation_m: number;
   adm4_code: string;
   created_at: string;
+}
+
+export interface GardenCreate {
+  name: string;
+  location_name: string;
+  lat: number;
+  lon: number;
+  elevation_m?: number;
+  adm4_code: string;
+}
+
+export interface GardenMember {
+  user_id: string;
+  name: string;
+  email: string | null;
+  role: string;
 }
 
 export interface PlantCategory {
@@ -84,7 +101,14 @@ export interface ZoneStatus {
   overall_status: StatusLevel;
   latest_reading?: Reading;
   parameter_status: ParameterStatusMap;
-  latest_recommendation?: RecommendationItem;
+  latest_recommendation?: RecommendationItem | {
+    id: string;
+    zone_id?: string;
+    status_level: StatusLevel;
+    message: string;
+    reasons: string[];
+    created_at: string;
+  };
 }
 
 export interface WeatherSummary {
@@ -130,7 +154,7 @@ export interface ActuatorItem {
   min_interval_minutes: number;
   last_action?: {
     command: string;
-    source: "auto" | "user";
+    source: "auto" | "user" | "human_confirmed";
     status: "pending" | "sent" | "acked" | "failed";
     executed_at: string | null;
   };

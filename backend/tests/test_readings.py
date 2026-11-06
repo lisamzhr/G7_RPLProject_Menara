@@ -76,3 +76,10 @@ def test_zone_readings_hourly_aggregation(client, db_session):
     assert data[0]["temperature_c"] == 25.0  # Average of 24 and 26
     assert data[0]["humidity_pct"] == 75.0  # Average of 70 and 80
     assert data[0]["lux"] == 15000.0  # Average of 10000 and 20000
+
+
+def test_zone_readings_30d_range(client, db_session):
+    zone = db_session.query(PlantZone).first()
+    res = client.get(f"/api/v1/zones/{zone.id}/readings?range=30d&agg=raw")
+    assert res.status_code == 200
+    assert isinstance(res.json(), list)

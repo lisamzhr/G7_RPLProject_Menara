@@ -40,10 +40,12 @@ class LatestReadingSummary(BaseModel):
     humidity_pct: float
     lux: float
     is_valid: bool
+    battery_v: float | None = None
 
 
 class RecommendationSummary(BaseModel):
     id: str
+    zone_id: str | None = None
     status_level: str
     message: str
     reasons: list[str]

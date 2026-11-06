@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Sprout,
@@ -12,7 +12,7 @@ import {
   Leaf,
   Radio,
   UserRound,
-  MoreVertical,
+  LogOut,
   Clock3,
 } from "lucide-react";
 
@@ -27,65 +27,13 @@ import {
   YAxis,
 } from "recharts";
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { api } from "../api/client";
+import { formatTimestamp } from "../lib/format";
+import type { Garden, PlantZone, Reading } from "../types";
 import "../styles/garden-profile.css";
 
 type TimeRange = "24 Hours" | "7 Days" | "30 Days";
-
-const sensorData = {
-  "24 Hours": [
-    { time: "00:00", temperature: 28, humidity: 67, moisture: 49 },
-    { time: "04:00", temperature: 27, humidity: 66, moisture: 48 },
-    { time: "08:00", temperature: 29, humidity: 60, moisture: 54 },
-    { time: "12:00", temperature: 32.5, humidity: 52, moisture: 64 },
-    { time: "14:00", temperature: 33, humidity: 51, moisture: 68 },
-    { time: "16:00", temperature: 31, humidity: 55, moisture: 63 },
-    { time: "20:00", temperature: 29, humidity: 61, moisture: 57 },
-    { time: "23:59", temperature: 28, humidity: 66, moisture: 52 },
-  ],
-  "7 Days": [
-    { time: "Mon", temperature: 28, humidity: 67, moisture: 49 },
-    { time: "Tue", temperature: 30, humidity: 62, moisture: 53 },
-    { time: "Wed", temperature: 31, humidity: 58, moisture: 59 },
-    { time: "Thu", temperature: 32, humidity: 55, moisture: 65 },
-    { time: "Fri", temperature: 29, humidity: 64, moisture: 61 },
-    { time: "Sat", temperature: 30, humidity: 60, moisture: 56 },
-    { time: "Sun", temperature: 32, humidity: 54, moisture: 68 },
-  ],
-  "30 Days": [
-    { time: "Week 1", temperature: 27, humidity: 68, moisture: 48 },
-    { time: "Week 2", temperature: 29, humidity: 64, moisture: 54 },
-    { time: "Week 3", temperature: 31, humidity: 59, moisture: 61 },
-    { time: "Week 4", temperature: 32, humidity: 55, moisture: 68 },
-  ],
-};
-
-const crops = [
-  {
-    name: "Bok Choy",
-    stage: "Vegetative",
-    icon: "♧",
-    type: "plant",
-  },
-  {
-    name: "Cherry",
-    stage: "Flowering",
-    icon: "♙",
-    type: "fruit",
-  },
-  {
-    name: "Water Spi",
-    stage: "Mature",
-    icon: "♣",
-    type: "leaf",
-  },
-  {
-    name: "Hydro Mint",
-    stage: "Sprouting",
-    icon: "❀",
-    type: "herb",
-  },
-];
 
 const navigation = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -106,27 +54,156 @@ const navigation = [
 ];
 
 export const GardenProfile = () => {
+  const navigate = useNavigate();
+
   const [timeRange, setTimeRange] = useState<TimeRange>("24 Hours");
   const [showLocationMenu, setShowLocationMenu] = useState(false);
 
-  const currentData = sensorData[timeRange];
+  const [gardens, setGardens] = useState<Garden[]>([]);
+  const [selectedGarden, setSelectedGarden] = useState<Garden | null>(null);
+  const [zones, setZones] = useState<PlantZone[]>([]);
+  const [selectedZone, setSelectedZone] = useState<PlantZone | null>(null);
+  const [readings, setReadings] = useState<Reading[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const storedUser =
+    localStorage.getItem("roofgarden_user") ||
+    sessionStorage.getItem("roofgarden_user");
+
+  let userName = "Gardener";
+  let userRole = "Gardener";
+
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      userName = user.name || "Gardener";
+      userRole = user.role || "Gardener";
+    } catch {
+      // fallback
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("roofgarden_token");
+    sessionStorage.removeItem("roofgarden_token");
+    localStorage.removeItem("roofgarden_user");
+    sessionStorage.removeItem("roofgarden_user");
+    navigate("/login", { replace: true });
+  };
+
+  // Initial load: fetch gardens
+  useEffect(() => {
+    let isMounted = true;
+    const loadGardens = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await api.getGardens();
+        if (!isMounted) return;
+        setGardens(data);
+        if (data.length > 0) {
+          setSelectedGarden(data[0]);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load gardens.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadGardens();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // When selected garden changes: fetch zones
+  useEffect(() => {
+    if (!selectedGarden) {
+      setZones([]);
+      setSelectedZone(null);
+      return;
+    }
+
+    let isMounted = true;
+    const loadZones = async () => {
+      try {
+        const zoneData = await api.getZones(selectedGarden.id);
+        if (!isMounted) return;
+        setZones(zoneData);
+        setSelectedZone(zoneData[0] || null);
+      } catch (err) {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load plant zones.");
+      }
+    };
+    loadZones();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedGarden]);
+
+  // When selected zone or time range changes: fetch readings
+  useEffect(() => {
+    if (!selectedZone) {
+      setReadings([]);
+      return;
+    }
+
+    let isMounted = true;
+    const loadReadings = async () => {
+      try {
+        const rangeParam = timeRange === "24 Hours" ? "24h" : timeRange === "7 Days" ? "7d" : "30d";
+        const aggParam = timeRange === "30 Days" || timeRange === "7 Days" ? "hourly" : "raw";
+        const readingData = await api.getZoneReadings(selectedZone.id, rangeParam, aggParam);
+        if (!isMounted) return;
+        setReadings(readingData);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Failed to load historical readings:", err);
+      }
+    };
+    loadReadings();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedZone, timeRange]);
+
+  // Format chart data
+  const chartData = readings.map((r) => ({
+    time: formatTimestamp(r.ts),
+    temperature: r.temperature_c,
+    humidity: r.humidity_pct,
+    moisture: r.soil_moisture_pct,
+  }));
+
+  // Dynamic crops from zones
+  const activeCrops = zones.flatMap((z) =>
+    z.plant_names.map((plantName) => ({
+      name: plantName,
+      stage: z.category.name,
+      categoryKey: z.category.key,
+      zoneLabel: z.label,
+    }))
+  );
 
   return (
     <div className="garden-page">
       {/* SIDEBAR */}
       <aside className="garden-sidebar">
         <div className="garden-brand">
-        <div className="garden-brand-logo">
-          <img src="/LogoMenara.png" alt="MENARA Logo" />
-        </div>
+          <div className="garden-brand-logo">
+            <img src="/LogoMenara.png" alt="MENARA Logo" />
+          </div>
 
-        <div className="garden-brand-text">
-          <h2>
-            MENARA <span className="brand-status-dot" />
-          </h2>
-          <p>ROOFTOP AGRITECH</p>
+          <div className="garden-brand-text">
+            <h2>
+              MENARA <span className="brand-status-dot" />
+            </h2>
+            <p>ROOFTOP AGRITECH</p>
+          </div>
         </div>
-      </div>
 
         <nav className="garden-navigation">
           {navigation.map((item) => {
@@ -166,12 +243,17 @@ export const GardenProfile = () => {
             </div>
 
             <div className="garden-user-info">
-              <strong>Dr. Ezzedine Ruzash</strong>
-              <span>Lead Agronomist</span>
+              <strong title={userName}>{userName}</strong>
+              <span>{userRole}</span>
             </div>
 
-            <button className="garden-more-button" aria-label="More options">
-              <MoreVertical size={20} />
+            <button
+              className="garden-more-button"
+              aria-label="Log out"
+              title="Log out"
+              onClick={handleLogout}
+            >
+              <LogOut size={18} />
             </button>
           </div>
         </div>
@@ -187,45 +269,68 @@ export const GardenProfile = () => {
                 <span className="online-dot" />
                 ROOFTOP GARDEN PROFILE
               </span>
-              <span className="garden-id">ID: MNT-JKT-B2</span>
+              <span className="garden-id">
+                {selectedGarden ? `ADM4: ${selectedGarden.adm4_code}` : "ID: MNT-JKT-B2"}
+              </span>
             </div>
 
             <div className="garden-topbar-actions">
               <div className="garden-sync-status">
                 <RefreshCw size={17} />
-                <span>Synced 2m ago</span>
+                <span>{loading ? "Loading..." : "Telemetry Synced"}</span>
               </div>
 
-              <div className="garden-location-wrapper">
+              <div className="garden-location-wrapper" style={{ position: "relative" }}>
                 <button
                   className="garden-location-button"
+                  type="button"
                   onClick={() => setShowLocationMenu(!showLocationMenu)}
                 >
                   <MapPin size={21} />
                   <span>
-                    <strong>Kebun Atap Menteng</strong>
-                    <small>Rooftop Block B (Zone 2B)</small>
+                    <strong>{selectedGarden?.name || "No Garden"}</strong>
+                    <small>{selectedGarden?.location_name || "Select Garden"}</small>
                   </span>
                   <ChevronDown size={18} />
                 </button>
 
-                {showLocationMenu && (
-                  <div className="garden-location-dropdown">
-                    <strong>Selected Garden</strong>
-                    <span>Kebun Atap Menteng</span>
-                    <small>Rooftop Block B • Zone 2B</small>
+                {showLocationMenu && gardens.length > 0 && (
+                  <div className="garden-location-dropdown" style={{ zIndex: 50 }}>
+                    <strong>Select Garden</strong>
+                    {gardens.map((g) => (
+                      <div
+                        key={g.id}
+                        style={{
+                          padding: "6px 0",
+                          cursor: "pointer",
+                          borderBottom: "1px solid #f1f5f9",
+                        }}
+                        onClick={() => {
+                          setSelectedGarden(g);
+                          setShowLocationMenu(false);
+                        }}
+                      >
+                        <strong style={{ display: "block", color: "#1e293b" }}>{g.name}</strong>
+                        <small style={{ color: "#64748b" }}>{g.location_name}</small>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
             </div>
           </div>
 
+          {error && (
+            <div style={{ padding: "12px", background: "#fef2f2", color: "#b91c1c", borderRadius: "8px", margin: "12px 0" }}>
+              {error}
+            </div>
+          )}
+
           {/* PAGE TITLE */}
           <div className="garden-heading">
             <h1>Garden Profile</h1>
             <p>
-              View detailed information about your rooftop garden and its
-              current conditions.
+              View detailed botanical and microclimate information about your rooftop garden.
             </p>
           </div>
 
@@ -234,26 +339,30 @@ export const GardenProfile = () => {
             <div className="garden-photo">
               <div className="garden-photo-overlay">
                 <div>
-                  <span>CANOPY SECTOR 2B</span>
-                  <h3>Kebun Atap Menteng</h3>
+                  <span>CANOPY ELEVATION {selectedGarden?.elevation_m ?? 24}m</span>
+                  <h3>{selectedGarden?.name || "Rooftop Garden"}</h3>
                 </div>
-                <span className="sensor-node-badge">Active Sensor Node</span>
+                <span className="sensor-node-badge">
+                  {zones.length} Active {zones.length === 1 ? "Zone" : "Zones"}
+                </span>
               </div>
             </div>
 
             <div className="garden-overview-details">
               <div className="garden-info-heading">
-                <h2>Kebun Atap Menteng</h2>
+                <h2>{selectedGarden?.name || "Garden Overview"}</h2>
                 <div className="garden-location-info">
                   <MapPin size={19} />
                   <span>
-                    Menteng, Central Jakarta • Rooftop Block B (Zone 2B)
+                    {selectedGarden?.location_name || "Jakarta, Indonesia"}
                   </span>
-                  <span className="garden-canopy-badge">450 m² Canopy</span>
+                  <span className="garden-canopy-badge">
+                    {selectedGarden ? `${selectedGarden.elevation_m}m Elevation` : "Rooftop"}
+                  </span>
                 </div>
                 <div className="telemetry-badge">
                   <span />
-                  Telemetry Synced
+                  BMKG Adm4: {selectedGarden?.adm4_code || "31.71.06.1001"}
                 </div>
               </div>
 
@@ -263,22 +372,28 @@ export const GardenProfile = () => {
                     <Leaf size={20} />
                     <strong>Selected Crops &amp; Active Cultivars</strong>
                   </div>
-                  <span>4 Active Species</span>
+                  <span>{activeCrops.length} Active Cultivars</span>
                 </div>
 
                 <div className="garden-crops-grid">
-                  {crops.map((crop) => (
-                    <div className="garden-crop-card" key={crop.name}>
-                      <div className={`garden-crop-icon ${crop.type}`}>
-                        {crop.icon}
-                      </div>
+                  {activeCrops.length > 0 ? (
+                    activeCrops.map((crop, idx) => (
+                      <div className="garden-crop-card" key={`${crop.name}-${idx}`}>
+                        <div className={`garden-crop-icon ${crop.categoryKey}`}>
+                          🌱
+                        </div>
 
-                      <div>
-                        <strong>{crop.name}</strong>
-                        <span>Stage: {crop.stage}</span>
+                        <div>
+                          <strong>{crop.name}</strong>
+                          <span>{crop.stage} • {crop.zoneLabel}</span>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div style={{ color: "#94a3b8", fontSize: "13px", padding: "12px 0" }}>
+                      No plant zones or cultivars registered yet.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -292,14 +407,36 @@ export const GardenProfile = () => {
                   <h2>Historical Sensor Data</h2>
                   <span className="live-feed-badge">
                     <span />
-                    Live Feed
+                    {selectedZone?.label || "Zone Readings"}
                   </span>
                 </div>
 
                 <p>
-                  Changes in air temperature, air humidity, and soil moisture
-                  over diurnal cycles
+                  Changes in air temperature, air humidity, and soil moisture over diurnal cycles
                 </p>
+
+                {zones.length > 1 && (
+                  <div style={{ marginTop: "8px", display: "flex", gap: "8px" }}>
+                    {zones.map((z) => (
+                      <button
+                        key={z.id}
+                        type="button"
+                        onClick={() => setSelectedZone(z)}
+                        style={{
+                          fontSize: "12px",
+                          padding: "4px 10px",
+                          borderRadius: "6px",
+                          border: "1px solid #cbd5e1",
+                          background: selectedZone?.id === z.id ? "#344F3A" : "#fff",
+                          color: selectedZone?.id === z.id ? "#fff" : "#475569",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {z.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="garden-range-selector">
@@ -318,116 +455,114 @@ export const GardenProfile = () => {
             </div>
 
             <div className="garden-chart-container">
-              <div className="garden-chart-tooltip">
-                <span>14:00 WIB • DIURNAL PEAK</span>
-                <div>
-                  <strong>Temp: 32.5°C</strong>
-                  <i />
-                  <strong>Humidity: 64%</strong>
-                  <i />
-                  <strong>Moist: 68%</strong>
+              {chartData.length === 0 ? (
+                <div style={{ height: "260px", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: "13px" }}>
+                  No telemetry data points available for this zone.
                 </div>
-              </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 20, right: 18, left: 0, bottom: 8 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="temperatureFill"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#344F3A"
+                          stopOpacity={0.22}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#344F3A"
+                          stopOpacity={0.01}
+                        />
+                      </linearGradient>
 
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={currentData}
-                  margin={{ top: 70, right: 18, left: 0, bottom: 8 }}
-                >
-                  <defs>
-                    <linearGradient
-                      id="temperatureFill"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor="#344F3A"
-                        stopOpacity={0.22}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#344F3A"
-                        stopOpacity={0.01}
-                      />
-                    </linearGradient>
+                      <linearGradient
+                        id="humidityFill"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="0%"
+                          stopColor="#4D78BD"
+                          stopOpacity={0.16}
+                        />
+                        <stop
+                          offset="100%"
+                          stopColor="#4D78BD"
+                          stopOpacity={0.01}
+                        />
+                      </linearGradient>
+                    </defs>
 
-                    <linearGradient
-                      id="humidityFill"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor="#4D78BD"
-                        stopOpacity={0.16}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#4D78BD"
-                        stopOpacity={0.01}
-                      />
-                    </linearGradient>
-                  </defs>
+                    <CartesianGrid
+                      stroke="#E4EEE3"
+                      strokeDasharray="3 4"
+                      vertical={false}
+                    />
 
-                  <CartesianGrid
-                    stroke="#E4EEE3"
-                    strokeDasharray="3 4"
-                    vertical={false}
-                  />
+                    <XAxis
+                      dataKey="time"
+                      tick={{ fill: "#718071", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      dy={10}
+                    />
 
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fill: "#718071", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    dy={10}
-                  />
+                    <YAxis domain={["auto", "auto"]} tick={{ fill: "#718071", fontSize: 11 }} />
 
-                  <YAxis hide domain={[20, 75]} />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 10,
+                        border: "1px solid #DCE9DA",
+                        fontSize: 12,
+                      }}
+                    />
 
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 10,
-                      border: "1px solid #DCE9DA",
-                      fontSize: 12,
-                    }}
-                  />
+                    <Area
+                      type="monotone"
+                      dataKey="temperature"
+                      stroke="#344F3A"
+                      strokeWidth={2.8}
+                      fill="url(#temperatureFill)"
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                      name="Air Temp (°C)"
+                    />
 
-                  <Area
-                    type="monotone"
-                    dataKey="temperature"
-                    stroke="#344F3A"
-                    strokeWidth={2.8}
-                    fill="url(#temperatureFill)"
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
+                    <Area
+                      type="monotone"
+                      dataKey="humidity"
+                      stroke="#4D78BD"
+                      strokeWidth={2.5}
+                      fill="url(#humidityFill)"
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                      name="Humidity (%)"
+                    />
 
-                  <Area
-                    type="monotone"
-                    dataKey="humidity"
-                    stroke="#4D78BD"
-                    strokeWidth={2.5}
-                    fill="url(#humidityFill)"
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="moisture"
-                    stroke="#7A9870"
-                    strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+                    <Line
+                      type="monotone"
+                      dataKey="moisture"
+                      stroke="#7A9870"
+                      strokeWidth={2.5}
+                      dot={false}
+                      activeDot={{ r: 5 }}
+                      name="Soil Moisture (%)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
 
             <div className="garden-chart-legend">

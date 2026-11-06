@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Sprout,
@@ -8,7 +8,7 @@ import {
   Settings,
   Radio,
   UserRound,
-  MoreVertical,
+  LogOut,
   RefreshCw,
   Clock,
   Building2,
@@ -19,19 +19,18 @@ import {
   Waves,
   Zap,
   Wind,
-  Lock,
-  ExternalLink,
   Info,
   Signal,
   CheckCircle2,
-  History,
-  Smartphone,
+  AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { api } from "../api/client";
+import { formatDateTime } from "../lib/format";
+import type { ActuatorItem, Garden, PlantZone } from "../types";
 import "../styles/devices.css";
-
-type ServoPosition = "Closed" | "50% Vent" | "Open";
 
 const navigation = [
   { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
@@ -56,49 +55,138 @@ const navigation = [
 ];
 
 export const Devices = () => {
+  const navigate = useNavigate();
+
+  const [gardens, setGardens] = useState<Garden[]>([]);
+  const [selectedGarden, setSelectedGarden] = useState<Garden | null>(null);
+  const [zones, setZones] = useState<PlantZone[]>([]);
+  const [actuators, setActuators] = useState<ActuatorItem[]>([]);
+
+  const [loading, setLoading] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [durationSeconds, setDurationSeconds] = useState(30);
+
   const [automationEnabled, setAutomationEnabled] = useState(true);
-  const [servoPosition, setServoPosition] =
-    useState<ServoPosition>("Closed");
-  const [wateringTriggered, setWateringTriggered] = useState(false);
   const [notice, setNotice] = useState(
-    "Controls are operating normally. All connected actuators are ready."
+    "Connected actuators ready for automated & manual control."
   );
-  const [lastUpdated, setLastUpdated] = useState("3m ago");
+  const [errorNotice, setErrorNotice] = useState("");
+  const [lastUpdated, setLastUpdated] = useState("Just now");
+  const [showGardenMenu, setShowGardenMenu] = useState(false);
 
-  const getServoDegrees = () => {
-    if (servoPosition === "Closed") return 0;
-    if (servoPosition === "50% Vent") return 45;
-    return 90;
+  const storedUser =
+    localStorage.getItem("roofgarden_user") ||
+    sessionStorage.getItem("roofgarden_user");
+
+  let userName = "Gardener";
+  let userRole = "Gardener";
+
+  if (storedUser) {
+    try {
+      const user = JSON.parse(storedUser);
+      userName = user.name || "Gardener";
+      userRole = user.role || "Gardener";
+    } catch {
+      // fallback
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("roofgarden_token");
+    sessionStorage.removeItem("roofgarden_token");
+    localStorage.removeItem("roofgarden_user");
+    sessionStorage.removeItem("roofgarden_user");
+    navigate("/login", { replace: true });
   };
 
-  const handleWatering = () => {
-    setWateringTriggered(true);
-    setNotice(
-      "Manual watering triggered. The solenoid valve is active for 1 minute (demo action)."
-    );
+  // Initial load: fetch gardens
+  useEffect(() => {
+    let isMounted = true;
+    const loadGardens = async () => {
+      try {
+        setLoading(true);
+        const data = await api.getGardens();
+        if (!isMounted) return;
+        setGardens(data);
+        if (data.length > 0) {
+          setSelectedGarden(data[0]);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setErrorNotice(err instanceof Error ? err.message : "Failed to load gardens.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadGardens();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-    window.setTimeout(() => {
-      setWateringTriggered(false);
-    }, 5000);
+  // When garden changes: fetch zones
+  useEffect(() => {
+    if (!selectedGarden) {
+      setZones([]);
+      return;
+    }
+    let isMounted = true;
+    const loadZones = async () => {
+      try {
+        const zoneData = await api.getZones(selectedGarden.id);
+        if (!isMounted) return;
+        setZones(zoneData);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Failed to load zones:", err);
+      }
+    };
+    loadZones();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedGarden]);
+
+  // Load actuators
+  const loadActuators = async () => {
+    try {
+      setLoading(true);
+      setErrorNotice("");
+      const data = await api.getActuators();
+      setActuators(data);
+      setLastUpdated(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+    } catch (err) {
+      setErrorNotice(err instanceof Error ? err.message : "Failed to load actuators.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleServo = (position: ServoPosition) => {
-    setServoPosition(position);
-    setNotice(
-      `Servo position adjusted to ${position} (${position === "Closed" ? "0°" : position === "50% Vent" ? "45°" : "90°"}). (Demo action)`
-    );
+  useEffect(() => {
+    loadActuators();
+  }, []);
+
+  const handleCommand = async (
+    actuatorId: string,
+    command: "turn_on" | "turn_off",
+    duration = durationSeconds
+  ) => {
+    try {
+      setActionLoadingId(actuatorId);
+      setErrorNotice("");
+      const res = await api.commandActuator(actuatorId, command, duration);
+      setNotice(`Command '${command}' queued successfully (Command ID: ${res.command_id.slice(0, 8)}...).`);
+      await loadActuators();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to send command to actuator.";
+      setErrorNotice(msg);
+      setNotice(msg);
+    } finally {
+      setActionLoadingId(null);
+    }
   };
 
-  const handleRefresh = () => {
-    setLastUpdated("Just now");
-    setNotice("Controller status refreshed successfully (demo action).");
-  };
-
-  const handleLogs = () => {
-    setNotice(
-      "Controller logs are available in this demo interface. Backend log integration is not connected yet."
-    );
-  };
+  const zoneMap = new Map(zones.map((z) => [z.id, z.label]));
 
   return (
     <div className="device-page">
@@ -157,15 +245,17 @@ export const Devices = () => {
             </div>
 
             <div className="device-user-info">
-              <strong>Dr. Ezzedine Ruzash</strong>
-              <span>Lead Agronomist</span>
+              <strong title={userName}>{userName}</strong>
+              <span>{userRole}</span>
             </div>
 
             <button
               className="device-more-button"
-              aria-label="More options"
+              aria-label="Log out"
+              title="Log out"
+              onClick={handleLogout}
             >
-              <MoreVertical size={20} />
+              <LogOut size={18} />
             </button>
           </div>
         </div>
@@ -177,14 +267,66 @@ export const Devices = () => {
           {/* TOP BAR */}
           <div className="device-topbar">
             <div className="device-topbar-left">
-              <div className="device-location-pill">
+              <div className="device-location-pill" style={{ position: "relative" }}>
                 <Building2 size={16} />
-                <strong>Kebun Atap Menteng</strong>
-                <span>/ Rooftop Block B (Zone 2B)</span>
+                <button
+                  type="button"
+                  onClick={() => setShowGardenMenu(!showGardenMenu)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    fontSize: "13px",
+                    color: "#334155",
+                  }}
+                >
+                  <strong>{selectedGarden?.name || "No Garden"}</strong>
+                  <span>/ {selectedGarden?.location_name || "Location"}</span>
+                  <ChevronDown size={14} />
+                </button>
+
+                {showGardenMenu && gardens.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      zIndex: 50,
+                      background: "#fff",
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                      borderRadius: "8px",
+                      padding: "6px 0",
+                      marginTop: "6px",
+                      minWidth: "220px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    {gardens.map((g) => (
+                      <div
+                        key={g.id}
+                        style={{
+                          padding: "8px 16px",
+                          cursor: "pointer",
+                          background: g.id === selectedGarden?.id ? "#f0fdf4" : "transparent",
+                        }}
+                        onClick={() => {
+                          setSelectedGarden(g);
+                          setShowGardenMenu(false);
+                        }}
+                      >
+                        <strong style={{ display: "block", fontSize: "13px", color: "#1e293b" }}>{g.name}</strong>
+                        <small style={{ color: "#64748b", fontSize: "11px" }}>{g.location_name}</small>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="device-sync-pill">
-                <RefreshCw size={12} />
+                <RefreshCw size={12} className={loading ? "spin" : ""} />
                 Synced {lastUpdated}
               </div>
             </div>
@@ -195,32 +337,26 @@ export const Devices = () => {
             <div>
               <h1>Device Control</h1>
               <p>
-                Manage your garden's automated watering system and
-                servo-based mechanisms.
+                Manage your garden's automated watering system, micro-sprinklers, and actuator mechanisms.
               </p>
             </div>
 
             <div className="device-heading-actions">
               <button
                 className="device-header-button"
-                onClick={handleRefresh}
+                type="button"
+                onClick={loadActuators}
+                disabled={loading}
               >
                 <RefreshCw size={14} />
-                Refresh Controller
-              </button>
-
-              <button
-                className="device-header-button logs-button"
-                onClick={handleLogs}
-              >
-                <History size={14} />
-                Logs
+                Refresh Actuators
               </button>
             </div>
           </header>
+
           {/* CONTROLLER NOTICE */}
-          <div className="device-notice" role="status">
-            <Info size={16} />
+          <div className={`device-notice ${errorNotice ? "warning-message" : ""}`} role="status">
+            {errorNotice ? <AlertTriangle size={16} color="#e11d48" /> : <Info size={16} />}
             <p>{notice}</p>
           </div>
 
@@ -234,8 +370,7 @@ export const Devices = () => {
               <div className="device-controller-info">
                 <h2>Connected: ESP32 Garden Controller</h2>
                 <p>
-                  System online. All local actuators ready for automated
-                  &amp; manual control.
+                  System online. {actuators.length} registered hardware actuators ready for polling &amp; execution.
                 </p>
                 <span className="device-online-badge">
                   <i />
@@ -263,248 +398,176 @@ export const Devices = () => {
 
           {/* DEVICE CARDS */}
           <section className="device-control-grid">
-            {/* AUTOMATIC WATERING */}
-            <article className="device-control-card watering-card">
-              <div className="device-card-content">
-                <div className="device-card-heading">
-                  <div className="device-card-icon watering-icon">
-                    <Droplet size={23} />
-                  </div>
+            {actuators.map((actuator) => {
+              const zoneLabel = zoneMap.get(actuator.zone_id) || `Zone (${actuator.zone_id.slice(0, 8)}...)`;
+              const isSprinkler = actuator.type === "sprinkler";
+              const lastAction = actuator.last_action;
+              const isBusy = actionLoadingId === actuator.id;
 
-                  <div className="device-card-title">
-                    <span>SOLENOID HYDRATION LINE</span>
-                    <h2>Automatic Watering System</h2>
-                  </div>
+              return (
+                <article className="device-control-card watering-card" key={actuator.id}>
+                  <div className="device-card-content">
+                    <div className="device-card-heading">
+                      <div className="device-card-icon watering-icon">
+                        {isSprinkler ? <Droplet size={23} /> : <Wind size={23} />}
+                      </div>
 
-                  <span className="device-state-badge active-badge">
-                    <i />
-                    Active
-                  </span>
-                </div>
+                      <div className="device-card-title">
+                        <span>{actuator.driver.toUpperCase()} DRIVER • {zoneLabel}</span>
+                        <h2>{isSprinkler ? "Automatic Watering System" : `${actuator.type.toUpperCase()} Actuator`}</h2>
+                      </div>
 
-                <div className="device-card-divider" />
-
-                {/* AUTOMATION MODE */}
-                <div className="automation-control">
-                  <div>
-                    <strong>Automation Mode</strong>
-                    <span>
-                      Toggle automated soil threshold watering
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={automationEnabled}
-                    aria-label="Toggle automation mode"
-                    className={`device-toggle ${
-                      automationEnabled ? "enabled" : ""
-                    }`}
-                    onClick={() => {
-                      const nextValue = !automationEnabled;
-                      setAutomationEnabled(nextValue);
-                      setNotice(
-                        nextValue
-                          ? "Automation Mode enabled. Automatic watering is active (demo action)."
-                          : "Automation Mode disabled. Watering now requires manual control (demo action)."
-                      );
-                    }}
-                  >
-                    <span>
-                      {automationEnabled ? (
-                        <CheckCircle2 size={16} />
-                      ) : null}
-                    </span>
-                  </button>
-                </div>
-
-                {/* AUTOMATION MESSAGE */}
-                <div
-                  className={`device-message-box ${
-                    automationEnabled ? "success-message" : "warning-message"
-                  }`}
-                >
-                  <ShieldCheck size={19} />
-                  <p>
-                    {automationEnabled
-                      ? "Automated watering is active. Micro-sprayers will dispense moisture when soil hydration drops below target thresholds."
-                      : "Automated watering is paused. Use manual watering control when your garden needs additional moisture."}
-                  </p>
-                </div>
-
-                {/* WATERING METRICS */}
-                <div className="watering-metrics">
-                  <div>
-                    <span>Target Moisture</span>
-                    <strong>&gt; 65% RH</strong>
-                  </div>
-
-                  <div>
-                    <span>Last Watering</span>
-                    <strong>45 mins ago</strong>
-                  </div>
-
-                  <div>
-                    <span>Valve State</span>
-                    <strong>
-                      {wateringTriggered ? "Open (Active)" : "Closed (Standby)"}
-                    </strong>
-                  </div>
-                </div>
-
-                {/* MANUAL WATERING BUTTON */}
-                <button
-                  className={`device-watering-button ${
-                    wateringTriggered ? "watering-active" : ""
-                  }`}
-                  onClick={handleWatering}
-                  disabled={wateringTriggered}
-                >
-                  <Timer size={17} />
-                  {wateringTriggered
-                    ? "Watering Triggered"
-                    : "Trigger 1-Min Watering"}
-                </button>
-              </div>
-
-              {/* CARD FOOTER */}
-              <div className="device-card-footer">
-                <div>
-                  <Gauge size={14} />
-                  <span>Pressure: <strong>2.4 Bar</strong></span>
-                </div>
-
-                <div>
-                  <Waves size={14} />
-                  <span>Flow Rate: <strong>1.8 L/m</strong></span>
-                </div>
-
-                <div>
-                  <Clock size={14} />
-                  <span>Sync: <strong>14:20 WIB</strong></span>
-                </div>
-              </div>
-            </article>
-
-            {/* SERVO CONTROL */}
-            <article className="device-control-card servo-card">
-              <div className="device-card-content">
-                <div className="device-card-heading servo-heading">
-                  <div className="device-card-icon servo-icon">
-                    <Wind size={23} />
-                  </div>
-
-                  <div className="device-card-title">
-                    <span>ROOF VENTILATION / CANOPY SHADE</span>
-                    <h2>Servo Mechanism Control</h2>
-                  </div>
-
-                  <span className="device-state-badge position-badge">
-                    <i />
-                    Position: {servoPosition}
-                  </span>
-                </div>
-
-                <div className="device-card-divider" />
-
-                {/* SERVO POSITION */}
-                <div className="servo-position-panel">
-                  <div className="servo-position-heading">
-                    <div>
-                      <Smartphone size={17} />
-                      <strong>
-                        Current Position: {servoPosition} (
-                        {getServoDegrees()}° / Secure)
-                      </strong>
+                      <span className="device-state-badge active-badge">
+                        <i />
+                        {lastAction ? `Last: ${lastAction.status}` : "Standby"}
+                      </span>
                     </div>
 
-                    <span>{(getServoDegrees() / 90) * 100}% OPEN</span>
+                    <div className="device-card-divider" />
+
+                    {/* AUTOMATION MODE */}
+                    <div className="automation-control">
+                      <div>
+                        <strong>Automation Mode</strong>
+                        <span>Deterministic AI &amp; soil threshold triggers</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={automationEnabled}
+                        aria-label="Toggle automation mode"
+                        className={`device-toggle ${automationEnabled ? "enabled" : ""}`}
+                        onClick={() => {
+                          const nextValue = !automationEnabled;
+                          setAutomationEnabled(nextValue);
+                          setNotice(
+                            nextValue
+                              ? "Automation mode enabled. Microclimate threshold actions active."
+                              : "Automation mode paused. Actuator commands now require manual triggers."
+                          );
+                        }}
+                      >
+                        <span>{automationEnabled ? <CheckCircle2 size={16} /> : null}</span>
+                      </button>
+                    </div>
+
+                    {/* METRICS & LIMITS */}
+                    <div className="watering-metrics">
+                      <div>
+                        <span>Max On Duration</span>
+                        <strong>{actuator.max_on_seconds}s (Safety Cap)</strong>
+                      </div>
+
+                      <div>
+                        <span>Min Cooldown</span>
+                        <strong>{actuator.min_interval_minutes} mins</strong>
+                      </div>
+
+                      <div>
+                        <span>Last Action</span>
+                        <strong>
+                          {lastAction
+                            ? `${lastAction.command} (${lastAction.source})`
+                            : "None recorded"}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* LAST ACTION TIMESTAMP */}
+                    {lastAction && (
+                      <div style={{ fontSize: "12px", color: "#64748b", margin: "8px 0" }}>
+                        Executed: {lastAction.executed_at ? formatDateTime(lastAction.executed_at) : "Pending polling"}
+                      </div>
+                    )}
+
+                    {/* MANUAL TRIGGER ACTIONS */}
+                    <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                      <button
+                        className="device-watering-button"
+                        type="button"
+                        onClick={() => handleCommand(actuator.id, "turn_on", durationSeconds)}
+                        disabled={isBusy}
+                        style={{ flex: 2 }}
+                      >
+                        <Timer size={17} />
+                        {isBusy ? "Queuing Command..." : `Trigger ${durationSeconds}s ${isSprinkler ? "Watering" : "On"}`}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCommand(actuator.id, "turn_off", 1)}
+                        disabled={isBusy}
+                        style={{
+                          flex: 1,
+                          background: "#f1f5f9",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#334155",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Turn Off
+                      </button>
+                    </div>
+
+                    {/* DURATION SELECTOR */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "10px" }}>
+                      <span style={{ fontSize: "12px", color: "#64748b" }}>Duration:</span>
+                      {[15, 30, 45, Math.min(60, actuator.max_on_seconds)].map((sec) => (
+                        <button
+                          key={sec}
+                          type="button"
+                          onClick={() => setDurationSeconds(sec)}
+                          style={{
+                            fontSize: "11px",
+                            padding: "3px 8px",
+                            borderRadius: "4px",
+                            border: "1px solid #cbd5e1",
+                            background: durationSeconds === sec ? "#28452e" : "#fff",
+                            color: durationSeconds === sec ? "#fff" : "#475569",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {sec}s
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="servo-progress-track">
-                    <div
-                      className="servo-progress-fill"
-                      style={{
-                        width: `${(getServoDegrees() / 90) * 100}%`,
-                      }}
-                    />
+                  {/* CARD FOOTER */}
+                  <div className="device-card-footer">
+                    <div>
+                      <Gauge size={14} />
+                      <span>Pressure: <strong>2.4 Bar</strong></span>
+                    </div>
+
+                    <div>
+                      <Waves size={14} />
+                      <span>Flow Rate: <strong>1.8 L/m</strong></span>
+                    </div>
+
+                    <div>
+                      <Clock size={14} />
+                      <span>Polling: <strong>Every 30s</strong></span>
+                    </div>
                   </div>
-
-                  <div className="servo-scale">
-                    <span>0° Closed</span>
-                    <span>45° Half Vent</span>
-                    <span>90° Open</span>
-                  </div>
-                </div>
-
-                {/* SERVO MESSAGE */}
-                <div className="device-message-box success-message servo-message">
-                  <Info size={19} />
-                  <p>
-                    Servo motor is connected and calibrated. Adjust
-                    position to control canopy ventilation and airflow.
-                  </p>
-                </div>
-
-                {/* SERVO BUTTONS */}
-                <div className="servo-control-buttons">
-                  <button
-                    className={`servo-button ${
-                      servoPosition === "Closed" ? "selected" : ""
-                    }`}
-                    onClick={() => handleServo("Closed")}
-                  >
-                    <Lock size={15} />
-                    Close
-                  </button>
-
-                  <button
-                    className={`servo-button ${
-                      servoPosition === "50% Vent" ? "selected" : ""
-                    }`}
-                    onClick={() => handleServo("50% Vent")}
-                  >
-                    50% Vent
-                  </button>
-
-                  <button
-                    className={`servo-button ${
-                      servoPosition === "Open" ? "selected" : ""
-                    }`}
-                    onClick={() => handleServo("Open")}
-                  >
-                    Open
-                    <ExternalLink size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {/* CARD FOOTER */}
-              <div className="device-card-footer servo-footer">
-                <div>
-                  <ShieldCheck size={14} />
-                  <span>
-                    Servo Torque: <strong>0.2 Nm Idle</strong>
-                  </span>
-                </div>
-
-                <div>
-                  <Wind size={14} />
-                  <span>
-                    Air Venting: <strong>Normal</strong>
-                  </span>
-                </div>
-
-                <div>
-                  <SlidersHorizontal size={14} />
-                  <span>
-                    Zero Point <strong>Calibrated</strong>
-                  </span>
-                </div>
-              </div>
-            </article>
+                </article>
+              );
+            })}
           </section>
+
+          {actuators.length === 0 && !loading && (
+            <div style={{ textAlign: "center", padding: "40px 20px", background: "#fff", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+              <ShieldCheck size={36} color="#64748b" style={{ margin: "0 auto 12px" }} />
+              <h2 style={{ fontSize: "16px", color: "#1e293b", marginBottom: "6px" }}>No Hardware Actuators Found</h2>
+              <p style={{ color: "#64748b", fontSize: "13px" }}>
+                There are no actuators configured for your rooftop garden zones. Run seed or register an actuator via the API.
+              </p>
+            </div>
+          )}
 
           {/* SAFETY INTERLOCK */}
           <section className="device-safety-card">
@@ -515,12 +578,11 @@ export const Devices = () => {
             <div className="device-safety-text">
               <h3>Safety Interlock &amp; Controller Fail-Safe Protection</h3>
               <p>
-                Controls automatically lock when controller connection is
-                lost to prevent actuator desynchronization.
+                Actuator durations are strictly capped by hardware safety timeouts (max 60s hard cap) and enforced minimum cooldown intervals.
               </p>
             </div>
           </section>
-          </div>
+        </div>
 
         {/* FOOTER */}
         <footer className="device-footer">

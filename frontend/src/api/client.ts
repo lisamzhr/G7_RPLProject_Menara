@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "../lib/constants";
 import {
   Garden,
+  GardenCreate,
+  GardenMember,
   PlantZone,
   ZoneStatus,
   Reading,
@@ -15,6 +17,7 @@ export interface AuthResponse {
   user: {
     id: string;
     name: string;
+    email?: string;
     role: string;
   };
 }
@@ -34,8 +37,8 @@ async function request<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const token =
-  localStorage.getItem("roofgarden_token") ||
-  sessionStorage.getItem("roofgarden_token");
+    localStorage.getItem("roofgarden_token") ||
+    sessionStorage.getItem("roofgarden_token");
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -95,8 +98,35 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
+  // AUTH: RESET PASSWORD
+  resetPassword: (new_password: string) =>
+    request<{ email: string; status: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ new_password }),
+    }),
+
   // GARDENS
   getGardens: () => request<Garden[]>("/gardens"),
+
+  createGarden: (payload: GardenCreate) =>
+    request<Garden>("/gardens", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getGardenMembers: (gardenId: string) =>
+    request<GardenMember[]>(`/gardens/${gardenId}/members`),
+
+  addGardenMember: (gardenId: string, email: string) =>
+    request<GardenMember>(`/gardens/${gardenId}/members`, {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  removeGardenMember: (gardenId: string, userId: string) =>
+    request<void>(`/gardens/${gardenId}/members/${userId}`, {
+      method: "DELETE",
+    }),
 
   getZones: (gardenId: string) =>
     request<PlantZone[]>(`/gardens/${gardenId}/zones`),
@@ -106,18 +136,33 @@ export const api = {
 
   getZoneReadings: (
     zoneId: string,
-    range: "24h" | "7d" = "24h",
+    range: "24h" | "7d" | "30d" = "24h",
     agg: "raw" | "hourly" = "raw"
   ) =>
     request<Reading[]>(
       `/zones/${zoneId}/readings?range=${range}&agg=${agg}`
     ),
 
-  getDashboardSummary: () =>
-    request<DashboardSummary>("/dashboard/summary"),
+  evaluateZone: (zoneId: string) =>
+    request<{ status: string; zone_id: string }>(`/zones/${zoneId}/evaluate`, {
+      method: "POST",
+    }),
+
+  getDashboardSummary: (gardenId?: string) =>
+    request<DashboardSummary>(
+      gardenId
+        ? `/dashboard/summary?garden_id=${encodeURIComponent(gardenId)}`
+        : "/dashboard/summary"
+    ),
 
   // ALERTS
-  getAlerts: () => request<AlertItem[]>("/alerts"),
+  getAlerts: (params?: { zoneId?: string; status?: "active" | "resolved" | "all" }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.zoneId) searchParams.set("zone_id", params.zoneId);
+    if (params?.status) searchParams.set("status", params.status);
+    const query = searchParams.toString();
+    return request<AlertItem[]>(query ? `/alerts?${query}` : "/alerts");
+  },
 
   confirmAlert: (alertId: string, comment?: string) =>
     request<{ status: string }>(`/alerts/${alertId}/confirm`, {
@@ -132,7 +177,10 @@ export const api = {
     }),
 
   // ACTUATORS
-  getActuators: () => request<ActuatorItem[]>("/actuators"),
+  getActuators: (zoneId?: string) =>
+    request<ActuatorItem[]>(
+      zoneId ? `/actuators?zone_id=${encodeURIComponent(zoneId)}` : "/actuators"
+    ),
 
   commandActuator: (
     actuatorId: string,
@@ -143,15 +191,15 @@ export const api = {
       `/actuators/${actuatorId}/command`,
       {
         method: "POST",
-        body: JSON.stringify({ command, duration_seconds })
+        body: JSON.stringify({ command, duration_seconds }),
       }
     ),
 
-    // AI RECOMMENDATIONS
-    getRecommendations: (zoneId?: string) =>
-      request<RecommendationItem[]>(
-        zoneId
-          ? `/recommendations?zone_id=${encodeURIComponent(zoneId)}`
-          : "/recommendations"
-      ),
+  // AI RECOMMENDATIONS
+  getRecommendations: (zoneId?: string) =>
+    request<RecommendationItem[]>(
+      zoneId
+        ? `/recommendations?zone_id=${encodeURIComponent(zoneId)}`
+        : "/recommendations"
+    ),
 };

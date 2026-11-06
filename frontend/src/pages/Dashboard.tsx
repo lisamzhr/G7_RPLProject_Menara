@@ -580,10 +580,12 @@ function buildRecommendations(
 }
 
 export const Dashboard: React.FC = () => {
+  const [gardens, setGardens] = useState<Garden[]>([]);
   const [garden, setGarden] = useState<Garden | null>(null);
   const [zones, setZones] = useState<PlantZone[]>([]);
   const [zoneStatuses, setZoneStatuses] = useState<ZoneStatus[]>([]);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [showGardenMenu, setShowGardenMenu] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -593,6 +595,35 @@ export const Dashboard: React.FC = () => {
   const [generateError, setGenerateError] = useState("");
   const [generateMessage, setGenerateMessage] = useState("");
 
+  const loadGardenData = async (targetGarden: Garden) => {
+    try {
+      setLoading(true);
+      setError("");
+      setGarden(targetGarden);
+
+      const [summaryData, zonesData] = await Promise.all([
+        api.getDashboardSummary(targetGarden.id),
+        api.getZones(targetGarden.id),
+      ]);
+
+      setSummary(summaryData);
+      setZones(zonesData);
+
+      const statuses = await Promise.all(
+        zonesData.map((zone) => api.getZoneStatus(zone.id)),
+      );
+      setZoneStatuses(statuses);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load garden data.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let isMounted = true;
 
@@ -601,30 +632,29 @@ export const Dashboard: React.FC = () => {
         setLoading(true);
         setError("");
 
-        const [gardensData, summaryData] = await Promise.all([
-          api.getGardens(),
-          api.getDashboardSummary(),
+        const gardensData = await api.getGardens();
+        if (!isMounted) return;
+
+        setGardens(gardensData);
+
+        const initialGarden = gardensData[0] || null;
+        setGarden(initialGarden);
+
+        if (!initialGarden) {
+          setZones([]);
+          setZoneStatuses([]);
+          setSummary(null);
+          return;
+        }
+
+        const [summaryData, zonesData] = await Promise.all([
+          api.getDashboardSummary(initialGarden.id),
+          api.getZones(initialGarden.id),
         ]);
 
         if (!isMounted) return;
 
         setSummary(summaryData);
-
-        // Use the first garden for now.
-        // This structure can later support multiple garden selection.
-        const selectedGarden = gardensData[0] || null;
-        setGarden(selectedGarden);
-
-        if (!selectedGarden) {
-          setZones([]);
-          setZoneStatuses([]);
-          return;
-        }
-
-        const zonesData = await api.getZones(selectedGarden.id);
-
-        if (!isMounted) return;
-
         setZones(zonesData);
 
         const statuses = await Promise.all(
@@ -655,15 +685,34 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const handleGenerateRecommendations = async () => {
+    if (!zones.length) {
+      setGenerateError("No plant zones available to evaluate.");
+      return;
+    }
+
+    try {
+      setGenerating(true);
       setGenerateError("");
       setGenerateMessage("");
 
-      // The internal endpoint requires X-Internal-Token.
-      // Do not call it directly from the browser.
+      await Promise.all(zones.map((z) => api.evaluateZone(z.id)));
+      setGenerateMessage("AI recommendations updated successfully based on live metrics.");
+
+      const [summaryData, statuses] = await Promise.all([
+        api.getDashboardSummary(garden?.id),
+        Promise.all(zones.map((z) => api.getZoneStatus(z.id))),
+      ]);
+
+      setSummary(summaryData);
+      setZoneStatuses(statuses);
+    } catch (err) {
       setGenerateError(
-        "AI generation endpoint is not yet connected to the frontend. Please configure a secure backend endpoint first."
+        err instanceof Error ? err.message : "Failed to run AI evaluation."
       );
-    };
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const firstZoneStatus = zoneStatuses[0] || null;
   const sensorData = buildSensorData(firstZoneStatus);
@@ -697,16 +746,66 @@ export const Dashboard: React.FC = () => {
               </span>
             </div>
 
-            <button className="garden-selector" type="button">
-              <span className="garden-selector-icon">
-                <House size={16} />
-              </span>
-              <span className="garden-selector-text">
-                <strong>{garden?.name || "No Garden Available"}</strong>
-                <small>{gardenLocation}</small>
-              </span>
-              <ChevronDown size={15} />
-            </button>
+            <div className="garden-selector-container" style={{ position: "relative" }}>
+              <button
+                className="garden-selector"
+                type="button"
+                onClick={() => setShowGardenMenu(!showGardenMenu)}
+              >
+                <span className="garden-selector-icon">
+                  <House size={16} />
+                </span>
+                <span className="garden-selector-text">
+                  <strong>{garden?.name || "No Garden Available"}</strong>
+                  <small>{gardenLocation}</small>
+                </span>
+                <ChevronDown size={15} />
+              </button>
+
+              {showGardenMenu && gardens.length > 0 && (
+                <div
+                  className="garden-selector-dropdown"
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    right: 0,
+                    zIndex: 50,
+                    backgroundColor: "#fff",
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                    borderRadius: "8px",
+                    padding: "8px 0",
+                    marginTop: "6px",
+                    minWidth: "220px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  {gardens.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => {
+                        setShowGardenMenu(false);
+                        loadGardenData(g);
+                      }}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "flex-start",
+                        width: "100%",
+                        padding: "8px 16px",
+                        textAlign: "left",
+                        background: g.id === garden?.id ? "#f0fdf4" : "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <strong style={{ fontSize: "13px", color: "#1e293b" }}>{g.name}</strong>
+                      <small style={{ fontSize: "11px", color: "#64748b" }}>{g.location_name}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </header>
 
           {error && (
@@ -763,11 +862,11 @@ export const Dashboard: React.FC = () => {
             <div className="hardware-status">
               <span>
                 <BatteryFull size={15} />
-                Battery: Not reported
+                Battery: {firstZoneStatus?.latest_reading?.battery_v != null ? `${firstZoneStatus.latest_reading.battery_v}V` : "Not reported"}
               </span>
               <span>
                 <Wifi size={15} />
-                Signal: Not reported
+                Signal: {firstZoneStatus?.latest_reading ? "Connected" : "No readings"}
               </span>
             </div>
           </section>

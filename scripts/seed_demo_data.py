@@ -13,9 +13,10 @@ sys.path.append(str(backend_dir))
 sys.path.append(str(ai_dir))
 
 from app.core.database import Base, SessionLocal, engine
-from app.core.security import hash_api_key
+from app.core.security import hash_api_key, get_password_hash
 from app.models.actuator import Actuator
 from app.models.garden import Garden
+from app.models.garden_member import GardenMember
 from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.plant_category import PlantCategory
 from app.models.plant_zone import PlantZone
@@ -39,11 +40,15 @@ def seed_database():
                 name="Siti Rahmawati",
                 email="gardener@jakarta-roofs.id",
                 role="gardener",
+                password_hash=get_password_hash("password123"),
             )
             db.add(user)
             db.commit()
             db.refresh(user)
             print(f"[Seed] Created demo user: {user.name}")
+        elif not user.password_hash:
+            user.password_hash = get_password_hash("password123")
+            db.commit()
 
         # 2. Categories & Literature Threshold Profiles
         categories_data = [
@@ -172,6 +177,12 @@ def seed_database():
             db.commit()
             db.refresh(garden)
             print(f"[Seed] Created demo garden: {garden.name}")
+
+        # Ensure garden membership for owner
+        if not db.query(GardenMember).filter_by(garden_id=garden.id, user_id=user.id).first():
+            db.add(GardenMember(garden_id=garden.id, user_id=user.id, role="owner"))
+            db.commit()
+            print(f"[Seed] Created owner membership for user in garden: {garden.name}")
 
         # 4. Plant Zones
         zones_data = [

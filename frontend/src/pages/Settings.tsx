@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Sprout,
@@ -9,10 +9,9 @@ import {
   Settings as SettingsIcon,
   Radio,
   UserRound,
-  MoreVertical,
+  LogOut,
   Cloud,
   Save,
-  Camera,
   ClipboardList,
   Building2,
   MapPin,
@@ -31,7 +30,11 @@ import {
   Network,
   Sliders,
   LockKeyhole,
+  UserPlus,
+  Trash2,
 } from "lucide-react";
+import { api } from "../api/client";
+import type { Garden, GardenMember } from "../types";
 import "../styles/settings.css";
 
 const navigation = [
@@ -65,7 +68,7 @@ const initialNotifications: NotificationSetting[] = [
   {
     id: "sensors",
     title: "Disconnected Sensors",
-    description: "Immediate notification if any ESP32 mesh node or LoRa telemetry stream goes offline.",
+    description: "Immediate notification if any ESP32 mesh node or telemetry stream goes offline.",
     icon: Waves,
     type: "sensor",
     enabled: true,
@@ -91,16 +94,96 @@ const initialNotifications: NotificationSetting[] = [
 ];
 
 export const Settings = () => {
-  const [fullName, setFullName] = useState("Dr. Ezzedine Ruzash");
-  const [email, setEmail] = useState("ezzedine.ruzash@menara-agritech.id");
+  const navigate = useNavigate();
+
+  const storedUser =
+    localStorage.getItem("roofgarden_user") ||
+    sessionStorage.getItem("roofgarden_user");
+
+  let initialName = "Gardener";
+  let initialEmail = localStorage.getItem("roofgarden_email") || "";
+  let initialRole = "Gardener";
+
+  if (storedUser) {
+    try {
+      const u = JSON.parse(storedUser);
+      initialName = u.name || initialName;
+      initialEmail = u.email || initialEmail;
+      initialRole = u.role || initialRole;
+    } catch {
+      // fallback
+    }
+  }
+
+  const [fullName, setFullName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
   const [showPassword, setShowPassword] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("menaraPassword");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+
   const [notifications, setNotifications] = useState(initialNotifications);
   const [message, setMessage] = useState("");
   const [saved, setSaved] = useState(true);
-  const [station, setStation] = useState("Kebun Atap Menteng");
+
+  const [gardens, setGardens] = useState<Garden[]>([]);
+  const [selectedGarden, setSelectedGarden] = useState<Garden | null>(null);
+  const [members, setMembers] = useState<GardenMember[]>([]);
+  const [newMemberEmail, setNewMemberEmail] = useState("");
+  const [addingMember, setAddingMember] = useState(false);
+
+  const handleLogout = () => {
+    localStorage.removeItem("roofgarden_token");
+    sessionStorage.removeItem("roofgarden_token");
+    localStorage.removeItem("roofgarden_user");
+    sessionStorage.removeItem("roofgarden_user");
+    navigate("/login", { replace: true });
+  };
+
+  // Load gardens
+  useEffect(() => {
+    let isMounted = true;
+    const loadGardens = async () => {
+      try {
+        const data = await api.getGardens();
+        if (!isMounted) return;
+        setGardens(data);
+        if (data.length > 0) {
+          setSelectedGarden(data[0]);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Failed to load gardens:", err);
+      }
+    };
+    loadGardens();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Load garden members
+  useEffect(() => {
+    if (!selectedGarden) {
+      setMembers([]);
+      return;
+    }
+    let isMounted = true;
+    const loadMembers = async () => {
+      try {
+        const mems = await api.getGardenMembers(selectedGarden.id);
+        if (!isMounted) return;
+        setMembers(mems);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Failed to load garden members:", err);
+      }
+    };
+    loadMembers();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedGarden]);
 
   const toggleNotification = (id: string) => {
     setNotifications((current) =>
@@ -112,11 +195,23 @@ export const Settings = () => {
   };
 
   const saveProfile = () => {
+    if (storedUser) {
+      try {
+        const u = JSON.parse(storedUser);
+        u.name = fullName;
+        u.email = email;
+        const json = JSON.stringify(u);
+        localStorage.setItem("roofgarden_user", json);
+        sessionStorage.setItem("roofgarden_user", json);
+      } catch {
+        // fallback
+      }
+    }
     setSaved(true);
-    setMessage("Account information saved successfully (demo).");
+    setMessage("Account information updated successfully.");
   };
 
-  const updatePassword = () => {
+  const updatePassword = async () => {
     if (!newPassword || !confirmPassword) {
       setMessage("Please fill in both new password fields.");
       return;
@@ -127,20 +222,60 @@ export const Settings = () => {
       return;
     }
 
+    if (newPassword.length > 72) {
+      setMessage("New password must not exceed 72 characters.");
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setMessage("New password and confirmation do not match.");
       return;
     }
 
-    setNewPassword("");
-    setConfirmPassword("");
-    setMessage("Password updated successfully (demo).");
+    try {
+      setSavingPassword(true);
+      await api.resetPassword(newPassword);
+      setNewPassword("");
+      setConfirmPassword("");
+      setMessage("Password updated successfully.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to update password.");
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const handleCancel = () => {
-    setFullName("Dr. Ezzedine Ruzash");
-    setEmail("ezzedine.ruzash@menara-agritech.id");
+    setFullName(initialName);
+    setEmail(initialEmail);
     setMessage("");
+  };
+
+  const handleAddMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGarden || !newMemberEmail.trim()) return;
+    try {
+      setAddingMember(true);
+      const newMem = await api.addGardenMember(selectedGarden.id, newMemberEmail.trim());
+      setMembers([...members, newMem]);
+      setNewMemberEmail("");
+      setMessage(`Added member ${newMem.name || newMem.email} to ${selectedGarden.name}.`);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to add member.");
+    } finally {
+      setAddingMember(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!selectedGarden) return;
+    try {
+      await api.removeGardenMember(selectedGarden.id, userId);
+      setMembers(members.filter((m) => m.user_id !== userId));
+      setMessage("Member removed from garden.");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Failed to remove member.");
+    }
   };
 
   return (
@@ -191,11 +326,11 @@ export const Settings = () => {
               <UserRound size={21} />
             </div>
             <div className="settings-user-info">
-              <strong>Dr. Ezzedine Ruzash</strong>
-              <span>Lead Agronomist</span>
+              <strong title={fullName}>{fullName}</strong>
+              <span>{initialRole}</span>
             </div>
-            <button aria-label="More options">
-              <MoreVertical size={19} />
+            <button aria-label="Log out" title="Log out" onClick={handleLogout}>
+              <LogOut size={18} />
             </button>
           </div>
         </div>
@@ -207,18 +342,17 @@ export const Settings = () => {
             <div>
               <div className="settings-title-row">
                 <h1>Settings</h1>
-                <span className="admin-badge">Admin Tier</span>
+                <span className="admin-badge">{initialRole.toUpperCase()} TIER</span>
               </div>
               <p>
-                Manage your account credentials, security access keys, and
-                operational telemetry notifications.
+                Manage your account credentials, security access keys, and operational telemetry notifications.
               </p>
             </div>
 
             <div className={`settings-save-status ${saved ? "is-saved" : ""}`}>
               <Cloud size={14} />
               <span>
-                {saved ? "All changes saved automatically" : "Unsaved changes"}
+                {saved ? "All settings verified" : "Unsaved changes"}
               </span>
             </div>
           </header>
@@ -231,65 +365,61 @@ export const Settings = () => {
               </div>
               <div className="settings-section-title">
                 <h2>Account Information</h2>
-                <p>Personal credentials, agronomist accreditation, and rooftop zone attribution.</p>
+                <p>Personal profile credentials and rooftop garden attribution.</p>
               </div>
               <span className="verified-badge">PROFILE VERIFIED</span>
             </div>
 
             <div className="account-profile">
               <div className="profile-avatar">
-                ER
+                {fullName.slice(0, 2).toUpperCase()}
                 <span />
               </div>
               <div className="profile-details">
                 <div className="profile-name">
-                  <strong>Dr. Ezzedine Ruzash</strong>
-                  <span>Agronomist</span>
+                  <strong>{fullName}</strong>
+                  <span>{initialRole}</span>
                 </div>
-                <p>Lead Agronomist • Kebun Atap Menteng (Canopy Sector 2B)</p>
-                <p>License ID: AGR-IDN-2024-8849 • Operational Clearance Level 4</p>
+                <p>{selectedGarden ? `${selectedGarden.name} (${selectedGarden.location_name})` : "Urban Rooftop Garden"}</p>
+                <p>Status: Active Account • Operational Clearance Level 4</p>
               </div>
-              <button className="change-photo-button" onClick={() => setMessage("Photo upload is a demo feature.")}>
-                <Camera size={13} />
-                Change Photo
-              </button>
             </div>
 
             <div className="account-form">
               <label className="settings-field">
-                <span>Full Legal Name</span>
+                <span>Full Name</span>
                 <div className="field-input">
                   <input value={fullName} onChange={(e) => { setFullName(e.target.value); setSaved(false); }} />
                   <UserRound size={15} />
                 </div>
-                <small>Name displayed across automated harvest reports & sensor logs.</small>
+                <small>Name displayed across automated harvest reports &amp; sensor logs.</small>
               </label>
 
               <label className="settings-field">
                 <span className="field-label-row">
-                  Official Email Address
+                  Email Address
                   <small><CheckCircle2 size={11} /> Verified</small>
                 </span>
                 <div className="field-input">
                   <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setSaved(false); }} />
                   <span className="mail-icon">✉</span>
                 </div>
-                <small>Primary address for urgent alert dispatches and weekly BMKG forecasts.</small>
+                <small>Primary address for urgent alert dispatches and BMKG forecasts.</small>
               </label>
             </div>
 
             <div className="account-bottom">
-              <span><CheckCircle2 size={13} /> Profile updates reflect across all linked rooftop canopy stations.</span>
+              <span><CheckCircle2 size={13} /> Profile updates reflect across all linked rooftop stations.</span>
               <div>
-                <button className="cancel-button" onClick={handleCancel}>Cancel</button>
-                <button className="save-button" onClick={saveProfile}>
-                  <Save size={13} /> Save Changes
+                <button className="cancel-button" type="button" onClick={handleCancel}>Cancel</button>
+                <button className="save-button" type="button" onClick={saveProfile}>
+                  <Save size={13} /> Save Profile
                 </button>
               </div>
             </div>
           </section>
 
-          {/* FACILITY */}
+          {/* FACILITY & MEMBERS */}
           <section className="settings-panel facility-panel">
             <div className="settings-panel-heading facility-heading">
               <div className="settings-section-icon">
@@ -297,15 +427,25 @@ export const Settings = () => {
               </div>
               <div className="settings-section-title">
                 <h2>
-                  Rooftop Monitoring Facility & Location Attribution
+                  Rooftop Monitoring Facility &amp; Members
                   <span className="active-site-badge">ACTIVE SITE</span>
                 </h2>
-                <p>Deployment geometry, building attribution, microclimate pods, and telemetry hardware gateway.</p>
+                <p>Facility attribution, microclimate coordinates, and authorized garden members.</p>
               </div>
-              <button className="switch-station-button" onClick={() => setStation(station === "Kebun Atap Menteng" ? "Kebun Atap Salemba" : "Kebun Atap Menteng")}>
-                <RefreshCw size={12} />
-                Switch Monitoring Station
-              </button>
+              {gardens.length > 1 && (
+                <button
+                  className="switch-station-button"
+                  type="button"
+                  onClick={() => {
+                    const currentIndex = gardens.findIndex((g) => g.id === selectedGarden?.id);
+                    const nextGarden = gardens[(currentIndex + 1) % gardens.length];
+                    setSelectedGarden(nextGarden);
+                  }}
+                >
+                  <RefreshCw size={12} />
+                  Switch Garden ({selectedGarden?.name})
+                </button>
+              )}
             </div>
 
             <div className="facility-divider" />
@@ -313,34 +453,96 @@ export const Settings = () => {
             <div className="facility-grid">
               <div className="facility-info">
                 <div className="facility-topline">
-                  <span>FACILITY & BUILDING</span>
-                  <span className="floor-badge">▦ 7th Floor Rooftop</span>
+                  <span>FACILITY &amp; BUILDING</span>
+                  <span className="floor-badge">▦ Elevation {selectedGarden?.elevation_m ?? 20}m</span>
                 </div>
-                <strong>{station}</strong>
-                <p>Gedung Agro-Teknika Lt. 7 (Rooftop Level)</p>
+                <strong>{selectedGarden?.name || "No Garden"}</strong>
+                <p>Location: {selectedGarden?.location_name || "Indonesia"}</p>
                 <div className="facility-address">
                   <MapPin size={12} />
-                  Jl. Menteng Raya No. 24, Menteng, Central Jakarta, DKI Jakarta 10310
+                  BMKG Adm4 Code: {selectedGarden?.adm4_code || "31.71.06.1001"} • Coordinates: {selectedGarden?.lat.toFixed(4)}, {selectedGarden?.lon.toFixed(4)}
                 </div>
               </div>
 
               <div className="facility-side">
                 <div className="cultivars-box">
-                  <span>Facility Cultivars & System:</span>
-                  <div>
-                    <span>Bok Choy</span>
-                    <span>Cherry Tomato</span>
-                    <span>Water Spinach</span>
-                    <span>Hydro Mint</span>
+                  <span>Garden Members ({members.length}):</span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "8px" }}>
+                    {members.map((m) => (
+                      <div
+                        key={m.user_id}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          background: "#fff",
+                          padding: "4px 8px",
+                          borderRadius: "4px",
+                          border: "1px solid #e2e8f0",
+                          fontSize: "12px",
+                        }}
+                      >
+                        <span>
+                          <strong>{m.name || m.email}</strong> ({m.role})
+                        </span>
+                        {m.role !== "owner" && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveMember(m.user_id)}
+                            style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer" }}
+                            title="Remove member"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
+
+                <form onSubmit={handleAddMember} style={{ display: "flex", gap: "6px", marginTop: "8px" }}>
+                  <input
+                    type="email"
+                    placeholder="Add user email..."
+                    value={newMemberEmail}
+                    onChange={(e) => setNewMemberEmail(e.target.value)}
+                    required
+                    style={{
+                      flex: 1,
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #cbd5e1",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={addingMember}
+                    style={{
+                      background: "#28452e",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <UserPlus size={13} /> Add
+                  </button>
+                </form>
+
                 <a
                   className="maps-link"
-                  href="https://www.google.com/maps/search/?api=1&query=Jl.+Menteng+Raya+No.+24+Jakarta"
+                  href={`https://www.google.com/maps/search/?api=1&query=${selectedGarden ? `${selectedGarden.lat},${selectedGarden.lon}` : "Jakarta"}`}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <span><MapPin size={13} /> Open in Google Maps / BMKG Geo-Portal</span>
+                  <span><MapPin size={13} /> Open in BMKG Geo-Portal</span>
                   <ExternalLink size={14} />
                 </a>
               </div>
@@ -355,27 +557,13 @@ export const Settings = () => {
                   <ShieldCheck size={19} />
                 </div>
                 <div>
-                  <h2>Security & Password</h2>
-                  <p>Update credentials and manage cryptographic access.</p>
+                  <h2>Security &amp; Password</h2>
+                  <p>Update credentials via backend Bearer authentication.</p>
                 </div>
                 <KeyRound size={16} />
               </div>
 
               <div className="password-fields">
-                <label className="settings-field">
-                  <span>Current Password</span>
-                  <div className="field-input">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </label>
-
                 <label className="settings-field">
                   <span className="field-label-row">
                     New Password <small>Min. 8 characters</small>
@@ -383,7 +571,7 @@ export const Settings = () => {
                   <div className="field-input">
                     <input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter robust passphrase"
+                      placeholder="Enter new secure password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                     />
@@ -398,7 +586,7 @@ export const Settings = () => {
                   <div className="field-input">
                     <input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Re-enter new passphrase"
+                      placeholder="Re-enter new password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                     />
@@ -412,13 +600,19 @@ export const Settings = () => {
               <div className="password-security-note">
                 <CheckCircle2 size={13} />
                 <div>
-                  <strong>Last password change: 34 days ago</strong>
-                  <span>Two-Factor Authentication (2FA) active via Authenticator app.</span>
+                  <strong>Cryptographic Hashing</strong>
+                  <span>Passwords are hashed with Bcrypt before persistence in PostgreSQL.</span>
                 </div>
               </div>
 
-              <button className="update-password-button" onClick={updatePassword}>
-                <RefreshCw size={13} /> Update Password
+              <button
+                className="update-password-button"
+                type="button"
+                onClick={updatePassword}
+                disabled={savingPassword}
+              >
+                <RefreshCw size={13} className={savingPassword ? "spin" : ""} />
+                {savingPassword ? "Updating..." : "Update Password"}
               </button>
             </section>
 
@@ -454,6 +648,7 @@ export const Settings = () => {
                         className={`toggle-switch ${item.enabled ? "enabled" : ""}`}
                         aria-label={`Toggle ${item.title}`}
                         aria-pressed={item.enabled}
+                        type="button"
                         onClick={() => toggleNotification(item.id)}
                       >
                         <span />
@@ -464,17 +659,17 @@ export const Settings = () => {
               </div>
 
               <div className="notification-delivery">
-                <span><LockKeyhole size={13} /> Delivered via Web Application & Email</span>
-                <strong>Active Push</strong>
+                <span><LockKeyhole size={13} /> Delivered via Web Application Telemetry</span>
+                <strong>Active Telemetry</strong>
               </div>
             </section>
           </div>
 
           {message && (
             <div className="settings-feedback">
-              <InfoIcon />
+              <CheckCircle2 size={15} />
               <span>{message}</span>
-              <button onClick={() => setMessage("")}>×</button>
+              <button type="button" onClick={() => setMessage("")}>×</button>
             </div>
           )}
 
@@ -484,12 +679,12 @@ export const Settings = () => {
               <Network size={20} />
               <div>
                 <strong>Active Hardware Integration: Node Mesh v4.2</strong>
-                <span>36 Rooftop Probes Connected • 0 Sensor Faults • Last synchronization 120s ago</span>
+                <span>Connected Rooftop Nodes • Zero Sensor Faults</span>
               </div>
             </div>
             <div className="hardware-right">
               <span />
-              LATENCY: 42ms • SSL AES-256
+              SSL AES-256 • Telemetry Ready
             </div>
           </section>
         </div>
@@ -501,7 +696,5 @@ export const Settings = () => {
     </div>
   );
 };
-
-const InfoIcon = () => <CheckCircle2 size={15} />;
 
 export default Settings;

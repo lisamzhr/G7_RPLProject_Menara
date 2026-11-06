@@ -28,7 +28,7 @@ def _token_response(user: User) -> dict:
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": {"id": user.id, "name": user.name, "role": user.role},
+        "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role},
     }
 
 
