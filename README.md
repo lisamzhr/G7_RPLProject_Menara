@@ -159,7 +159,7 @@ pio run -t upload
 
 ## Testing & Quality Assurance
 
-The project enforces comprehensive test coverage across backend business logic, agentic AI modules, and API contracts.
+The project enforces comprehensive test coverage across backend business logic, agentic AI modules, and API contracts. For the formal ISO/IEC/IEEE 29119 compliant test strategy, quality gates, and traceability matrix, see the [Software Test Plan](file:///C:/Projects/G7_RPLProject_Menara/docs/test-plan.md).
 
 ### 1. Backend Pytest Suite (91% Coverage)
 Run unit and integration tests across auth, garden lifecycles, actuator cooldowns, background jobs, and alert feedback:
