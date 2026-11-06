@@ -34,6 +34,7 @@ services:
       BMKG_BASE_URL: ${BMKG_BASE_URL:-https://api.bmkg.go.id/publik}
       OPEN_ELEVATION_BASE_URL: ${OPEN_ELEVATION_BASE_URL:-https://api.open-elevation.com/api/v1/lookup}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
     volumes:
       - ./scripts:/app/scripts
     depends_on:

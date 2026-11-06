@@ -1,7 +1,7 @@
 """Bridge service between backend database and roofgarden_ai module."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from roofgarden_ai.contracts import CategoryThresholds, ZoneContext
 from roofgarden_ai.llm.base import MockLLMClient
@@ -20,6 +20,35 @@ from app.models.sensor_reading import SensorReading
 from app.models.threshold_profile import ThresholdProfile
 
 logger = logging.getLogger("roofgarden.ai_runner")
+
+
+def _moisture_series_10min(db: Session, node_ids: list[str], now: datetime, points: int = 19):
+    """Rata-rata kelembapan per 10 menit, terlama -> terbaru. Kosong kalau datanya kurang."""
+    start = now - timedelta(minutes=10 * points)
+    rows = (
+        db.query(SensorReading.ts, SensorReading.soil_moisture_pct)
+        .filter(
+            SensorReading.node_id.in_(node_ids),
+            SensorReading.is_valid.is_(True),
+            SensorReading.ts >= start,
+        )
+        .order_by(SensorReading.ts)
+        .all()
+    )
+    buckets: dict[int, list[float]] = {}
+    for ts, val in rows:
+        idx = int((ensure_utc(ts) - start).total_seconds() // 600)
+        if 0 <= idx < points:
+            buckets.setdefault(idx, []).append(val)
+    if len(buckets) < points // 2:
+        return []  # terlalu bolong, biar jatuh ke prediktor linear
+    series, last = [], None
+    for i in range(points):
+        if i in buckets:
+            last = sum(buckets[i]) / len(buckets[i])
+        series.append(last)
+    first = next(v for v in series if v is not None)
+    return [first if v is None else v for v in series]
 
 
 def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 20.0) -> None:
@@ -94,9 +123,15 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
         )
         today_water_sec = int(daily_sum or 0)
 
+    now = datetime.now(UTC)
+    moisture_series = _moisture_series_10min(db, node_ids, now) if node_ids else []
+    observed_at = ensure_utc(latest.ts) if latest and latest.ts else now
+
     ctx = ZoneContext(
         zone_id=zone.id,
         zone_label=zone.label,
+        moisture_series_10min=moisture_series,
+        observed_at=observed_at,
         category_key=zone.category.key,  # type: ignore
         thresholds=CategoryThresholds(
             category_key=zone.category.key,

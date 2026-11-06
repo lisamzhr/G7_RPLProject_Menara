@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install AI package first
 COPY ai /ai
-RUN pip install --no-cache-dir /ai
+RUN pip install --no-cache-dir -e /ai
 
 # Install backend dependencies
 COPY backend/pyproject.toml ./

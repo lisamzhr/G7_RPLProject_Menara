@@ -1,11 +1,11 @@
-"""Dashboard summary metrics router."""
+"""Dashboard summary metrics router (scoped to the user's gardens)."""
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, get_garden_for_member, member_garden_ids
 from app.models.alert import Alert
 from app.models.garden import Garden
 from app.models.plant_zone import PlantZone
@@ -23,15 +23,34 @@ bmkg = BMKGClient()
     "/summary", response_model=DashboardSummaryResponse, summary="Get daily overview summary"
 )
 async def get_dashboard_summary(
+    garden_id: str | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    zones = db.query(PlantZone).all()
-    garden = db.query(Garden).first()
+    # Which gardens does this dashboard cover?
+    if garden_id:
+        garden = get_garden_for_member(db, garden_id, current_user)  # 404 if not a member
+        gardens = [garden]
+    else:
+        gardens = (
+            db.query(Garden)
+            .filter(Garden.id.in_(member_garden_ids(current_user)))
+            .order_by(Garden.name)
+            .all()
+        )
+        garden = gardens[0] if gardens else None
+
+    garden_ids = [g.id for g in gardens]
+    zones = (
+        db.query(PlantZone).filter(PlantZone.garden_id.in_(garden_ids)).all()
+        if garden_ids
+        else []
+    )
+    zone_ids = [z.id for z in zones]
+    zone_labels = {z.id: z.label for z in zones}
 
     zones_ok = 0
     zones_attention = 0
-
     for z in zones:
         st = get_zone_status(db, z.id)
         if st.overall_status == "normal":
@@ -39,7 +58,13 @@ async def get_dashboard_summary(
         else:
             zones_attention += 1
 
-    active_alerts = db.query(Alert).filter(Alert.resolved_at.is_(None)).count()
+    active_alerts = (
+        db.query(Alert)
+        .filter(Alert.resolved_at.is_(None), Alert.zone_id.in_(zone_ids))
+        .count()
+        if zone_ids
+        else 0
+    )
 
     # Weather info
     adm4 = garden.adm4_code if garden else "31.71.06.1001"
@@ -47,19 +72,24 @@ async def get_dashboard_summary(
     forecast_data = await bmkg.get_forecast(db, adm4)
 
     # Top recommendations
-    recs = db.query(Recommendation).order_by(desc(Recommendation.created_at)).limit(3).all()
-    top_recs = []
-    for r in recs:
-        z = db.query(PlantZone).filter(PlantZone.id == r.zone_id).first()
-        label = z.label if z else "Rooftop Zone"
-        top_recs.append(
-            TopRecommendation(
-                zone_id=r.zone_id,
-                zone_label=label,
-                status_level=r.status_level,
-                message=r.message,
-            )
+    recs = (
+        db.query(Recommendation)
+        .filter(Recommendation.zone_id.in_(zone_ids))
+        .order_by(desc(Recommendation.created_at))
+        .limit(3)
+        .all()
+        if zone_ids
+        else []
+    )
+    top_recs = [
+        TopRecommendation(
+            zone_id=r.zone_id,
+            zone_label=zone_labels.get(r.zone_id, "Rooftop Zone"),
+            status_level=r.status_level,
+            message=r.message,
         )
+        for r in recs
+    ]
 
     return DashboardSummaryResponse(
         total_zones=len(zones),
