@@ -352,7 +352,8 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
     },
     "label": "Zone A - Hydroponic Greens",
     "plant_names": ["Bok Choy", "Spinach", "Kale"],
-    "created_at": "2026-10-01T08:30:00Z"
+    "created_at": "2026-10-01T08:30:00Z",
+    "sensor_node_count": 2
   }
 ]
 ```

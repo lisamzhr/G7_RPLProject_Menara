@@ -73,7 +73,7 @@ flowchart TD
 ## Key Features
 
 - **Domain-Specific Hardware Abstraction**: Strict architectural separation between **Sensor Nodes** (telemetry inputs) and **Actuators** (controllable outputs like irrigation pumps, misters, and grow lights).
-- **Dynamic ESP32 Sensor Node Registration**: Register sensor nodes directly to plant zones from the web app using hardware MAC addresses (`WiFi.macAddress()`), eliminating pre-shared API keys. Unregistered MAC addresses are rejected with 401 Unauthorized (auto-discovery disabled).
+- **Dynamic ESP32 Sensor Node Registration & Multi-Node Zones**: Register one or more sensor nodes directly to any plant zone from the web app using hardware MAC addresses (`WiFi.macAddress()`), eliminating pre-shared API keys. Real-time microclimate metrics and AI botanical evaluations automatically aggregate telemetry across all active distributed sensor nodes in the zone. Unregistered MAC addresses are rejected with 401 Unauthorized (auto-discovery disabled).
 - **Multi-Tenant Garden Lifecycle**: Create, update, share, and delete gardens with cascading cleanups and role-based permissions (`owner` vs. `member`).
 - **Live Meteorological Integration (BMKG)**: Real-time multi-day weather forecasts parsed for Indonesian sub-districts (`adm4`), featuring automated precipitation chance heuristics and official BMKG SVG weather icons.
 - **Botanical Threshold Profiles**: Pre-calibrated baseline microclimate profiles for Leafy Greens, Fruiting Vegetables, Herbs, and Potted Fruit Trees (*Tabulampot*) accessible via `/api/v1/gardens/categories`.
@@ -163,12 +163,12 @@ pio run -t upload
 The project enforces comprehensive test coverage across backend business logic, agentic AI modules, and API contracts. For the formal ISO/IEC/IEEE 29119 compliant test strategy, quality gates, and traceability matrix, see the [Software Test Plan](file:///C:/Projects/G7_RPLProject_Menara/docs/test-plan.md).
 
 ### 1. Backend Pytest Suite (89% Coverage)
-Run unit and integration tests across auth, garden lifecycles, dynamic MAC registration, actuator cooldowns, background jobs, and alert feedback:
+Run unit and integration tests across auth, garden lifecycles, dynamic MAC registration, multi-node per zone telemetry aggregation, actuator cooldowns, background jobs, and alert feedback:
 ```bash
 cd backend
 pytest -v --cov=app --cov-report=term-missing tests/
 ```
-*Current test metrics: **69 passing tests**, 89% code coverage.*
+*Current test metrics: **72 passing tests**, 89% code coverage.*
 
 ### 2. AI Module Pytest Suite
 Verify botanical status categorization, linear moisture slope forecasting, autonomy gating, and guardrail verification:

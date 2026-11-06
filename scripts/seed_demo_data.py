@@ -184,39 +184,60 @@ def seed_database():
             db.commit()
             print(f"[Seed] Created owner membership for user in garden: {garden.name}")
 
-        # 4. Plant Zones
+        # 4. Plant Zones & Sensor Nodes
         zones_data = [
             {
                 "label": "Zone A - Hydroponic Greens",
                 "cat_key": "leafy",
                 "plants": ["Pak Choy", "Caisim", "Bok Choy"],
-                "node_id": "esp32-node-01",
-                "mac": "24:6F:28:01:00:01",
-                "name": "Zone A Greens Node",
+                "nodes": [
+                    {
+                        "node_id": "esp32-node-01",
+                        "mac": "24:6F:28:01:00:01",
+                        "name": "Zone A Greens Node (Main)",
+                    },
+                    {
+                        "node_id": "esp32-node-05",
+                        "mac": "24:6F:28:01:00:05",
+                        "name": "Zone A Hydroponic Node (North Bed)",
+                    },
+                ],
             },
             {
                 "label": "Zone B - Capsicum & Tomatoes",
                 "cat_key": "fruiting_veg",
                 "plants": ["Cabai Rawit", "Cherry Tomato"],
-                "node_id": "esp32-node-02",
-                "mac": "24:6F:28:01:00:02",
-                "name": "Zone B Solanaceae Node",
+                "nodes": [
+                    {
+                        "node_id": "esp32-node-02",
+                        "mac": "24:6F:28:01:00:02",
+                        "name": "Zone B Solanaceae Node",
+                    },
+                ],
             },
             {
                 "label": "Zone C - Aromatic Herbs",
                 "cat_key": "herbs",
                 "plants": ["Kemangi", "Peppermint", "Lemongrass"],
-                "node_id": "esp32-node-03",
-                "mac": "24:6F:28:01:00:03",
-                "name": "Zone C Herbs Node",
+                "nodes": [
+                    {
+                        "node_id": "esp32-node-03",
+                        "mac": "24:6F:28:01:00:03",
+                        "name": "Zone C Herbs Node",
+                    },
+                ],
             },
             {
                 "label": "Zone D - Citrus Tabulampot",
                 "cat_key": "fruit_potted",
                 "plants": ["Jeruk Limau", "Jambu Kristal"],
-                "node_id": "esp32-node-04",
-                "mac": "24:6F:28:01:00:04",
-                "name": "Zone D Citrus Node",
+                "nodes": [
+                    {
+                        "node_id": "esp32-node-04",
+                        "mac": "24:6F:28:01:00:04",
+                        "name": "Zone D Citrus Node",
+                    },
+                ],
             },
         ]
 
@@ -236,18 +257,6 @@ def seed_database():
                 db.commit()
                 db.refresh(zone)
 
-                # Sensor Node
-                node = SensorNode(
-                    id=zdata["node_id"],
-                    mac_address=zdata["mac"],
-                    name=zdata["name"],
-                    zone_id=zone.id,
-                    api_key_hash=key_hash,
-                    last_seen_at=datetime.now(UTC),
-                    status="active",
-                )
-                db.add(node)
-
                 # Actuator on Zone A (Sprinkler)
                 if zdata["cat_key"] == "leafy":
                     sprinkler = Actuator(
@@ -264,34 +273,49 @@ def seed_database():
                     zone_id=zone.id,
                     status_level="normal",
                     message=f"{zone.label} is currently in healthy condition. Sensor metrics align with ideal parameters.",
-                    reasons=["Soil moisture and ambient microclimate are well-balanced."],
+                    reasons=["Soil moisture and ambient microclimate are well-balanced across all monitoring nodes."],
                 )
                 db.add(rec)
                 db.commit()
 
-                # Seed past 24h readings
-                now = datetime.now(UTC)
-                readings = []
-                for i in range(24, 0, -1):
-                    reading_time = now - timedelta(hours=i)
-                    # Baseline moisture around ideal
-                    base_m = 80.0 if zdata["cat_key"] == "leafy" else 60.0
-                    if zdata["cat_key"] == "fruit_potted":
-                        base_m = 75.0
-
-                    r = SensorReading(
-                        node_id=zdata["node_id"],
-                        ts=reading_time,
-                        soil_moisture_pct=round(base_m + random.uniform(-3.0, 3.0), 1),
-                        temperature_c=round(26.0 + random.uniform(-2.0, 4.0), 1),
-                        humidity_pct=round(70.0 + random.uniform(-5.0, 8.0), 1),
-                        lux=round(max(random.uniform(5000.0, 35000.0), 0.0), 0),
-                        battery_v=3.95,
-                        is_valid=True,
+            # Ensure all sensor nodes for this zone exist
+            for ndata in zdata["nodes"]:
+                node = db.query(SensorNode).filter(SensorNode.id == ndata["node_id"]).first()
+                if not node:
+                    node = SensorNode(
+                        id=ndata["node_id"],
+                        mac_address=ndata["mac"],
+                        name=ndata["name"],
+                        zone_id=zone.id,
+                        api_key_hash=key_hash,
+                        last_seen_at=datetime.now(UTC),
+                        status="active",
                     )
-                    readings.append(r)
-                db.bulk_save_objects(readings)
-                db.commit()
+                    db.add(node)
+                    db.commit()
+
+                    # Seed past 24h readings for this node
+                    now = datetime.now(UTC)
+                    readings = []
+                    for i in range(24, 0, -1):
+                        reading_time = now - timedelta(hours=i)
+                        base_m = 80.0 if zdata["cat_key"] == "leafy" else 60.0
+                        if zdata["cat_key"] == "fruit_potted":
+                            base_m = 75.0
+
+                        r = SensorReading(
+                            node_id=ndata["node_id"],
+                            ts=reading_time,
+                            soil_moisture_pct=round(base_m + random.uniform(-3.0, 3.0), 1),
+                            temperature_c=round(26.0 + random.uniform(-2.0, 4.0), 1),
+                            humidity_pct=round(70.0 + random.uniform(-5.0, 8.0), 1),
+                            lux=round(max(random.uniform(5000.0, 35000.0), 0.0), 0),
+                            battery_v=3.95,
+                            is_valid=True,
+                        )
+                        readings.append(r)
+                    db.bulk_save_objects(readings)
+                    db.commit()
 
         print("[Seed] Successfully seeded all zones, nodes, actuators, and past 24h readings.")
         print(f"[Seed] Sensor Node Default API Key: '{default_api_key}'")

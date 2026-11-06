@@ -223,3 +223,102 @@ def test_delete_and_unlink_sensor_node(client: TestClient, db_session: Session):
         headers={"Content-Type": "application/json", "X-Node-MAC": mac},
     )
     assert res.status_code == 401
+
+
+def test_multiple_nodes_per_zone_registration_and_listing(client: TestClient, db_session: Session):
+    """Multiple sensor nodes can be registered to the same plant zone and are listed together."""
+    zone = db_session.query(PlantZone).first()
+    assert zone is not None
+
+    mac1 = "A0:20:A6:01:00:11"
+    mac2 = "A0:20:A6:01:00:22"
+
+    res1 = client.post(
+        f"/api/v1/zones/{zone.id}/nodes",
+        json={"mac_address": mac1, "name": "Bed A North Sensor"},
+    )
+    assert res1.status_code == 201, res1.text
+
+    res2 = client.post(
+        f"/api/v1/zones/{zone.id}/nodes",
+        json={"mac_address": mac2, "name": "Bed A South Sensor"},
+    )
+    assert res2.status_code == 201, res2.text
+
+    # List nodes for this zone
+    list_res = client.get(f"/api/v1/nodes?zone_id={zone.id}")
+    assert list_res.status_code == 200
+    nodes = list_res.json()
+    macs = [n["mac_address"] for n in nodes]
+    assert mac1 in macs
+    assert mac2 in macs
+    assert len(nodes) >= 2
+
+    # Garden zones endpoint reflects sensor_node_count
+    zones_res = client.get(f"/api/v1/gardens/{zone.garden_id}/zones")
+    assert zones_res.status_code == 200
+    matched_zone = next(z for z in zones_res.json() if z["id"] == zone.id)
+    assert matched_zone["sensor_node_count"] >= 2
+
+
+def test_multi_node_zone_status_aggregation(client: TestClient, db_session: Session):
+    """Zone status averages latest metrics across all active sensor nodes in the zone."""
+    zone = db_session.query(PlantZone).first()
+    assert zone is not None
+
+    mac_a = "B2:11:22:33:44:01"
+    mac_b = "B2:11:22:33:44:02"
+
+    # Register 2 nodes for the zone
+    r_a = client.post(f"/api/v1/zones/{zone.id}/nodes", json={"mac_address": mac_a, "name": "Node A"})
+    r_b = client.post(f"/api/v1/zones/{zone.id}/nodes", json={"mac_address": mac_b, "name": "Node B"})
+    assert r_a.status_code == 201
+    assert r_b.status_code == 201
+
+    # Ingest distinct readings
+    ing_a = client.post(
+        "/api/v1/ingest/readings",
+        json={"soil_moisture_pct": 60.0, "temperature_c": 24.0, "humidity_pct": 60.0, "lux": 10000},
+        headers={"Content-Type": "application/json", "X-Node-MAC": mac_a},
+    )
+    assert ing_a.status_code == 201
+
+    ing_b = client.post(
+        "/api/v1/ingest/readings",
+        json={"soil_moisture_pct": 80.0, "temperature_c": 28.0, "humidity_pct": 80.0, "lux": 20000},
+        headers={"Content-Type": "application/json", "X-Node-MAC": mac_b},
+    )
+    assert ing_b.status_code == 201
+
+    # Check zone status aggregates both nodes: moisture avg = 70.0, temp avg = 26.0
+    status_res = client.get(f"/api/v1/zones/{zone.id}/status")
+    assert status_res.status_code == 200
+    status_data = status_res.json()
+    assert status_data["latest_reading"]["soil_moisture_pct"] == 70.0
+    assert status_data["latest_reading"]["temperature_c"] == 26.0
+    assert status_data["latest_reading"]["humidity_pct"] == 70.0
+    assert status_data["latest_reading"]["lux"] == 15000.0
+
+
+def test_register_node_via_nodes_post_endpoint(client: TestClient, db_session: Session):
+    """Sensor nodes can be registered via POST /api/v1/nodes with zone_id in body."""
+    zone = db_session.query(PlantZone).first()
+    assert zone is not None
+
+    mac = "C4:55:66:77:88:99"
+    res = client.post(
+        "/api/v1/nodes",
+        json={"zone_id": zone.id, "mac_address": mac, "name": "Direct Nodes Route Probe"},
+    )
+    assert res.status_code == 201, res.text
+    data = res.json()
+    assert data["mac_address"] == mac
+    assert data["zone_id"] == zone.id
+
+    # Missing zone_id returns 422
+    bad_res = client.post(
+        "/api/v1/nodes",
+        json={"mac_address": "C4:55:66:77:88:00"},
+    )
+    assert bad_res.status_code == 422
+

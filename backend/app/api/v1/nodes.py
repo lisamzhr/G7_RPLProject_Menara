@@ -51,6 +51,52 @@ def list_nodes(
     ]
 
 
+@router.post("", response_model=SensorNodeOut, status_code=status.HTTP_201_CREATED, summary="Register an ESP32 sensor node by MAC address")
+def register_node(
+    node_in: SensorNodeRegister,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not node_in.zone_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="zone_id is required to register a sensor node",
+        )
+    zone = get_zone_for_member(db, node_in.zone_id, current_user)
+
+    existing = db.query(SensorNode).filter(SensorNode.mac_address == node_in.mac_address).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A sensor node with MAC address '{node_in.mac_address}' is already registered",
+        )
+
+    node_id = f"esp32-{node_in.mac_address.replace(':', '').lower()}"
+    if db.query(SensorNode).filter(SensorNode.id == node_id).first():
+        node_id = f"{node_id}-{uuid.uuid4().hex[:6]}"
+
+    new_node = SensorNode(
+        id=node_id,
+        mac_address=node_in.mac_address,
+        name=node_in.name or f"Sensor Node ({node_in.mac_address[-8:]})",
+        zone_id=zone.id,
+        status="active",
+    )
+    db.add(new_node)
+    db.commit()
+    db.refresh(new_node)
+    return SensorNodeOut(
+        id=new_node.id,
+        mac_address=new_node.mac_address,
+        name=new_node.name,
+        zone_id=new_node.zone_id,
+        zone_label=zone.label,
+        last_seen_at=ensure_utc(new_node.last_seen_at),
+        status=new_node.status,
+        created_at=ensure_utc(new_node.created_at),
+    )
+
+
 @router.get("/{id}", response_model=SensorNodeOut, summary="Get details for a specific sensor node")
 def get_node(
     id: str,

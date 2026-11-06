@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Sprout,
   MapPin,
@@ -14,10 +15,12 @@ import { PlantCategoryKey, SensorNodeItem } from "../types";
 import "../styles/garden-profile.css";
 
 export const GardenProfile: React.FC = () => {
+  const navigate = useNavigate();
   const {
     selectedGarden,
     setSelectedGarden,
     zones,
+    setSelectedZone,
     categories,
     refreshZones,
     refreshGardens,
@@ -124,15 +127,8 @@ export const GardenProfile: React.FC = () => {
     }
   };
 
-  // Node state & handlers
+  // Node summary state (scoped to garden)
   const [nodes, setNodes] = useState<SensorNodeItem[]>([]);
-  const [showRegisterNodeModal, setShowRegisterNodeModal] = useState(false);
-  const [targetZoneForNode, setTargetZoneForNode] = useState<{ id: string; label: string } | null>(null);
-  const [nodeMacAddress, setNodeMacAddress] = useState("");
-  const [nodeName, setNodeName] = useState("");
-  const [nodeSubmitting, setNodeSubmitting] = useState(false);
-  const [nodeError, setNodeError] = useState("");
-  const [nodeToDelete, setNodeToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const loadNodes = async () => {
     try {
@@ -148,48 +144,6 @@ export const GardenProfile: React.FC = () => {
       loadNodes();
     }
   }, [selectedGarden, zones]);
-
-  const handleRegisterNode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!targetZoneForNode) return;
-    if (!nodeMacAddress.trim()) {
-      setNodeError("Please enter the ESP32 MAC address.");
-      return;
-    }
-
-    setNodeSubmitting(true);
-    setNodeError("");
-    try {
-      await api.registerNode(targetZoneForNode.id, {
-        mac_address: nodeMacAddress.trim(),
-        name: nodeName.trim() || undefined,
-      });
-      setStatusMessage(`Sensor node registered successfully for ${targetZoneForNode.label}!`);
-      setTimeout(() => setStatusMessage(""), 4000);
-      setShowRegisterNodeModal(false);
-      setNodeMacAddress("");
-      setNodeName("");
-      setTargetZoneForNode(null);
-      await loadNodes();
-    } catch (err) {
-      setNodeError(err instanceof Error ? err.message : "Failed to register sensor node.");
-    } finally {
-      setNodeSubmitting(false);
-    }
-  };
-
-  const handleDeleteNode = async () => {
-    if (!nodeToDelete) return;
-    try {
-      await api.deleteNode(nodeToDelete.id);
-      setStatusMessage("Sensor node unlinked successfully.");
-      setTimeout(() => setStatusMessage(""), 4000);
-      setNodeToDelete(null);
-      await loadNodes();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete sensor node.");
-    }
-  };
 
   // Handle Create Garden submit
   const handleCreateGarden = async (e: React.FormEvent) => {
@@ -399,7 +353,8 @@ export const GardenProfile: React.FC = () => {
                 // Find matching category or use embedded threshold profile
                 const matchedCategory = categories.find((c) => c.key === zone.category.key);
                 const profile = zone.category.threshold_profile || matchedCategory?.threshold_profile;
-                const zoneNode = nodes.find((n) => n.zone_id === zone.id);
+                const zoneNodes = nodes.filter((n) => n.zone_id === zone.id);
+                const activeCount = zoneNodes.filter((n) => n.status === "active").length;
 
                 return (
                   <div key={zone.id} className="gp-zone-card">
@@ -430,7 +385,7 @@ export const GardenProfile: React.FC = () => {
                       </button>
                     </div>
 
-                    {/* Connected Sensor Node */}
+                    {/* Linked Sensor Nodes Summary */}
                     <div
                       style={{
                         margin: "10px 0 12px",
@@ -442,101 +397,79 @@ export const GardenProfile: React.FC = () => {
                         justifyContent: "space-between",
                         alignItems: "center",
                         flexWrap: "wrap",
-                        gap: "8px",
+                        gap: "10px",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                         <div
                           style={{
                             width: "32px",
                             height: "32px",
                             borderRadius: "6px",
-                            background: zoneNode ? "#ecfdf5" : "#f1f5f9",
+                            background: zoneNodes.length > 0 ? "#ecfdf5" : "#f1f5f9",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                           }}
                         >
-                          <Cpu size={18} color={zoneNode ? "#059669" : "#94a3b8"} />
+                          <Cpu size={18} color={zoneNodes.length > 0 ? "#059669" : "#94a3b8"} />
                         </div>
-                        {zoneNode ? (
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                              <strong style={{ fontSize: "13px", color: "#1e293b" }}>
-                                {zoneNode.name || zoneNode.id}
-                              </strong>
-                              {zoneNode.mac_address && (
-                                <span
-                                  style={{
-                                    fontFamily: "monospace",
-                                    fontSize: "11px",
-                                    background: "#e2e8f0",
-                                    color: "#334155",
-                                    padding: "2px 6px",
-                                    borderRadius: "4px",
-                                  }}
-                                >
-                                  {zoneNode.mac_address}
-                                </span>
-                              )}
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                            <strong style={{ fontSize: "13px", color: "#1e293b" }}>
+                              Sensor Nodes ({zoneNodes.length})
+                            </strong>
+                            {zoneNodes.length > 0 && (
                               <span
                                 style={{
                                   fontSize: "10px",
                                   fontWeight: 600,
                                   padding: "2px 6px",
                                   borderRadius: "10px",
-                                  background: zoneNode.status === "active" ? "#dcfce7" : "#f1f5f9",
-                                  color: zoneNode.status === "active" ? "#166534" : "#64748b",
+                                  background: activeCount > 0 ? "#dcfce7" : "#fee2e2",
+                                  color: activeCount > 0 ? "#166534" : "#991b1b",
                                 }}
                               >
-                                {zoneNode.status.toUpperCase()}
+                                {activeCount}/{zoneNodes.length} ACTIVE
                               </span>
-                            </div>
-                            <small style={{ fontSize: "11px", color: "#64748b" }}>
-                              {zoneNode.last_seen_at
-                                ? `Last active: ${new Date(zoneNode.last_seen_at).toLocaleTimeString()}`
-                                : "Awaiting initial sensor telemetry"}
-                            </small>
+                            )}
                           </div>
-                        ) : (
-                          <div>
-                            <span style={{ fontSize: "12px", color: "#64748b" }}>
-                              No ESP32 sensor node registered for this zone.
-                            </span>
+                          <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {zoneNodes.length === 0 ? (
+                              <span>No hardware sensor nodes linked to this zone.</span>
+                            ) : (
+                              zoneNodes.map((n) => (
+                                <span
+                                  key={n.id}
+                                  style={{
+                                    fontFamily: "monospace",
+                                    background: "#e2e8f0",
+                                    padding: "1px 6px",
+                                    borderRadius: "4px",
+                                    color: "#334155",
+                                  }}
+                                  title={`ID: ${n.id} • MAC: ${n.mac_address || "None"}`}
+                                >
+                                  {n.name ? `${n.name} (${n.mac_address || n.id.slice(0, 8)})` : (n.mac_address || n.id)}
+                                </span>
+                              ))
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
 
-                      <div>
-                        {zoneNode ? (
-                          <button
-                            type="button"
-                            className="app-btn-danger"
-                            style={{ padding: "4px 8px", fontSize: "11px" }}
-                            onClick={() => setNodeToDelete({ id: zoneNode.id, name: zoneNode.name || zoneNode.id })}
-                            title="Unlink and unregister sensor node"
-                          >
-                            <Trash2 size={12} />
-                            <span>Unlink Node</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="app-btn-secondary"
-                            style={{ padding: "5px 10px", fontSize: "11px" }}
-                            onClick={() => {
-                              setTargetZoneForNode({ id: zone.id, label: zone.label });
-                              setNodeMacAddress("");
-                              setNodeName("");
-                              setNodeError("");
-                              setShowRegisterNodeModal(true);
-                            }}
-                          >
-                            <Plus size={12} />
-                            <span>Register ESP32 Node</span>
-                          </button>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        className="app-btn-secondary"
+                        style={{ padding: "5px 10px", fontSize: "11px" }}
+                        onClick={() => {
+                          setSelectedZone(zone);
+                          navigate("/actuators");
+                        }}
+                        title="Manage sensor nodes & actuators in the Hardware Control Center"
+                      >
+                        <span>Manage in Actuators &amp; Nodes &rarr;</span>
+                      </button>
                     </div>
 
                     {/* Active Cultivars */}
@@ -857,105 +790,6 @@ export const GardenProfile: React.FC = () => {
                 disabled={deletingGarden}
               >
                 {deletingGarden ? "Deleting..." : "Confirm Delete Garden"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* REGISTER SENSOR NODE MODAL */}
-      {showRegisterNodeModal && targetZoneForNode && (
-        <div className="modal-overlay" onClick={() => setShowRegisterNodeModal(false)}>
-          <div className="modal-card" style={{ maxWidth: "460px" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-              <Cpu size={20} color="#059669" />
-              <h3 style={{ margin: 0 }}>Register ESP32 Sensor Node</h3>
-            </div>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 16px" }}>
-              Link a physical ESP32 hardware board to <strong>{targetZoneForNode.label}</strong> based on its factory-burned MAC address.
-            </p>
-
-            {nodeError && (
-              <div style={{ padding: "8px 12px", background: "#fef2f2", color: "#b91c1c", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
-                {nodeError}
-              </div>
-            )}
-
-            <form onSubmit={handleRegisterNode}>
-              <div className="gp-form-group" style={{ marginBottom: "14px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>
-                  ESP32 Hardwired MAC Address *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 24:6F:28:1A:2B:3C"
-                  className="gp-form-input"
-                  style={{ fontFamily: "monospace" }}
-                  value={nodeMacAddress}
-                  onChange={(e) => setNodeMacAddress(e.target.value.toUpperCase())}
-                />
-                <small style={{ fontSize: "11px", color: "#64748b", marginTop: "4px", display: "block" }}>
-                  12-character hex MAC address (separated by colons or hyphens). Printed on device label or output in Serial monitor during boot.
-                </small>
-              </div>
-
-              <div className="gp-form-group" style={{ marginBottom: "18px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>
-                  Node Friendly Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Zone A Soil Moisture Probe"
-                  className="gp-form-input"
-                  value={nodeName}
-                  onChange={(e) => setNodeName(e.target.value)}
-                />
-              </div>
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="app-btn-secondary"
-                  onClick={() => setShowRegisterNodeModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="app-btn-primary"
-                  disabled={nodeSubmitting}
-                >
-                  {nodeSubmitting ? "Registering..." : "Register Node"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIRM UNLINK NODE MODAL */}
-      {nodeToDelete && (
-        <div className="modal-overlay" onClick={() => setNodeToDelete(null)}>
-          <div className="modal-card" style={{ maxWidth: "420px" }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ color: "#dc2626" }}>Unlink Sensor Node?</h3>
-            <p style={{ fontSize: "13px", color: "#334155", margin: "10px 0 16px" }}>
-              Are you sure you want to unregister <strong>{nodeToDelete.name}</strong>? Telemetry sent from this ESP32 board will no longer be stored for this zone until re-registered.
-            </p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="app-btn-secondary"
-                onClick={() => setNodeToDelete(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="app-btn-danger-solid"
-                onClick={handleDeleteNode}
-              >
-                Confirm Unlink
               </button>
             </div>
           </div>

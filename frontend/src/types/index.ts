@@ -77,6 +77,7 @@ export interface PlantZone {
   label: string;
   plant_names: string[];
   created_at: string;
+  sensor_node_count?: number;
 }
 
 export interface ParameterMetric {

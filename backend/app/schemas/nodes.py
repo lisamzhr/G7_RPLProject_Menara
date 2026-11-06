@@ -21,6 +21,7 @@ def normalize_mac(v: str) -> str:
 class SensorNodeRegister(BaseModel):
     mac_address: str
     name: str | None = None
+    zone_id: str | None = None
 
     @field_validator("mac_address")
     @classmethod

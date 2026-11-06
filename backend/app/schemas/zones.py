@@ -46,6 +46,7 @@ class ZoneOut(BaseModel):
     label: str
     plant_names: list[str]
     created_at: datetime
+    sensor_node_count: int = 0
 
 
 class ParameterMetric(BaseModel):
