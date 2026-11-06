@@ -1,464 +1,689 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import {
-  LayoutDashboard,
   Sprout,
-  Activity,
-  Brain,
-  SlidersHorizontal,
-  Settings,
   MapPin,
-  ChevronDown,
-  RefreshCw,
+  Plus,
+  Trash2,
+  Building2,
   Leaf,
-  Radio,
-  UserRound,
-  MoreVertical,
-  Clock3,
 } from "lucide-react";
-
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-
-import { NavLink } from "react-router-dom";
+import { useGarden } from "../context/GardenContext";
+import { api } from "../api/client";
+import { PlantCategoryKey } from "../types";
 import "../styles/garden-profile.css";
 
-type TimeRange = "24 Hours" | "7 Days" | "30 Days";
+export const GardenProfile: React.FC = () => {
+  const {
+    selectedGarden,
+    setSelectedGarden,
+    zones,
+    categories,
+    refreshZones,
+    refreshGardens,
+    error: contextError,
+  } = useGarden();
 
-const sensorData = {
-  "24 Hours": [
-    { time: "00:00", temperature: 28, humidity: 67, moisture: 49 },
-    { time: "04:00", temperature: 27, humidity: 66, moisture: 48 },
-    { time: "08:00", temperature: 29, humidity: 60, moisture: 54 },
-    { time: "12:00", temperature: 32.5, humidity: 52, moisture: 64 },
-    { time: "14:00", temperature: 33, humidity: 51, moisture: 68 },
-    { time: "16:00", temperature: 31, humidity: 55, moisture: 63 },
-    { time: "20:00", temperature: 29, humidity: 61, moisture: 57 },
-    { time: "23:59", temperature: 28, humidity: 66, moisture: 52 },
-  ],
-  "7 Days": [
-    { time: "Mon", temperature: 28, humidity: 67, moisture: 49 },
-    { time: "Tue", temperature: 30, humidity: 62, moisture: 53 },
-    { time: "Wed", temperature: 31, humidity: 58, moisture: 59 },
-    { time: "Thu", temperature: 32, humidity: 55, moisture: 65 },
-    { time: "Fri", temperature: 29, humidity: 64, moisture: 61 },
-    { time: "Sat", temperature: 30, humidity: 60, moisture: 56 },
-    { time: "Sun", temperature: 32, humidity: 54, moisture: 68 },
-  ],
-  "30 Days": [
-    { time: "Week 1", temperature: 27, humidity: 68, moisture: 48 },
-    { time: "Week 2", temperature: 29, humidity: 64, moisture: 54 },
-    { time: "Week 3", temperature: 31, humidity: 59, moisture: 61 },
-    { time: "Week 4", temperature: 32, humidity: 55, moisture: 68 },
-  ],
-};
+  // Local state for modals & forms
+  const [showAddZoneModal, setShowAddZoneModal] = useState(false);
+  const [showNewGardenModal, setShowNewGardenModal] = useState(false);
+  const [showDeleteGardenModal, setShowDeleteGardenModal] = useState(false);
+  const [deletingGarden, setDeletingGarden] = useState(false);
+  const [zoneToDelete, setZoneToDelete] = useState<{ id: string; label: string } | null>(null);
 
-const crops = [
-  {
-    name: "Bok Choy",
-    stage: "Vegetative",
-    icon: "♧",
-    type: "plant",
-  },
-  {
-    name: "Cherry",
-    stage: "Flowering",
-    icon: "♙",
-    type: "fruit",
-  },
-  {
-    name: "Water Spi",
-    stage: "Mature",
-    icon: "♣",
-    type: "leaf",
-  },
-  {
-    name: "Hydro Mint",
-    stage: "Sprouting",
-    icon: "❀",
-    type: "herb",
-  },
-];
+  // Add Zone Form state
+  const [zoneCategory, setZoneCategory] = useState<PlantCategoryKey | "">("");
+  const [zoneLabel, setZoneLabel] = useState("");
+  const [zonePlants, setZonePlants] = useState("");
+  const [zoneSubmitting, setZoneSubmitting] = useState(false);
+  const [zoneError, setZoneError] = useState("");
 
-const navigation = [
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Garden Profile", path: "/garden-profile", icon: Sprout },
-  {
-    label: "Environmental Monitoring",
-    path: "/monitoring",
-    icon: Activity,
-  },
-  {
-    label: "AI Recommendations",
-    path: "/recommendations",
-    icon: Brain,
-    tag: "AI",
-  },
-  { label: "Device Control", path: "/devices", icon: SlidersHorizontal },
-  { label: "Settings", path: "/settings", icon: Settings },
-];
+  // New Garden Form state
+  const [gardenName, setGardenName] = useState("");
+  const [gardenLocation, setGardenLocation] = useState("");
+  const [gardenLat, setGardenLat] = useState("-6.2234");
+  const [gardenLon, setGardenLon] = useState("106.8291");
+  const [gardenElevation, setGardenElevation] = useState("35");
+  const [gardenAdm4, setGardenAdm4] = useState("31.74.02.1001");
+  const [gardenSubmitting, setGardenSubmitting] = useState(false);
+  const [gardenError, setGardenError] = useState("");
 
-export const GardenProfile = () => {
-  const [timeRange, setTimeRange] = useState<TimeRange>("24 Hours");
-  const [showLocationMenu, setShowLocationMenu] = useState(false);
+  // Action status message
+  const [statusMessage, setStatusMessage] = useState("");
 
-  const currentData = sensorData[timeRange];
+  // Handle Add Zone submit
+  const handleAddZone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGarden) return;
+    if (!zoneCategory) {
+      setZoneError("Please select a plant category.");
+      return;
+    }
+    if (!zoneLabel.trim()) {
+      setZoneError("Please enter a zone label.");
+      return;
+    }
+
+    setZoneSubmitting(true);
+    setZoneError("");
+
+    try {
+      const plantNames = zonePlants
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0);
+
+      await api.createZone(selectedGarden.id, {
+        category_key: zoneCategory,
+        label: zoneLabel.trim(),
+        plant_names: plantNames,
+      });
+
+      await refreshZones(selectedGarden.id);
+      setShowAddZoneModal(false);
+      setZoneLabel("");
+      setZonePlants("");
+      setZoneCategory("");
+      setStatusMessage("Plant zone created successfully.");
+      setTimeout(() => setStatusMessage(""), 4000);
+    } catch (err) {
+      setZoneError(err instanceof Error ? err.message : "Failed to create plant zone.");
+    } finally {
+      setZoneSubmitting(false);
+    }
+  };
+
+  // Handle Delete Zone submit
+  const handleDeleteZone = async () => {
+    if (!zoneToDelete || !selectedGarden) return;
+    try {
+      await api.deleteZone(zoneToDelete.id);
+      await refreshZones(selectedGarden.id);
+      setZoneToDelete(null);
+      setStatusMessage("Plant zone removed.");
+      setTimeout(() => setStatusMessage(""), 4000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete plant zone.");
+    }
+  };
+
+  // Handle Delete Garden submit
+  const handleDeleteGarden = async () => {
+    if (!selectedGarden) return;
+    setDeletingGarden(true);
+    try {
+      await api.deleteGarden(selectedGarden.id);
+      await refreshGardens();
+      setShowDeleteGardenModal(false);
+      setStatusMessage("Garden facility deleted.");
+      setTimeout(() => setStatusMessage(""), 4000);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete garden.");
+    } finally {
+      setDeletingGarden(false);
+    }
+  };
+
+  // Handle Create Garden submit
+  const handleCreateGarden = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gardenName.trim() || !gardenLocation.trim()) {
+      setGardenError("Name and location are required.");
+      return;
+    }
+
+    setGardenSubmitting(true);
+    setGardenError("");
+
+    try {
+      const created = await api.createGarden({
+        name: gardenName.trim(),
+        location_name: gardenLocation.trim(),
+        lat: parseFloat(gardenLat) || 0,
+        lon: parseFloat(gardenLon) || 0,
+        elevation_m: parseFloat(gardenElevation) || 0,
+        adm4_code: gardenAdm4.trim(),
+      });
+
+      await refreshGardens();
+      setSelectedGarden(created);
+      setShowNewGardenModal(false);
+      setGardenName("");
+      setGardenLocation("");
+      setStatusMessage(`Garden "${created.name}" created and selected.`);
+      setTimeout(() => setStatusMessage(""), 4000);
+    } catch (err) {
+      setGardenError(err instanceof Error ? err.message : "Failed to create garden.");
+    } finally {
+      setGardenSubmitting(false);
+    }
+  };
+
+  // Selected category threshold preview
+  const activeSelectedCategory = categories.find((c) => c.key === zoneCategory);
+
+  const totalCultivars = zones.reduce(
+    (acc, z) => acc + (z.plant_names?.length || 0),
+    0
+  );
 
   return (
-    <div className="garden-page">
-      {/* SIDEBAR */}
-      <aside className="garden-sidebar">
-        <div className="garden-brand">
-        <div className="garden-brand-logo">
-          <img src="/LogoMenara.png" alt="MENARA Logo" />
+    <div className="garden-profile-container">
+      {/* PAGE HEADER */}
+      <div className="page-header">
+        <div>
+          <h1>Garden &amp; Plant Profiles</h1>
+          <p>
+            Manage rooftop garden microclimate locations, plant zones, and botanical threshold baselines for automated micro-irrigation and ventilation.
+          </p>
         </div>
-
-        <div className="garden-brand-text">
-          <h2>
-            MENARA <span className="brand-status-dot" />
-          </h2>
-          <p>ROOFTOP AGRITECH</p>
+        <div style={{ display: "flex", gap: "10px" }}>
+          {selectedGarden && (
+            <button
+              className="app-btn-primary"
+              onClick={() => {
+                setZoneCategory(categories[0]?.key || "");
+                setShowAddZoneModal(true);
+              }}
+              type="button"
+            >
+              <Plus size={16} />
+              <span>Add Plant Zone</span>
+            </button>
+          )}
+          <button
+            className="app-btn-secondary"
+            onClick={() => setShowNewGardenModal(true)}
+            type="button"
+          >
+            <Building2 size={16} />
+            <span>New Garden</span>
+          </button>
         </div>
       </div>
 
-        <nav className="garden-navigation">
-          {navigation.map((item) => {
-            const Icon = item.icon;
+      {/* STATUS & ERROR ALERTS */}
+      {statusMessage && (
+        <div style={{ padding: "10px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", borderRadius: "8px", fontSize: "13px" }}>
+          {statusMessage}
+        </div>
+      )}
+      {contextError && (
+        <div style={{ padding: "10px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: "8px", fontSize: "13px" }}>
+          {contextError}
+        </div>
+      )}
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `garden-nav-item ${isActive ? "active" : ""}`
-                }
+      {/* GARDEN OVERVIEW CARD */}
+      {selectedGarden ? (
+        <section className="gp-overview-card">
+          <div className="gp-overview-top">
+            <div className="gp-overview-title">
+              <h2>{selectedGarden.name}</h2>
+              <p>
+                <MapPin size={15} />
+                <span>{selectedGarden.location_name}</span>
+                <span>•</span>
+                <span>BMKG ADM4: {selectedGarden.adm4_code}</span>
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <span className="gp-badge-category" style={{ background: "#f1f5f9", borderColor: "#cbd5e1", color: "#334155" }}>
+                ID: {selectedGarden.id.slice(0, 8)}...
+              </span>
+              <button
+                type="button"
+                className="app-btn-danger"
+                onClick={() => setShowDeleteGardenModal(true)}
+                title="Delete this rooftop garden facility"
               >
-                <Icon size={21} strokeWidth={2.2} />
-                <span>{item.label}</span>
-
-                {item.tag && <span className="garden-nav-tag">{item.tag}</span>}
-
-                {item.path === "/garden-profile" && (
-                  <span className="garden-nav-indicator" />
-                )}
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        <div className="garden-sidebar-bottom">
-          <div className="garden-online-status">
-            <span className="online-dot" />
-            <span>Online • Node Mesh</span>
-            <Radio size={19} />
+                <Trash2 size={13} />
+                <span>Delete Garden</span>
+              </button>
+            </div>
           </div>
 
-          <div className="garden-user-profile">
-            <div className="garden-user-avatar">
-              <UserRound size={22} />
+          <div className="gp-meta-grid">
+            <div className="gp-meta-item">
+              <small>Canopy Elevation</small>
+              <strong>{selectedGarden.elevation_m} m MSL</strong>
             </div>
-
-            <div className="garden-user-info">
-              <strong>Dr. Ezzedine Ruzash</strong>
-              <span>Lead Agronomist</span>
+            <div className="gp-meta-item">
+              <small>Coordinates</small>
+              <strong>
+                {selectedGarden.lat.toFixed(4)}°, {selectedGarden.lon.toFixed(4)}°
+              </strong>
             </div>
-
-            <button className="garden-more-button" aria-label="More options">
-              <MoreVertical size={20} />
-            </button>
+            <div className="gp-meta-item">
+              <small>Active Plant Zones</small>
+              <strong>{zones.length} Zones</strong>
+            </div>
+            <div className="gp-meta-item">
+              <small>Monitored Cultivars</small>
+              <strong>{totalCultivars} Cultivars</strong>
+            </div>
           </div>
+        </section>
+      ) : (
+        <div className="gp-overview-card" style={{ textAlign: "center", padding: "40px 20px" }}>
+          <Building2 size={36} color="#94a3b8" style={{ margin: "0 auto 12px" }} />
+          <h3>No Rooftop Garden Selected</h3>
+          <p style={{ color: "#64748b", fontSize: "13px", marginBottom: "16px" }}>
+            Select an existing garden from the top bar or register a new rooftop garden site.
+          </p>
+          <button
+            className="app-btn-primary"
+            style={{ margin: "0 auto" }}
+            onClick={() => setShowNewGardenModal(true)}
+          >
+            <Plus size={16} />
+            <span>Create First Rooftop Garden</span>
+          </button>
         </div>
-      </aside>
+      )}
 
-      {/* MAIN CONTENT */}
-      <main className="garden-main">
-        <div className="garden-main-content">
-          {/* TOP BAR */}
-          <div className="garden-topbar">
-            <div className="garden-page-identity">
-              <span className="garden-profile-label">
-                <span className="online-dot" />
-                ROOFTOP GARDEN PROFILE
-              </span>
-              <span className="garden-id">ID: MNT-JKT-B2</span>
+      {/* PLANT ZONES & BOTANICAL PROFILES */}
+      {selectedGarden && (
+        <section className="gp-zones-section">
+          <div className="gp-section-header">
+            <div>
+              <h3>Plant Zones &amp; Botanical Threshold Baselines</h3>
+              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>
+                Each zone establishes optimal moisture, temperature, and illumination thresholds derived from agronomic literature.
+              </p>
             </div>
-
-            <div className="garden-topbar-actions">
-              <div className="garden-sync-status">
-                <RefreshCw size={17} />
-                <span>Synced 2m ago</span>
-              </div>
-
-              <div className="garden-location-wrapper">
-                <button
-                  className="garden-location-button"
-                  onClick={() => setShowLocationMenu(!showLocationMenu)}
-                >
-                  <MapPin size={21} />
-                  <span>
-                    <strong>Kebun Atap Menteng</strong>
-                    <small>Rooftop Block B (Zone 2B)</small>
-                  </span>
-                  <ChevronDown size={18} />
-                </button>
-
-                {showLocationMenu && (
-                  <div className="garden-location-dropdown">
-                    <strong>Selected Garden</strong>
-                    <span>Kebun Atap Menteng</span>
-                    <small>Rooftop Block B • Zone 2B</small>
-                  </div>
-                )}
-              </div>
-            </div>
+            <span style={{ fontSize: "12px", color: "#64748b" }}>
+              {zones.length} {zones.length === 1 ? "Zone" : "Zones"} configured
+            </span>
           </div>
 
-          {/* PAGE TITLE */}
-          <div className="garden-heading">
-            <h1>Garden Profile</h1>
-            <p>
-              View detailed information about your rooftop garden and its
-              current conditions.
-            </p>
-          </div>
-
-          {/* GARDEN OVERVIEW CARD */}
-          <section className="garden-overview-card">
-            <div className="garden-photo">
-              <div className="garden-photo-overlay">
-                <div>
-                  <span>CANOPY SECTOR 2B</span>
-                  <h3>Kebun Atap Menteng</h3>
-                </div>
-                <span className="sensor-node-badge">Active Sensor Node</span>
-              </div>
+          {zones.length === 0 ? (
+            <div
+              className="gp-zone-card"
+              style={{
+                textAlign: "center",
+                padding: "36px 20px",
+                background: "#faf8f5",
+                borderStyle: "dashed",
+              }}
+            >
+              <Sprout size={32} color="#94a3b8" style={{ margin: "0 auto 10px" }} />
+              <h4 style={{ margin: "0 0 4px", color: "#334155", fontSize: "15px" }}>
+                No plant zones registered for {selectedGarden.name}
+              </h4>
+              <p style={{ margin: "0 0 16px", color: "#64748b", fontSize: "12px" }}>
+                Add your first zone to configure cultivars and set microclimate thresholds.
+              </p>
+              <button
+                className="app-btn-primary"
+                style={{ margin: "0 auto" }}
+                onClick={() => {
+                  setZoneCategory(categories[0]?.key || "");
+                  setShowAddZoneModal(true);
+                }}
+              >
+                <Plus size={15} />
+                <span>Add Plant Zone</span>
+              </button>
             </div>
+          ) : (
+            <div className="gp-zones-grid">
+              {zones.map((zone) => {
+                // Find matching category or use embedded threshold profile
+                const matchedCategory = categories.find((c) => c.key === zone.category.key);
+                const profile = zone.category.threshold_profile || matchedCategory?.threshold_profile;
 
-            <div className="garden-overview-details">
-              <div className="garden-info-heading">
-                <h2>Kebun Atap Menteng</h2>
-                <div className="garden-location-info">
-                  <MapPin size={19} />
-                  <span>
-                    Menteng, Central Jakarta • Rooftop Block B (Zone 2B)
-                  </span>
-                  <span className="garden-canopy-badge">450 m² Canopy</span>
-                </div>
-                <div className="telemetry-badge">
-                  <span />
-                  Telemetry Synced
-                </div>
-              </div>
-
-              <div className="garden-crops-section">
-                <div className="garden-crops-heading">
-                  <div>
-                    <Leaf size={20} />
-                    <strong>Selected Crops &amp; Active Cultivars</strong>
-                  </div>
-                  <span>4 Active Species</span>
-                </div>
-
-                <div className="garden-crops-grid">
-                  {crops.map((crop) => (
-                    <div className="garden-crop-card" key={crop.name}>
-                      <div className={`garden-crop-icon ${crop.type}`}>
-                        {crop.icon}
+                return (
+                  <div key={zone.id} className="gp-zone-card">
+                    <div className="gp-zone-header">
+                      <div className="gp-zone-title-area">
+                        <div className="gp-zone-title-row">
+                          <h4>{zone.label}</h4>
+                          <span className="gp-badge-category">
+                            {zone.category.name}
+                          </span>
+                          <span className="gp-badge-timescale">
+                            Timescale: {zone.category.response_timescale}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: "11px", color: "#64748b" }}>
+                          Zone ID: {zone.id.slice(0, 8)}... • Category Key: {zone.category.key}
+                        </span>
                       </div>
 
-                      <div>
-                        <strong>{crop.name}</strong>
-                        <span>Stage: {crop.stage}</span>
-                      </div>
+                      <button
+                        className="gp-btn-delete"
+                        type="button"
+                        onClick={() => setZoneToDelete({ id: zone.id, label: zone.label })}
+                        title="Delete zone"
+                      >
+                        <Trash2 size={13} />
+                        <span>Delete</span>
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
+
+                    {/* Active Cultivars */}
+                    <div className="gp-cultivars-row">
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#475569" }}>
+                        Monitored Cultivars:
+                      </span>
+                      {zone.plant_names && zone.plant_names.length > 0 ? (
+                        zone.plant_names.map((plant, idx) => (
+                          <span key={idx} className="gp-cultivar-tag">
+                            <Leaf size={11} />
+                            {plant}
+                          </span>
+                        ))
+                      ) : (
+                        <span style={{ fontSize: "11px", color: "#94a3b8" }}>
+                          No specific cultivars specified (General {zone.category.name})
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Botanical Thresholds Baseline */}
+                    {profile ? (
+                      <div className="gp-threshold-grid">
+                        <div className="gp-threshold-item">
+                          <span className="gp-threshold-label">Soil Moisture Target</span>
+                          <span className="gp-threshold-val" style={{ color: "#2563eb" }}>
+                            {profile.moisture_min}% – {profile.moisture_max}%
+                          </span>
+                        </div>
+                        <div className="gp-threshold-item">
+                          <span className="gp-threshold-label">Air Temperature Target</span>
+                          <span className="gp-threshold-val" style={{ color: "#d97706" }}>
+                            {profile.temp_min}°C – {profile.temp_max}°C
+                          </span>
+                        </div>
+                        <div className="gp-threshold-item">
+                          <span className="gp-threshold-label">Relative Humidity Target</span>
+                          <span className="gp-threshold-val" style={{ color: "#0891b2" }}>
+                            {profile.humidity_min}% – {profile.humidity_max}%
+                          </span>
+                        </div>
+                        <div className="gp-threshold-item">
+                          <span className="gp-threshold-label">Illumination Target</span>
+                          <span className="gp-threshold-val" style={{ color: "#ca8a04" }}>
+                            {profile.lux_min.toLocaleString()} – {profile.lux_max.toLocaleString()} lx
+                          </span>
+                        </div>
+                        {profile.source_note && (
+                          <div className="gp-threshold-source">
+                            Agronomic Citation: {profile.source_note}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: "11px", color: "#94a3b8", padding: "8px 0" }}>
+                        Default botanical threshold baselines active for this plant category.
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </section>
+          )}
+        </section>
+      )}
 
-          {/* HISTORICAL SENSOR DATA */}
-          <section className="garden-history-card">
-            <div className="garden-history-header">
-              <div>
-                <div className="garden-history-title">
-                  <h2>Historical Sensor Data</h2>
-                  <span className="live-feed-badge">
-                    <span />
-                    Live Feed
-                  </span>
-                </div>
+      {/* ADD ZONE MODAL */}
+      {showAddZoneModal && selectedGarden && (
+        <div className="modal-overlay" onClick={() => setShowAddZoneModal(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Add Plant Zone</h3>
+            <p>
+              Attach a new botanical zone to <strong>{selectedGarden.name}</strong> with target cultivars and threshold baselines.
+            </p>
 
-                <p>
-                  Changes in air temperature, air humidity, and soil moisture
-                  over diurnal cycles
-                </p>
+            {zoneError && (
+              <div style={{ padding: "8px 12px", background: "#fef2f2", color: "#b91c1c", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
+                {zoneError}
               </div>
+            )}
 
-              <div className="garden-range-selector">
-                {(["24 Hours", "7 Days", "30 Days"] as TimeRange[]).map(
-                  (range) => (
-                    <button
-                      key={range}
-                      className={timeRange === range ? "selected" : ""}
-                      onClick={() => setTimeRange(range)}
-                    >
-                      {range}
-                    </button>
-                  )
-                )}
-              </div>
-            </div>
-
-            <div className="garden-chart-container">
-              <div className="garden-chart-tooltip">
-                <span>14:00 WIB • DIURNAL PEAK</span>
-                <div>
-                  <strong>Temp: 32.5°C</strong>
-                  <i />
-                  <strong>Humidity: 64%</strong>
-                  <i />
-                  <strong>Moist: 68%</strong>
-                </div>
-              </div>
-
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={currentData}
-                  margin={{ top: 70, right: 18, left: 0, bottom: 8 }}
+            <form onSubmit={handleAddZone}>
+              <div className="gp-form-group">
+                <label>Plant Category *</label>
+                <select
+                  className="gp-form-select"
+                  value={zoneCategory}
+                  onChange={(e) => setZoneCategory(e.target.value as PlantCategoryKey)}
+                  required
                 >
-                  <defs>
-                    <linearGradient
-                      id="temperatureFill"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor="#344F3A"
-                        stopOpacity={0.22}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#344F3A"
-                        stopOpacity={0.01}
-                      />
-                    </linearGradient>
-
-                    <linearGradient
-                      id="humidityFill"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor="#4D78BD"
-                        stopOpacity={0.16}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#4D78BD"
-                        stopOpacity={0.01}
-                      />
-                    </linearGradient>
-                  </defs>
-
-                  <CartesianGrid
-                    stroke="#E4EEE3"
-                    strokeDasharray="3 4"
-                    vertical={false}
-                  />
-
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fill: "#718071", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    dy={10}
-                  />
-
-                  <YAxis hide domain={[20, 75]} />
-
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 10,
-                      border: "1px solid #DCE9DA",
-                      fontSize: 12,
-                    }}
-                  />
-
-                  <Area
-                    type="monotone"
-                    dataKey="temperature"
-                    stroke="#344F3A"
-                    strokeWidth={2.8}
-                    fill="url(#temperatureFill)"
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
-
-                  <Area
-                    type="monotone"
-                    dataKey="humidity"
-                    stroke="#4D78BD"
-                    strokeWidth={2.5}
-                    fill="url(#humidityFill)"
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="moisture"
-                    stroke="#7A9870"
-                    strokeWidth={2.5}
-                    dot={false}
-                    activeDot={{ r: 5 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="garden-chart-legend">
-              <div>
-                <span className="legend-color temperature" />
-                <strong>Air Temperature (°C)</strong>
+                  <option value="" disabled>Select plant family / category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.key} value={cat.key}>
+                      {cat.name} ({cat.response_timescale} response)
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div>
-                <span className="legend-color humidity" />
-                <strong>Air Humidity (% RH)</strong>
+              {activeSelectedCategory?.threshold_profile && (
+                <div className="gp-threshold-preview-box">
+                  <strong>Baseline Profile ({activeSelectedCategory.name}):</strong>
+                  <div style={{ marginTop: "4px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
+                    <span>Moisture: {activeSelectedCategory.threshold_profile.moisture_min}% – {activeSelectedCategory.threshold_profile.moisture_max}%</span>
+                    <span>Temp: {activeSelectedCategory.threshold_profile.temp_min}°C – {activeSelectedCategory.threshold_profile.temp_max}°C</span>
+                    <span>Humidity: {activeSelectedCategory.threshold_profile.humidity_min}% – {activeSelectedCategory.threshold_profile.humidity_max}%</span>
+                    <span>Lux: {activeSelectedCategory.threshold_profile.lux_min.toLocaleString()} – {activeSelectedCategory.threshold_profile.lux_max.toLocaleString()} lx</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="gp-form-group" style={{ marginTop: "12px" }}>
+                <label>Zone Label *</label>
+                <input
+                  type="text"
+                  className="gp-form-input"
+                  placeholder="e.g. Zone B - West Raised Beds"
+                  value={zoneLabel}
+                  onChange={(e) => setZoneLabel(e.target.value)}
+                  required
+                />
               </div>
 
-              <div>
-                <span className="legend-color moisture" />
-                <strong>Soil Moisture (%)</strong>
+              <div className="gp-form-group">
+                <label>Cultivar Names (comma-separated)</label>
+                <input
+                  type="text"
+                  className="gp-form-input"
+                  placeholder="e.g. Roma Tomato, Cherry Bell, Sweet Basil"
+                  value={zonePlants}
+                  onChange={(e) => setZonePlants(e.target.value)}
+                />
+                <span style={{ fontSize: "11px", color: "#64748b" }}>
+                  Separate multiple crop cultivars with commas.
+                </span>
               </div>
 
-              <span className="garden-chart-resolution">
-                <Clock3 size={17} />
-                Rolling {timeRange === "24 Hours" ? "24-hr" : timeRange === "7 Days" ? "7-day" : "30-day"} resolution
-              </span>
-            </div>
-          </section>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="app-btn-secondary"
+                  onClick={() => setShowAddZoneModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="app-btn-primary"
+                  disabled={zoneSubmitting}
+                >
+                  {zoneSubmitting ? "Adding Zone..." : "Create Zone"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
+      )}
 
-        {/* FOOTER */}
-        <footer className="garden-footer">
-          © 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
-        </footer>
-      </main>
+      {/* NEW GARDEN MODAL */}
+      {showNewGardenModal && (
+        <div className="modal-overlay" onClick={() => setShowNewGardenModal(false)}>
+          <div className="modal-card" style={{ maxWidth: "560px" }} onClick={(e) => e.stopPropagation()}>
+            <h3>Register Rooftop Garden</h3>
+            <p>
+              Register a new rooftop agriculture site with geolocation and BMKG administrative metadata.
+            </p>
+
+            {gardenError && (
+              <div style={{ padding: "8px 12px", background: "#fef2f2", color: "#b91c1c", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
+                {gardenError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateGarden}>
+              <div className="gp-form-group">
+                <label>Garden Installation Name *</label>
+                <input
+                  type="text"
+                  className="gp-form-input"
+                  placeholder="e.g. Menara Sky Farm - Tower 2"
+                  value={gardenName}
+                  onChange={(e) => setGardenName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="gp-form-group">
+                <label>Location / Address *</label>
+                <input
+                  type="text"
+                  className="gp-form-input"
+                  placeholder="e.g. Setiabudi, South Jakarta, DKI Jakarta"
+                  value={gardenLocation}
+                  onChange={(e) => setGardenLocation(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="gp-form-row">
+                <div className="gp-form-group">
+                  <label>Latitude *</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    className="gp-form-input"
+                    value={gardenLat}
+                    onChange={(e) => setGardenLat(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="gp-form-group">
+                  <label>Longitude *</label>
+                  <input
+                    type="number"
+                    step="0.0001"
+                    className="gp-form-input"
+                    value={gardenLon}
+                    onChange={(e) => setGardenLon(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="gp-form-row">
+                <div className="gp-form-group">
+                  <label>Canopy Elevation (m MSL)</label>
+                  <input
+                    type="number"
+                    className="gp-form-input"
+                    value={gardenElevation}
+                    onChange={(e) => setGardenElevation(e.target.value)}
+                  />
+                </div>
+                <div className="gp-form-group">
+                  <label>BMKG ADM4 Code *</label>
+                  <input
+                    type="text"
+                    className="gp-form-input"
+                    placeholder="31.74.02.1001"
+                    value={gardenAdm4}
+                    onChange={(e) => setGardenAdm4(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="app-btn-secondary"
+                  onClick={() => setShowNewGardenModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="app-btn-primary"
+                  disabled={gardenSubmitting}
+                >
+                  {gardenSubmitting ? "Registering..." : "Register Garden"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE ZONE MODAL */}
+      {zoneToDelete && (
+        <div className="modal-overlay" onClick={() => setZoneToDelete(null)}>
+          <div className="modal-card" style={{ maxWidth: "420px" }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ color: "#dc2626" }}>Delete Plant Zone?</h3>
+            <p>
+              Are you sure you want to delete <strong>{zoneToDelete.label}</strong>? This will remove all associated zone configuration.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="app-btn-secondary"
+                onClick={() => setZoneToDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="app-btn-danger-solid"
+                onClick={handleDeleteZone}
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM DELETE GARDEN MODAL */}
+      {showDeleteGardenModal && selectedGarden && (
+        <div className="modal-overlay" onClick={() => setShowDeleteGardenModal(false)}>
+          <div className="modal-card" style={{ maxWidth: "440px" }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ color: "#dc2626" }}>Delete Garden Facility?</h3>
+            <p>
+              Are you sure you want to delete <strong>{selectedGarden.name}</strong>? This will permanently remove the garden facility, all associated plant zones, sensor nodes, and telemetry.
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="app-btn-secondary"
+                onClick={() => setShowDeleteGardenModal(false)}
+                disabled={deletingGarden}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="app-btn-danger-solid"
+                onClick={handleDeleteGarden}
+                disabled={deletingGarden}
+              >
+                {deletingGarden ? "Deleting..." : "Confirm Delete Garden"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

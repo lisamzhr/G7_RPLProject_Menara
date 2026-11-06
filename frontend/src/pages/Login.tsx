@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
-  UserRound,
   Mail,
   LockKeyhole,
   Eye,
@@ -104,10 +103,6 @@ export const Login: React.FC = () => {
             <ArrowLeft size={12} />
             Back to Home
           </Link>
-
-          <div className="login-profile-icon">
-            <UserRound size={13} />
-          </div>
         </div>
       </header>
 
@@ -145,6 +140,12 @@ export const Login: React.FC = () => {
               MENARA dashboard.
             </p>
 
+            {locationState?.registrationSuccess && (
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "10px 14px", borderRadius: "8px", fontSize: "12.5px", marginBottom: "14px" }}>
+                Account registered successfully! Please sign in with your credentials.
+              </div>
+            )}
+
             {error && (
               <div className="login-error" role="alert">
                 {error}
@@ -157,7 +158,6 @@ export const Login: React.FC = () => {
               <div className="login-field">
                 <div className="login-label-row">
                   <label htmlFor="login-email">Email Address</label>
-                  <span>Registered ID</span>
                 </div>
 
                 <div className="login-input-wrapper">
@@ -179,7 +179,6 @@ export const Login: React.FC = () => {
               <div className="login-field">
                 <div className="login-label-row">
                   <label htmlFor="login-password">Password</label>
-                  <span>Security Key</span>
                 </div>
 
                 <div className="login-input-wrapper">
@@ -223,9 +222,13 @@ export const Login: React.FC = () => {
                   <span>Remember me</span>
                 </label>
 
-                <Link to="/forgot-password" className="login-forgot">
+                <span
+                  className="login-forgot"
+                  title="Contact your garden owner or use Settings after login to update passwords."
+                  style={{ cursor: "help" }}
+                >
                   Forgot password?
-                </Link>
+                </span>
               </div>
 
               {/* SUBMIT */}

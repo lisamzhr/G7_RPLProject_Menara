@@ -66,6 +66,7 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
                 humidity_pct=latest.humidity_pct,
                 lux=latest.lux,
                 is_valid=latest.is_valid,
+                battery_v=latest.battery_v,
             )
 
     # Parameter evaluations
@@ -163,6 +164,7 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
     if latest_rec_model:
         latest_rec = RecommendationSummary(
             id=latest_rec_model.id,
+            zone_id=zone_id,
             status_level=latest_rec_model.status_level,
             message=latest_rec_model.message,
             reasons=latest_rec_model.reasons if isinstance(latest_rec_model.reasons, list) else [],
@@ -198,7 +200,12 @@ def get_zone_readings_history(
     if not node_ids:
         return []
 
-    delta = timedelta(hours=24) if range_str == "24h" else timedelta(days=7)
+    if range_str == "24h":
+        delta = timedelta(hours=24)
+    elif range_str == "7d":
+        delta = timedelta(days=7)
+    else:
+        delta = timedelta(days=30)
     since = datetime.now(UTC) - delta
 
     query = (
@@ -230,6 +237,7 @@ def get_zone_readings_history(
                     "humidity_pct": round(avg_h, 1),
                     "lux": round(avg_l, 0),
                     "is_valid": all(x.is_valid for x in b_rows),
+                    "battery_v": valid_rows[-1].battery_v if valid_rows else None,
                 }
             )
         return result
@@ -242,6 +250,7 @@ def get_zone_readings_history(
             "humidity_pct": r.humidity_pct,
             "lux": r.lux,
             "is_valid": r.is_valid,
+            "battery_v": r.battery_v,
         }
         for r in rows
     ]

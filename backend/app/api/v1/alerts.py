@@ -31,19 +31,36 @@ def _get_member_alert(db: Session, alert_id: str, user: User) -> Alert:
 @router.get("", response_model=list[AlertOut], summary="List active or filtered alerts")
 def list_alerts(
     zone_id: str | None = Query(None),
-    status_filter: str = Query("active", pattern="^(active|resolved|all)$"),
+    status_filter: str | None = Query(None, pattern="^(active|resolved|all)$"),
+    status: str | None = Query(None, pattern="^(active|resolved|all)$"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     query = db.query(Alert).filter(Alert.zone_id.in_(member_zone_ids(current_user)))
     if zone_id:
         query = query.filter(Alert.zone_id == zone_id)
-    if status_filter == "active":
+    
+    effective_status = status or status_filter or "active"
+    if effective_status == "active":
         query = query.filter(Alert.resolved_at.is_(None))
-    elif status_filter == "resolved":
+    elif effective_status == "resolved":
         query = query.filter(Alert.resolved_at.is_not(None))
 
-    return query.order_by(desc(Alert.created_at)).all()
+    alerts = query.order_by(desc(Alert.created_at)).all()
+    return [
+        AlertOut(
+            id=a.id,
+            zone_id=a.zone_id,
+            zone_label=a.zone.label if a.zone else None,
+            level=a.level,
+            type=a.type,
+            message=a.message,
+            requires_confirmation=a.requires_confirmation,
+            resolved_at=a.resolved_at,
+            created_at=a.created_at,
+        )
+        for a in alerts
+    ]
 
 
 @router.post("/{id}/confirm", summary="Human-in-the-loop confirmation of alert/action")

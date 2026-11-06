@@ -27,6 +27,7 @@ app/models/base.py
 app/models/control_action.py
 app/models/feedback.py
 app/models/garden.py
+app/models/garden_member.py
 app/models/knowledge_chunk.py
 app/models/plant_category.py
 app/models/plant_zone.py
@@ -54,6 +55,7 @@ roofgarden_backend.egg-info/SOURCES.txt
 roofgarden_backend.egg-info/dependency_links.txt
 roofgarden_backend.egg-info/requires.txt
 roofgarden_backend.egg-info/top_level.txt
+tests/test_alerts.py
 tests/test_commands.py
 tests/test_dashboard.py
 tests/test_ingestion.py

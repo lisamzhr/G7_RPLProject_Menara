@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -44,13 +44,28 @@ def get_status(
 )
 def get_readings(
     id: str,
-    range: str = Query("24h", pattern="^(24h|7d)$", description="Time range: 24h or 7d"),
+    range: str = Query("24h", pattern="^(24h|7d|30d)$", description="Time range: 24h, 7d, or 30d"),
     agg: str = Query("raw", pattern="^(raw|hourly)$", description="Aggregation: raw or hourly"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     get_zone_for_member(db, id, current_user)
     return get_zone_readings_history(db, id, range, agg)
+
+
+@router.delete(
+    "/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a plant zone (garden members)",
+)
+def delete_zone(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    zone = get_zone_for_member(db, id, current_user)
+    db.delete(zone)
+    db.commit()
 
 
 @router.post(

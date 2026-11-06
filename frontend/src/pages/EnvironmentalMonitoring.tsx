@@ -1,521 +1,466 @@
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  LayoutDashboard,
-  Sprout,
-  Activity,
-  Brain,
-  SlidersHorizontal,
-  Settings,
-  ChevronDown,
-  RefreshCw,
-  Radio,
-  UserRound,
-  MoreVertical,
   Thermometer,
   Droplet,
+  Sprout,
   Sun,
-  Building2,
   ShieldCheck,
+  AlertTriangle,
+  Clock3,
 } from "lucide-react";
-
 import {
   Area,
   AreaChart,
   CartesianGrid,
   Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  ReferenceLine,
 } from "recharts";
-
-import { NavLink } from "react-router-dom";
+import { useGarden } from "../context/GardenContext";
+import { api } from "../api/client";
+import { formatTimestamp } from "../lib/format";
+import type { ParameterMetric, Reading, ZoneStatus } from "../types";
 import "../styles/environmental-monitoring.css";
 
 type TimeRange = "24 Hours" | "7 Days" | "30 Days";
+type MetricTab = "all" | "moisture" | "climate" | "lux";
 
-const monitoringData = {
-  "24 Hours": [
-    { time: "00:00", temperature: 48, humidity: 78, moisture: 67 },
-    { time: "04:00", temperature: 49, humidity: 77, moisture: 66 },
-    { time: "08:00", temperature: 53, humidity: 73, moisture: 65 },
-    { time: "12:00", temperature: 61, humidity: 65, moisture: 64 },
-    { time: "14:00", temperature: 72, humidity: 62, moisture: 63 },
-    { time: "16:00", temperature: 66, humidity: 65, moisture: 63 },
-    { time: "20:00", temperature: 53, humidity: 73, moisture: 66 },
-    { time: "23:59", temperature: 47, humidity: 77, moisture: 67 },
-  ],
-  "7 Days": [
-    { time: "Mon", temperature: 50, humidity: 75, moisture: 64 },
-    { time: "Tue", temperature: 56, humidity: 71, moisture: 66 },
-    { time: "Wed", temperature: 60, humidity: 68, moisture: 65 },
-    { time: "Thu", temperature: 70, humidity: 61, moisture: 63 },
-    { time: "Fri", temperature: 64, humidity: 66, moisture: 64 },
-    { time: "Sat", temperature: 55, humidity: 73, moisture: 67 },
-    { time: "Sun", temperature: 69, humidity: 63, moisture: 68 },
-  ],
-  "30 Days": [
-    { time: "Week 1", temperature: 51, humidity: 76, moisture: 65 },
-    { time: "Week 2", temperature: 59, humidity: 70, moisture: 64 },
-    { time: "Week 3", temperature: 67, humidity: 64, moisture: 66 },
-    { time: "Week 4", temperature: 62, humidity: 68, moisture: 67 },
-  ],
-};
+export const EnvironmentalMonitoring: React.FC = () => {
+  const {
+    zones,
+    selectedZone,
+    setSelectedZone,
+  } = useGarden();
 
-const navigation = [
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Garden Profile", path: "/garden-profile", icon: Sprout },
-  {
-    label: "Environmental Monitoring",
-    path: "/monitoring",
-    icon: Activity,
-  },
-  {
-    label: "AI Recommendations",
-    path: "/recommendations",
-    icon: Brain,
-    tag: "AI",
-  },
-  {
-    label: "Device Control",
-    path: "/devices",
-    icon: SlidersHorizontal,
-  },
-  { label: "Settings", path: "/settings", icon: Settings },
-];
-
-const sensorCards = [
-  {
-    name: "DHT22 Sensor",
-    title: "AIR TEMPERATURE",
-    value: "31.2",
-    unit: "°C",
-    status: "Normal Range",
-    statusType: "normal",
-    icon: Thermometer,
-    min: "Min 22°C",
-    target: "Rec: 26–33°C",
-    max: "Max 38°C",
-    fill: "temperature",
-    progress: 60,
-  },
-  {
-    name: "DHT22 Sensor",
-    title: "AIR HUMIDITY",
-    value: "64",
-    unit: "% RH",
-    status: "Optimal",
-    statusType: "optimal",
-    icon: Droplet,
-    min: "Low <50%",
-    target: "Rec: 60–75%",
-    max: "High >85%",
-    fill: "humidity",
-    progress: 65,
-  },
-  {
-    name: "Capacitive",
-    title: "SOIL MOISTURE",
-    value: "71",
-    unit: "%",
-    status: "Adequate",
-    statusType: "adequate",
-    icon: Sprout,
-    min: "Dry <45%",
-    target: "Target: 65–80%",
-    max: "Sat >90%",
-    fill: "moisture",
-    progress: 72,
-  },
-  {
-    name: "BH1750 Sensor",
-    title: "LIGHT INTENSITY",
-    value: "42,500",
-    unit: "lux",
-    status: "High Sunlight",
-    statusType: "warning",
-    icon: Sun,
-    min: "0 lx",
-    target: "Pergola Diffused",
-    max: "65k lx",
-    fill: "light",
-    progress: 65,
-  },
-];
-
-export const EnvironmentalMonitoring = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>("24 Hours");
-  const [showLocationMenu, setShowLocationMenu] = useState(false);
+  const [activeMetricTab, setActiveMetricTab] = useState<MetricTab>("all");
+  const [zoneStatus, setZoneStatus] = useState<ZoneStatus | null>(null);
+  const [readings, setReadings] = useState<Reading[]>([]);
+  const [readingsLoading, setReadingsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const chartData = monitoringData[timeRange];
+  // Load zone status when selectedZone changes
+  useEffect(() => {
+    if (!selectedZone) {
+      setZoneStatus(null);
+      return;
+    }
+
+    let isMounted = true;
+    const loadStatus = async () => {
+      try {
+        const status = await api.getZoneStatus(selectedZone.id);
+        if (!isMounted) return;
+        setZoneStatus(status);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Failed to load zone status:", err);
+      }
+    };
+
+    loadStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedZone]);
+
+  // Load readings when selectedZone or timeRange changes
+  useEffect(() => {
+    if (!selectedZone) {
+      setReadings([]);
+      return;
+    }
+
+    let isMounted = true;
+    const loadReadings = async () => {
+      try {
+        setReadingsLoading(true);
+        setError("");
+        const rangeParam =
+          timeRange === "24 Hours" ? "24h" : timeRange === "7 Days" ? "7d" : "30d";
+        const aggParam =
+          timeRange === "30 Days" || timeRange === "7 Days" ? "hourly" : "raw";
+
+        const data = await api.getZoneReadings(selectedZone.id, rangeParam, aggParam);
+        if (!isMounted) return;
+        setReadings(data);
+      } catch (err) {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load telemetry readings.");
+      } finally {
+        if (isMounted) setReadingsLoading(false);
+      }
+    };
+
+    loadReadings();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedZone, timeRange]);
+
+  // Format chart data
+  const chartData = readings.map((r) => ({
+    time: formatTimestamp(r.ts),
+    temperature: r.temperature_c,
+    humidity: r.humidity_pct,
+    moisture: r.soil_moisture_pct,
+    lux: r.lux,
+  }));
+
+  // Build sensor metrics from live zoneStatus parameter_status
+  const paramStatus = (zoneStatus?.parameter_status || {}) as Record<string, ParameterMetric>;
+  const tempMetric = paramStatus.temperature;
+  const humMetric = paramStatus.humidity;
+  const soilMetric = paramStatus.moisture;
+  const luxMetric = paramStatus.lux;
+  const latestReading = zoneStatus?.latest_reading;
+
+  const calculateProgress = (metric?: ParameterMetric) => {
+    if (!metric) return 50;
+    if (metric.ideal_max <= metric.ideal_min) return 50;
+    const ratio = (metric.value - metric.ideal_min) / (metric.ideal_max - metric.ideal_min);
+    return Math.max(5, Math.min(100, Math.round(ratio * 100)));
+  };
+
+  const sensorCards = [
+    {
+      name: "DHT22 Microclimate Sensor",
+      title: "AIR TEMPERATURE",
+      value: tempMetric ? `${tempMetric.value}` : latestReading ? `${latestReading.temperature_c}` : "—",
+      unit: "°C",
+      status: tempMetric?.status === "ok" ? "Optimal Range" : tempMetric?.status === "high" ? "Above Ideal" : "Below Ideal",
+      statusType: tempMetric?.status === "ok" ? "optimal" : "warning",
+      icon: Thermometer,
+      min: tempMetric ? `${tempMetric.ideal_min}°C` : "Min —",
+      target: tempMetric ? `Optimal: ${tempMetric.ideal_min} – ${tempMetric.ideal_max}°C` : "Target —",
+      max: tempMetric ? `${tempMetric.ideal_max}°C` : "Max —",
+      fill: "temperature",
+      progress: calculateProgress(tempMetric),
+      idealMin: tempMetric?.ideal_min,
+      idealMax: tempMetric?.ideal_max,
+    },
+    {
+      name: "DHT22 Microclimate Sensor",
+      title: "AIR HUMIDITY",
+      value: humMetric ? `${humMetric.value}` : latestReading ? `${latestReading.humidity_pct}` : "—",
+      unit: "% RH",
+      status: humMetric?.status === "ok" ? "Optimal Range" : humMetric?.status === "high" ? "Above Ideal" : "Below Ideal",
+      statusType: humMetric?.status === "ok" ? "optimal" : "warning",
+      icon: Droplet,
+      min: humMetric ? `${humMetric.ideal_min}%` : "Min —",
+      target: humMetric ? `Optimal: ${humMetric.ideal_min} – ${humMetric.ideal_max}%` : "Target —",
+      max: humMetric ? `${humMetric.ideal_max}%` : "Max —",
+      fill: "humidity",
+      progress: calculateProgress(humMetric),
+      idealMin: humMetric?.ideal_min,
+      idealMax: humMetric?.ideal_max,
+    },
+    {
+      name: "Capacitive Substrate Probe",
+      title: "SOIL MOISTURE",
+      value: soilMetric ? `${soilMetric.value}` : latestReading ? `${latestReading.soil_moisture_pct}` : "—",
+      unit: "%",
+      status: soilMetric?.status === "ok" ? "Optimal Hydration" : soilMetric?.status === "low" ? "Dry / Deficit" : "Saturated",
+      statusType: soilMetric?.status === "ok" ? "optimal" : "warning",
+      icon: Sprout,
+      min: soilMetric ? `${soilMetric.ideal_min}%` : "Min —",
+      target: soilMetric ? `Optimal: ${soilMetric.ideal_min} – ${soilMetric.ideal_max}%` : "Target —",
+      max: soilMetric ? `${soilMetric.ideal_max}%` : "Max —",
+      fill: "moisture",
+      progress: calculateProgress(soilMetric),
+      idealMin: soilMetric?.ideal_min,
+      idealMax: soilMetric?.ideal_max,
+    },
+    {
+      name: "BH1750 Ambient Light Sensor",
+      title: "LIGHT INTENSITY",
+      value: luxMetric ? Number(luxMetric.value).toLocaleString() : latestReading ? Number(latestReading.lux).toLocaleString() : "—",
+      unit: "lux",
+      status: luxMetric?.status === "ok" ? "Optimal Radiation" : luxMetric?.status === "high" ? "High Solar Flux" : "Low Light",
+      statusType: luxMetric?.status === "ok" ? "optimal" : "warning",
+      icon: Sun,
+      min: luxMetric ? `${Number(luxMetric.ideal_min).toLocaleString()} lx` : "0 lx",
+      target: luxMetric ? `Optimal: ${Number(luxMetric.ideal_min).toLocaleString()} – ${Number(luxMetric.ideal_max).toLocaleString()} lx` : "Target —",
+      max: luxMetric ? `${Number(luxMetric.ideal_max).toLocaleString()} lx` : "—",
+      fill: "light",
+      progress: calculateProgress(luxMetric),
+      idealMin: luxMetric?.ideal_min,
+      idealMax: luxMetric?.ideal_max,
+    },
+  ];
+
+  const abnormalCount = Object.values(paramStatus).filter((m) => m.status !== "ok").length;
 
   return (
-    <div className="monitoring-page">
-      {/* SIDEBAR */}
-      <aside className="monitoring-sidebar">
-        <div className="monitoring-brand">
-          <div className="monitoring-brand-logo">
-            <img src="/LogoMenara.png" alt="MENARA Logo" />
-          </div>
-
-          <div className="monitoring-brand-text">
-            <h2>
-              MENARA <span className="monitoring-brand-dot" />
-            </h2>
-            <p>ROOFTOP AGRITECH</p>
-          </div>
+    <div className="monitoring-container">
+      {/* PAGE HEADER */}
+      <div className="page-header">
+        <div>
+          <h1>Environmental Monitoring</h1>
+          <p>
+            Real-time telemetry and diurnal environmental tracking across rooftop canopy microclimates and planting beds.
+          </p>
         </div>
+      </div>
 
-        <nav className="monitoring-navigation">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `monitoring-nav-item ${isActive ? "active" : ""}`
-                }
-              >
-                <Icon size={21} strokeWidth={2.2} />
-                <span>{item.label}</span>
-
-                {item.tag && (
-                  <span className="monitoring-nav-tag">{item.tag}</span>
-                )}
-
-                {item.path === "/monitoring" && (
-                  <span className="monitoring-nav-indicator" />
-                )}
-              </NavLink>
-            );
-          })}
-        </nav>
-
-        <div className="monitoring-sidebar-bottom">
-          <div className="monitoring-online-status">
-            <span className="monitoring-online-dot" />
-            <span>Online • Node Mesh</span>
-            <Radio size={17} />
-          </div>
-
-          <div className="monitoring-user-profile">
-            <div className="monitoring-user-avatar">
-              <UserRound size={22} />
-            </div>
-
-            <div className="monitoring-user-info">
-              <strong>Dr. Ezzedine Ruzash</strong>
-              <span>Lead Agronomist</span>
-            </div>
-
-            <button
-              className="monitoring-more-button"
-              aria-label="More options"
-            >
-              <MoreVertical size={20} />
-            </button>
-          </div>
+      {error && (
+        <div style={{ padding: "10px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: "8px", fontSize: "13px" }}>
+          {error}
         </div>
-      </aside>
+      )}
 
-      {/* MAIN CONTENT */}
-      <main className="monitoring-main">
-        <div className="monitoring-content">
-          {/* LOCATION BAR */}
-          <div className="monitoring-topbar">
-            <div className="monitoring-location-wrapper">
+      {/* ZONE CHIPS SELECTOR STRIP */}
+      {zones.length > 0 && (
+        <div className="monitoring-zone-strip">
+          <div className="zone-chips" style={{ margin: 0 }}>
+            {zones.map((zone) => (
               <button
-                className="monitoring-location-button"
-                onClick={() => setShowLocationMenu(!showLocationMenu)}
+                key={zone.id}
+                type="button"
+                className={`zone-chip ${selectedZone?.id === zone.id ? "active" : ""}`}
+                onClick={() => setSelectedZone(zone)}
               >
-                <Building2 size={17} />
-                <strong>Kebun Atap Menteng</strong>
-                <span>/</span>
-                <small>Rooftop Block B (Zone 2B)</small>
-                <ChevronDown size={16} />
+                {zone.label}
               </button>
-
-              {showLocationMenu && (
-                <div className="monitoring-location-dropdown">
-                  <strong>Kebun Atap Menteng</strong>
-                  <span>Rooftop Block B (Zone 2B)</span>
-                  <small>Currently selected garden</small>
-                </div>
-              )}
-            </div>
-
-            <div className="monitoring-sync">
-              <RefreshCw size={13} />
-              Synced 3m ago
-            </div>
+            ))}
           </div>
 
-          {/* PAGE HEADING */}
-          <div className="monitoring-heading">
-            <div>
-              <div className="monitoring-title-row">
-                <h1>Environmental Monitoring</h1>
-                <span className="monitoring-active-badge">
-                  ACTIVE TELEMETRY
+          <div style={{ fontSize: "12px", color: "#64748b" }}>
+            Viewing: <strong style={{ color: "#1e3926" }}>{selectedZone?.label || "Zone"}</strong>
+            {selectedZone && (
+              <span style={{ marginLeft: "6px", color: "#2b4f35" }}>
+                ({selectedZone.category.name})
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 4 LIVE SENSOR CARDS */}
+      <section className="monitoring-sensor-grid">
+        {sensorCards.map((sensor) => {
+          const Icon = sensor.icon;
+          return (
+            <article className="monitoring-sensor-card" key={sensor.title}>
+              <div className="monitoring-sensor-top">
+                <div className="monitoring-sensor-type">
+                  <div className="monitoring-sensor-icon">
+                    <Icon size={18} />
+                  </div>
+                  <span>{sensor.name}</span>
+                </div>
+
+                <span className={`monitoring-sensor-status ${sensor.statusType}`}>
+                  <span />
+                  {sensor.status}
                 </span>
               </div>
 
-              <p>
-                Real-time microclimate sensors across active planting beds
-                and canopy zones.
-              </p>
-            </div>
-
-            <div className="monitoring-node-card">
-              <Radio size={19} />
-              <div>
-                <span>MONITORING NODES</span>
-                <strong>4 / 4 Active Nodes</strong>
+              <div className="monitoring-sensor-reading">
+                <span>{sensor.title}</span>
+                <div className="monitoring-reading-val">
+                  <strong>{sensor.value}</strong>
+                  <small>{sensor.unit}</small>
+                </div>
               </div>
-            </div>
+
+              <div className="monitoring-progress-bar">
+                <div
+                  className={`monitoring-progress-fill ${sensor.fill}`}
+                  style={{ width: `${sensor.progress}%` }}
+                />
+              </div>
+
+              <div className="monitoring-sensor-scale">
+                <span>{sensor.min}</span>
+                <strong>{sensor.target}</strong>
+                <span>{sensor.max}</span>
+              </div>
+            </article>
+          );
+        })}
+      </section>
+
+      {/* HISTORICAL SENSOR DATA CARD */}
+      <section className="monitoring-history-card">
+        <div className="monitoring-history-header">
+          <div>
+            <h2 style={{ margin: "0 0 4px", fontSize: "18px", fontWeight: 700, color: "#1e3926" }}>
+              {selectedZone?.label || "Zone"} Telemetry History
+            </h2>
+            <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+              Diurnal progression of ambient microclimate parameters and substrate moisture over time.
+            </p>
           </div>
 
-          {/* SENSOR CARDS */}
-          <section className="monitoring-sensor-grid">
-            {sensorCards.map((sensor) => {
-              const Icon = sensor.icon;
-
-              return (
-                <article className="monitoring-sensor-card" key={sensor.title}>
-                  <div className="monitoring-sensor-top">
-                    <div className="monitoring-sensor-type">
-                      <div className="monitoring-sensor-icon">
-                        <Icon size={19} />
-                      </div>
-                      <span>{sensor.name}</span>
-                    </div>
-
-                    <span
-                      className={`monitoring-sensor-status ${sensor.statusType}`}
-                    >
-                      <span />
-                      {sensor.status}
-                    </span>
-                  </div>
-
-                  <div className="monitoring-sensor-reading">
-                    <span>{sensor.title}</span>
-                    <div>
-                      <strong>{sensor.value}</strong>
-                      <small>{sensor.unit}</small>
-                    </div>
-                  </div>
-
-                  <div className={`monitoring-progress ${sensor.fill}`}>
-                    <div>
-                      <span style={{ width: `${sensor.progress}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="monitoring-sensor-scale">
-                    <span>{sensor.min}</span>
-                    <strong>{sensor.target}</strong>
-                    <span>{sensor.max}</span>
-                  </div>
-                </article>
-              );
-            })}
-          </section>
-
-          {/* HISTORICAL CHART */}
-          <section className="monitoring-history-card">
-            <div className="monitoring-history-heading">
-              <div>
-                <div className="monitoring-title-row">
-                  <h2>Environmental Monitoring</h2>
-                  <span className="monitoring-active-badge">
-                    ACTIVE TELEMETRY
-                  </span>
-                </div>
-
-                <p>
-                  Real-time microclimate sensors across active planting beds
-                  and canopy zones.
-                </p>
-              </div>
-
-              <div className="monitoring-range-selector">
-                {(["24 Hours", "7 Days", "30 Days"] as TimeRange[]).map(
-                  (range) => (
-                    <button
-                      key={range}
-                      className={timeRange === range ? "selected" : ""}
-                      onClick={() => setTimeRange(range)}
-                    >
-                      {range}
-                    </button>
-                  )
-                )}
-              </div>
+          <div className="monitoring-chart-controls">
+            {/* Metric Filter Tabs */}
+            <div className="monitoring-metric-tabs">
+              <button
+                type="button"
+                className={`monitoring-metric-tab ${activeMetricTab === "all" ? "active" : ""}`}
+                onClick={() => setActiveMetricTab("all")}
+              >
+                All Core Metrics
+              </button>
+              <button
+                type="button"
+                className={`monitoring-metric-tab ${activeMetricTab === "moisture" ? "active" : ""}`}
+                onClick={() => setActiveMetricTab("moisture")}
+              >
+                Soil Moisture
+              </button>
+              <button
+                type="button"
+                className={`monitoring-metric-tab ${activeMetricTab === "climate" ? "active" : ""}`}
+                onClick={() => setActiveMetricTab("climate")}
+              >
+                Temp &amp; Humidity
+              </button>
+              <button
+                type="button"
+                className={`monitoring-metric-tab ${activeMetricTab === "lux" ? "active" : ""}`}
+                onClick={() => setActiveMetricTab("lux")}
+              >
+                Light (Lux)
+              </button>
             </div>
 
-            <div className="monitoring-chart">
-              <div className="monitoring-chart-highlight" />
-
-              <div className="monitoring-chart-tooltip">
-                <span>
-                  <Sun size={13} />
-                  14:00 WIB • DIURNAL PEAK
-                </span>
-
-                <div>
-                  <strong>
-                    <i className="tooltip-temp" />
-                    Temp: 32.5°C
-                  </strong>
-                  <strong>
-                    <i className="tooltip-humidity" />
-                    Humidity: 64%
-                  </strong>
-                  <strong>
-                    <i className="tooltip-moisture" />
-                    Moist: 68%
-                  </strong>
-                </div>
-              </div>
-
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={chartData}
-                  margin={{ top: 50, right: 12, left: 0, bottom: 4 }}
+            {/* Time Range Selector */}
+            <div className="monitoring-range-selector">
+              {(["24 Hours", "7 Days", "30 Days"] as TimeRange[]).map((range) => (
+                <button
+                  key={range}
+                  type="button"
+                  className={timeRange === range ? "selected" : ""}
+                  onClick={() => setTimeRange(range)}
                 >
+                  {range}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Chart */}
+        <div className="monitoring-chart-container">
+          {readingsLoading ? (
+            <div style={{ height: "280px", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontSize: "13px" }}>
+              Loading telemetry history...
+            </div>
+          ) : chartData.length === 0 ? (
+            <div style={{ height: "280px", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: "13px" }}>
+              No telemetry data points available for the selected period.
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              {activeMetricTab === "all" ? (
+                <AreaChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
                   <defs>
-                    <linearGradient
-                      id="monitoringTemperatureFill"
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor="#28452e"
-                        stopOpacity={0.2}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor="#28452e"
-                        stopOpacity={0.01}
-                      />
+                    <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#ea580c" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#ea580c" stopOpacity={0.01} />
                     </linearGradient>
                   </defs>
-
-                  <CartesianGrid
-                    stroke="#e1e5d9"
-                    strokeDasharray="3 4"
-                    vertical={true}
-                  />
-
-                  <XAxis
-                    dataKey="time"
-                    tick={{ fill: "#697668", fontSize: 11 }}
-                    axisLine={false}
-                    tickLine={false}
-                    dy={12}
-                  />
-
-                  <YAxis
-                    domain={[35, 85]}
-                    ticks={[35, 50, 65, 80]}
-                    tickFormatter={(value) =>
-                      `${value}% / ${Math.round(18 + ((value - 35) / 45) * 18)}°C`
-                    }
-                    tick={{ fill: "#778274", fontSize: 10 }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={58}
-                  />
-
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: 9,
-                      border: "1px solid #e0e8dc",
-                      fontSize: 11,
-                    }}
-                    labelStyle={{
-                      color: "#28452e",
-                      fontWeight: 700,
-                    }}
-                  />
-
-                  <Area
-                    type="monotone"
-                    dataKey="temperature"
-                    stroke="#203d29"
-                    strokeWidth={2.8}
-                    fill="url(#monitoringTemperatureFill)"
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="humidity"
-                    stroke="#4c75b9"
-                    strokeWidth={2.4}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="moisture"
-                    stroke="#58734b"
-                    strokeWidth={2.3}
-                    dot={false}
-                    activeDot={{ r: 4 }}
-                  />
+                  <CartesianGrid stroke="#e8ede5" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} dy={8} />
+                  <YAxis domain={["auto", "auto"]} tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #d8e4d5", fontSize: 12 }} />
+                  <Area type="monotone" dataKey="temperature" stroke="#ea580c" strokeWidth={2.4} fill="url(#tempGradient)" dot={false} activeDot={{ r: 4 }} name="Air Temp (°C)" />
+                  <Line type="monotone" dataKey="humidity" stroke="#2563eb" strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} name="Air Humidity (% RH)" />
+                  <Line type="monotone" dataKey="moisture" stroke="#16a34a" strokeWidth={2.2} dot={false} activeDot={{ r: 4 }} name="Soil Moisture (%)" />
                 </AreaChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* CHART LEGEND AND STATUS */}
-            <div className="monitoring-chart-bottom">
-              <div className="monitoring-legend">
-                <div>
-                  <span className="legend-temp" />
-                  <strong>Air Temperature (°C)</strong>
-                </div>
-
-                <div>
-                  <span className="legend-humidity" />
-                  <strong>Air Humidity (% RH)</strong>
-                </div>
-
-                <div>
-                  <span className="legend-moisture" />
-                  <strong>Soil Moisture (%)</strong>
-                </div>
-              </div>
-
-              <div className="monitoring-chart-statuses">
-                <div className="monitoring-resolution">
-                  <Radio size={14} />
-                  Rolling {timeRange === "24 Hours" ? "24-hr" : timeRange === "7 Days" ? "7-day" : "30-day"} resolution • All 4 mesh nodes broadcasting
-                </div>
-
-                <div className="monitoring-normal-status">
-                  <ShieldCheck size={15} />
-                  Abnormal readings: None detected (0 thresholds breached)
-                </div>
-              </div>
-            </div>
-          </section>
+              ) : activeMetricTab === "moisture" ? (
+                <LineChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid stroke="#e8ede5" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} dy={8} />
+                  <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #d8e4d5", fontSize: 12 }} />
+                  {soilMetric?.ideal_min && (
+                    <ReferenceLine y={soilMetric.ideal_min} stroke="#16a34a" strokeDasharray="3 3" label={{ value: `Optimal Min ${soilMetric.ideal_min}%`, fill: "#16a34a", fontSize: 11 }} />
+                  )}
+                  {soilMetric?.ideal_max && (
+                    <ReferenceLine y={soilMetric.ideal_max} stroke="#16a34a" strokeDasharray="3 3" label={{ value: `Optimal Max ${soilMetric.ideal_max}%`, fill: "#16a34a", fontSize: 11 }} />
+                  )}
+                  <Line type="monotone" dataKey="moisture" stroke="#16a34a" strokeWidth={2.8} dot={false} activeDot={{ r: 5 }} name="Soil Moisture (%)" />
+                </LineChart>
+              ) : activeMetricTab === "climate" ? (
+                <LineChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid stroke="#e8ede5" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} dy={8} />
+                  <YAxis domain={["auto", "auto"]} tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #d8e4d5", fontSize: 12 }} />
+                  <Line type="monotone" dataKey="temperature" stroke="#ea580c" strokeWidth={2.4} dot={false} activeDot={{ r: 4 }} name="Air Temp (°C)" />
+                  <Line type="monotone" dataKey="humidity" stroke="#2563eb" strokeWidth={2.4} dot={false} activeDot={{ r: 4 }} name="Air Humidity (% RH)" />
+                </LineChart>
+              ) : (
+                <LineChart data={chartData} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
+                  <CartesianGrid stroke="#e8ede5" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="time" tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} dy={8} />
+                  <YAxis domain={["auto", "auto"]} tick={{ fill: "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #d8e4d5", fontSize: 12 }} />
+                  <Line type="monotone" dataKey="lux" stroke="#ca8a04" strokeWidth={2.6} dot={false} activeDot={{ r: 4 }} name="Light Intensity (Lux)" />
+                </LineChart>
+              )}
+            </ResponsiveContainer>
+          )}
         </div>
 
-        {/* FOOTER */}
-        <footer className="monitoring-footer">
-          <span className="monitoring-footer-dots">•••</span>
-          © 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
-        </footer>
-      </main>
+        {/* CHART FOOTER & DIAGNOSTICS */}
+        <div className="monitoring-chart-footer">
+          <div className="monitoring-legend">
+            {(activeMetricTab === "all" || activeMetricTab === "climate") && (
+              <div className="monitoring-legend-item">
+                <span className="monitoring-legend-dot temp" />
+                <span>Air Temp (°C)</span>
+              </div>
+            )}
+            {(activeMetricTab === "all" || activeMetricTab === "climate") && (
+              <div className="monitoring-legend-item">
+                <span className="monitoring-legend-dot humidity" />
+                <span>Air Humidity (% RH)</span>
+              </div>
+            )}
+            {(activeMetricTab === "all" || activeMetricTab === "moisture") && (
+              <div className="monitoring-legend-item">
+                <span className="monitoring-legend-dot moisture" />
+                <span>Soil Moisture (%)</span>
+              </div>
+            )}
+            {(activeMetricTab === "all" || activeMetricTab === "lux") && (
+              <div className="monitoring-legend-item">
+                <span className="monitoring-legend-dot lux" />
+                <span>Light Intensity (Lux)</span>
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "11px", color: "#64748b" }}>
+              <Clock3 size={13} />
+              Rolling {timeRange === "24 Hours" ? "24-hr" : timeRange === "7 Days" ? "7-day" : "30-day"} window
+            </span>
+
+            <div className={`monitoring-status-banner ${abnormalCount === 0 ? "all-good" : "has-issues"}`}>
+              {abnormalCount === 0 ? (
+                <>
+                  <ShieldCheck size={14} />
+                  <span>All microclimate parameters within optimal range</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle size={14} />
+                  <span>{abnormalCount} parameter{abnormalCount > 1 ? "s" : ""} out of optimal bounds</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };

@@ -4,6 +4,7 @@ export type PlantCategoryKey = "leafy" | "fruiting_veg" | "herbs" | "fruit_potte
 
 export interface Garden {
   id: string;
+  user_id?: string;
   name: string;
   location_name: string;
   lat: number;
@@ -13,11 +14,46 @@ export interface Garden {
   created_at: string;
 }
 
+export interface GardenCreate {
+  name: string;
+  location_name: string;
+  lat: number;
+  lon: number;
+  elevation_m?: number;
+  adm4_code: string;
+}
+
+export interface GardenMember {
+  user_id: string;
+  name: string;
+  email: string | null;
+  role: string;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string | null;
+  role: string;
+}
+
+export interface UpdateProfileRequest {
+  name: string;
+  email: string;
+}
+
 export interface PlantCategory {
   id: string;
   key: PlantCategoryKey;
   name: string;
   response_timescale: "days" | "weeks";
+  threshold_profile?: ThresholdProfile;
+}
+
+export interface ZoneCreate {
+  category_key: PlantCategoryKey | string;
+  label: string;
+  plant_names?: string[];
 }
 
 export interface ThresholdProfile {
@@ -84,7 +120,14 @@ export interface ZoneStatus {
   overall_status: StatusLevel;
   latest_reading?: Reading;
   parameter_status: ParameterStatusMap;
-  latest_recommendation?: RecommendationItem;
+  latest_recommendation?: RecommendationItem | {
+    id: string;
+    zone_id?: string;
+    status_level: StatusLevel;
+    message: string;
+    reasons: string[];
+    created_at: string;
+  };
 }
 
 export interface WeatherSummary {
@@ -93,6 +136,10 @@ export interface WeatherSummary {
   temp_c: number;
   rain_probability_pct: number;
   attribution: string;
+  humidity_pct?: number;
+  wind_speed_kmh?: number;
+  icon_url?: string;
+  local_datetime?: string;
 }
 
 export interface DashboardSummary {
@@ -121,6 +168,14 @@ export interface AlertItem {
   created_at: string;
 }
 
+export interface SensorNodeItem {
+  id: string;
+  zone_id: string;
+  zone_label?: string;
+  last_seen_at: string | null;
+  status: "active" | "offline" | "maintenance" | string;
+}
+
 export interface ActuatorItem {
   id: string;
   zone_id: string;
@@ -130,7 +185,7 @@ export interface ActuatorItem {
   min_interval_minutes: number;
   last_action?: {
     command: string;
-    source: "auto" | "user";
+    source: "auto" | "user" | "human_confirmed";
     status: "pending" | "sent" | "acked" | "failed";
     executed_at: string | null;
   };

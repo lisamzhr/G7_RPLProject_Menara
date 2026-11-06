@@ -12,6 +12,7 @@ from app.core.database import Base, get_db
 from app.core.security import hash_api_key, create_access_token
 from app.main import app
 from app.models.garden import Garden
+from app.models.garden_member import GardenMember
 from app.models.plant_category import PlantCategory
 from app.models.plant_zone import PlantZone
 from app.models.sensor_node import SensorNode
@@ -75,6 +76,14 @@ def db_session():
         adm4_code="31.71.06.1001",
     )
     session.add(garden)
+    session.commit()
+
+    member = GardenMember(
+        garden_id=garden.id,
+        user_id=user.id,
+        role="owner",
+    )
+    session.add(member)
     session.commit()
 
     zone = PlantZone(

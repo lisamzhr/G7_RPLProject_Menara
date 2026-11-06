@@ -7,12 +7,41 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import verify_api_key
-from app.deps import verify_node_key
+from app.deps import get_current_user, member_zone_ids, verify_node_key
+from app.models.base import ensure_utc
 from app.models.sensor_node import SensorNode
-from app.schemas.nodes import CommandAckRequest, CommandAckResponse, NodeCommandOut
+from app.models.user import User
+from app.schemas.nodes import (
+    CommandAckRequest,
+    CommandAckResponse,
+    NodeCommandOut,
+    SensorNodeOut,
+)
 from app.services.command_service import acknowledge_command, get_pending_commands_for_node
 
 router = APIRouter()
+
+
+@router.get("", response_model=list[SensorNodeOut], summary="List all sensor nodes in user's gardens")
+def list_nodes(
+    zone_id: str | None = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(SensorNode).filter(SensorNode.zone_id.in_(member_zone_ids(current_user)))
+    if zone_id:
+        query = query.filter(SensorNode.zone_id == zone_id)
+    nodes = query.all()
+    return [
+        SensorNodeOut(
+            id=n.id,
+            zone_id=n.zone_id,
+            zone_label=n.zone.label if n.zone else None,
+            last_seen_at=ensure_utc(n.last_seen_at),
+            status=n.status,
+        )
+        for n in nodes
+    ]
 
 
 @router.get(

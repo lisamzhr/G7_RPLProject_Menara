@@ -8,9 +8,12 @@ apscheduler>=3.10.4
 httpx>=0.27.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
-psycopg2-binary>=2.9.9
+bcrypt<5.0,>=4.0
+psycopg[binary]>=3.1
 pgvector>=0.2.5
 roofgarden-ai
+passlib[bcrypt]>=1.7.4
+bcrypt<4.1,>=4.0.1
 
 [dev]
 pytest>=8.0.0

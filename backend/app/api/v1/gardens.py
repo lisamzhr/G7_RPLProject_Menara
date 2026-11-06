@@ -8,10 +8,11 @@ from app.core.database import get_db
 from app.deps import get_current_user, get_garden_for_member
 from app.models.garden import Garden
 from app.models.garden_member import GardenMember
+from app.models.plant_category import PlantCategory
 from app.models.plant_zone import PlantZone
 from app.models.user import User
 from app.schemas.gardens import AddMemberRequest, GardenCreate, GardenOut, MemberOut
-from app.schemas.zones import CategoryOut, ZoneOut
+from app.schemas.zones import CategoryOut, ThresholdProfileOut, ZoneCreate, ZoneOut
 
 router = APIRouter()
 
@@ -50,6 +51,56 @@ def create_garden(
     return garden
 
 
+@router.delete(
+    "/{id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a garden (owner only)",
+)
+def delete_garden(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    garden = get_garden_for_member(db, id, current_user, owner_only=True)
+    db.delete(garden)
+    db.commit()
+
+
+def _category_out(cat: PlantCategory) -> CategoryOut:
+    thresh = None
+    if cat.threshold_profile:
+        tp = cat.threshold_profile
+        thresh = ThresholdProfileOut(
+            id=tp.id,
+            category_id=tp.category_id,
+            moisture_min=tp.moisture_min,
+            moisture_max=tp.moisture_max,
+            temp_min=tp.temp_min,
+            temp_max=tp.temp_max,
+            humidity_min=tp.humidity_min,
+            humidity_max=tp.humidity_max,
+            lux_min=tp.lux_min,
+            lux_max=tp.lux_max,
+            source_note=tp.source_note,
+        )
+    return CategoryOut(
+        id=cat.id,
+        key=cat.key,
+        name=cat.name,
+        response_timescale=cat.response_timescale,
+        threshold_profile=thresh,
+    )
+
+
+@router.get("/categories", response_model=list[CategoryOut], summary="List all plant categories with threshold profiles")
+def list_categories(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    categories = db.query(PlantCategory).order_by(PlantCategory.name).all()
+    return [_category_out(c) for c in categories]
+
+
 @router.get("/{id}/zones", response_model=list[ZoneOut], summary="List plant zones in garden")
 def list_garden_zones(
     id: str,
@@ -58,24 +109,55 @@ def list_garden_zones(
 ):
     garden = get_garden_for_member(db, id, current_user)
     zones = db.query(PlantZone).filter(PlantZone.garden_id == garden.id).all()
-    result = []
-    for z in zones:
-        result.append(
-            ZoneOut(
-                id=z.id,
-                garden_id=z.garden_id,
-                category=CategoryOut(
-                    id=z.category.id,
-                    key=z.category.key,
-                    name=z.category.name,
-                    response_timescale=z.category.response_timescale,
-                ),
-                label=z.label,
-                plant_names=z.plant_names if isinstance(z.plant_names, list) else [],
-                created_at=z.created_at,
-            )
+    return [
+        ZoneOut(
+            id=z.id,
+            garden_id=z.garden_id,
+            category=_category_out(z.category),
+            label=z.label,
+            plant_names=z.plant_names if isinstance(z.plant_names, list) else [],
+            created_at=z.created_at,
         )
-    return result
+        for z in zones
+    ]
+
+
+@router.post(
+    "/{id}/zones",
+    response_model=ZoneOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a plant zone in garden",
+)
+def create_garden_zone(
+    id: str,
+    req: ZoneCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    garden = get_garden_for_member(db, id, current_user)
+    category = db.query(PlantCategory).filter(PlantCategory.key == req.category_key).first()
+    if not category:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plant category '{req.category_key}' not found",
+        )
+    zone = PlantZone(
+        garden_id=garden.id,
+        category_id=category.id,
+        label=req.label.strip(),
+        plant_names=req.plant_names,
+    )
+    db.add(zone)
+    db.commit()
+    db.refresh(zone)
+    return ZoneOut(
+        id=zone.id,
+        garden_id=zone.garden_id,
+        category=_category_out(zone.category),
+        label=zone.label,
+        plant_names=zone.plant_names if isinstance(zone.plant_names, list) else [],
+        created_at=zone.created_at,
+    )
 
 
 @router.get("/{id}/members", response_model=list[MemberOut], summary="List garden members")

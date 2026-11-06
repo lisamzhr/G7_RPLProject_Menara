@@ -68,8 +68,12 @@ async def get_dashboard_summary(
 
     # Weather info
     adm4 = garden.adm4_code if garden else "31.71.06.1001"
-    loc_name = garden.location_name if garden else "Jakarta Pusat"
     forecast_data = await bmkg.get_forecast(db, adm4)
+    loc_name = (
+        garden.location_name
+        if (garden and garden.location_name)
+        else forecast_data.get("location", "Jakarta Pusat")
+    )
 
     # Top recommendations
     recs = (
@@ -102,6 +106,10 @@ async def get_dashboard_summary(
             temp_c=forecast_data.get("temp_c", 30.0),
             rain_probability_pct=forecast_data.get("rain_probability_pct", 30.0),
             attribution=forecast_data.get("attribution", "BMKG"),
+            humidity_pct=forecast_data.get("humidity_pct"),
+            wind_speed_kmh=forecast_data.get("wind_speed_kmh"),
+            icon_url=forecast_data.get("icon_url"),
+            local_datetime=forecast_data.get("local_datetime"),
         ),
         top_recommendations=top_recs,
     )

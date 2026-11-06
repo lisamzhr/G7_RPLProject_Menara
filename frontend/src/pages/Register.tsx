@@ -106,10 +106,6 @@ export const Register = () => {
             <ArrowLeft size={12} />
             Back to Home
           </Link>
-
-          <div className="register-profile-icon">
-            <UserRound size={13} />
-          </div>
         </div>
       </header>
 
@@ -157,7 +153,6 @@ export const Register = () => {
               <div className="register-field">
                 <div className="register-label-row">
                   <label htmlFor="fullName">Full Name</label>
-                  <span>Required</span>
                 </div>
 
                 <div className="register-input-wrapper">
@@ -179,7 +174,6 @@ export const Register = () => {
               <div className="register-field">
                 <div className="register-label-row">
                   <label htmlFor="email">Email Address</label>
-                  <span>Required</span>
                 </div>
 
                 <div className="register-input-wrapper">
@@ -201,7 +195,6 @@ export const Register = () => {
               <div className="register-field">
                 <div className="register-label-row">
                   <label htmlFor="password">Password</label>
-                  <span>Required</span>
                 </div>
 
                 <div className="register-input-wrapper">
@@ -242,7 +235,6 @@ export const Register = () => {
                   <label htmlFor="confirmPassword">
                     Confirm Password
                   </label>
-                  <span>Required</span>
                 </div>
 
                 <div className="register-input-wrapper">

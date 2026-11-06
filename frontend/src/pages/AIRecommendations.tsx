@@ -1,393 +1,336 @@
-import { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  LayoutDashboard,
-  Sprout,
-  Activity,
-  Brain,
-  SlidersHorizontal,
-  Settings,
-  Radio,
-  UserRound,
-  MoreVertical,
-  RefreshCw,
-  Clock,
-  CloudRain,
-  Droplet,
-  Sun,
-  Leaf,
+  Sparkles,
+  AlertTriangle,
   CheckCircle2,
-  Building2,
-  CalendarCheck,
+  Clock,
   Info,
+  Check,
 } from "lucide-react";
-
-import { NavLink } from "react-router-dom";
+import { useGarden } from "../context/GardenContext";
+import { api } from "../api/client";
+import { formatDateTime } from "../lib/format";
+import type { AlertItem, RecommendationItem } from "../types";
 import "../styles/ai-recommendations.css";
 
-type Recommendation = {
-  id: number;
-  category: string;
-  title: string;
-  priority: "High Priority" | "Medium Priority" | "Advisory";
-  priorityType: "high" | "medium" | "advisory";
-  icon: typeof Droplet;
-  iconType: string;
-  metrics: {
-    icon: typeof Droplet;
-    text: string;
-  }[];
-  observation: string;
-  action: string;
-  primaryButton: string;
-  secondaryButton: string;
-  primaryIcon: typeof CheckCircle2;
-};
+export const AIRecommendations: React.FC = () => {
+  const {
+    zones,
+    selectedZone,
+    setSelectedZone,
+  } = useGarden();
 
-const navigation = [
-  { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
-  { label: "Garden Profile", path: "/garden-profile", icon: Sprout },
-  {
-    label: "Environmental Monitoring",
-    path: "/monitoring",
-    icon: Activity,
-  },
-  {
-    label: "AI Recommendations",
-    path: "/recommendations",
-    icon: Brain,
-    tag: "AI",
-  },
-  {
-    label: "Device Control",
-    path: "/devices",
-    icon: SlidersHorizontal,
-  },
-  { label: "Settings", path: "/settings", icon: Settings },
-];
+  const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [alertFilter, setAlertFilter] = useState<"active" | "all">("active");
+  const [loading, setLoading] = useState(false);
+  const [evaluating, setEvaluating] = useState(false);
+  const [statusNotice, setStatusNotice] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-const initialRecommendations: Recommendation[] = [
-  {
-    id: 1,
-    category: "IRRIGATION CONTROL",
-    title: "Delay Afternoon Misting",
-    priority: "High Priority",
-    priorityType: "high",
-    icon: Droplet,
-    iconType: "irrigation",
-    metrics: [
-      { icon: CloudRain, text: "BMKG: 16:00 Rain (65%)" },
-      { icon: Droplet, text: "Soil Moisture: 71%" },
-    ],
-    observation:
-      "Convective rain forecasted for 16:00 combined with 71% soil moisture indicates adequate root moisture. Postponing cycle prevents root waterlogging and fungal pathogen development.",
-    action:
-      "Postpone scheduled 15:30 misting cycle by 3 hours until substrate evaporation rate is re-evaluated.",
-    primaryButton: "Postpone Misting",
-    secondaryButton: "Dismiss",
-    primaryIcon: CheckCircle2,
-  },
-  {
-    id: 2,
-    category: "CLIMATE ADAPTATION",
-    title: "Deploy Canopy Shade Cloth",
-    priority: "Medium Priority",
-    priorityType: "medium",
-    icon: Sun,
-    iconType: "climate",
-    metrics: [
-      { icon: Sun, text: "BH1750: 42,500 lux (Peak)" },
-      { icon: Leaf, text: "Zone: Bok Choy Sector 2B" },
-    ],
-    observation:
-      "Ambient solar radiation exceeds 40,000 lux during mid-day peak (14:00 WIB). Deploying shade netting mitigates tip-burn and solar leaf scorch across young brassica varieties.",
-    action:
-      "Extend motorized overhead shade cloth to 60% coverage until ambient intensity drops below 35,000 lux (approx. 15:30 WIB).",
-    primaryButton: "Deploy Shade Cloth",
-    secondaryButton: "Adjust Coverage",
-    primaryIcon: Building2,
-  },
-  {
-    id: 3,
-    category: "HARVEST TIMING",
-    title: "Optimal Harvest Microclimate",
-    priority: "Advisory",
-    priorityType: "advisory",
-    icon: Leaf,
-    iconType: "harvest",
-    metrics: [
-      { icon: Activity, text: "Temp: 31.2°C" },
-      { icon: Clock, text: "Stage: Mature (Day 28)" },
-    ],
-    observation:
-      "Stomatal conductance and leaf water content are in optimal equilibrium. Harvesting tomorrow between 06:30–08:30 WIB will preserve peak turgor pressure and crispness.",
-    action:
-      "Queue Water Spinach Sector B on the morning harvest roster and alert field crew lead.",
-    primaryButton: "Add to Schedule",
-    secondaryButton: "Review Bed",
-    primaryIcon: CalendarCheck,
-  },
-];
+  const zoneMap = new Map(zones.map((z) => [z.id, z.label]));
 
-export const AIRecommendations = () => {
-  const [recommendations, setRecommendations] = useState(
-    initialRecommendations
-  );
-  const [notice, setNotice] = useState(
-    "Automated suggestions synthesize sensor data and BMKG predictive radar models. Verify physical field conditions before triggering major automated adjustments."
-  );
-  const [lastAction, setLastAction] = useState("");
+  // Load advisories (recommendations & alerts)
+  const loadAdvisories = useCallback(async () => {
+    try {
+      setLoading(true);
+      const zoneId = selectedZone?.id;
+      const [recsData, alertsData] = await Promise.all([
+        api.getRecommendations(zoneId),
+        api.getAlerts({
+          zoneId,
+          status: alertFilter === "active" ? "active" : undefined,
+        }),
+      ]);
+      setRecommendations(recsData);
+      setAlerts(alertsData);
+    } catch (err) {
+      console.error("Failed to load recommendations/alerts:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedZone, alertFilter]);
 
-  const handleDismiss = (id: number) => {
-    setRecommendations((current) =>
-      current.filter((recommendation) => recommendation.id !== id)
-    );
-    setNotice("Recommendation dismissed. You can review other active advisories.");
-  };
+  useEffect(() => {
+    loadAdvisories();
+  }, [loadAdvisories]);
 
-  const handlePrimaryAction = (recommendation: Recommendation) => {
-    setLastAction(recommendation.primaryButton);
+  // Handle Run AI Evaluation
+  const handleRunEvaluation = async () => {
+    setEvaluating(true);
+    setErrorMessage("");
+    setStatusNotice("");
 
-    if (recommendation.id === 1) {
-      setNotice("Misting cycle postponed by 3 hours (demo action).");
-    } else if (recommendation.id === 2) {
-      setNotice("Shade cloth deployment requested (demo action).");
-    } else {
-      setNotice("Harvest recommendation added to the schedule (demo action).");
+    try {
+      if (selectedZone) {
+        // Evaluate single selected zone
+        await api.evaluateZone(selectedZone.id);
+        setStatusNotice(`AI microclimate evaluation completed for ${selectedZone.label}.`);
+      } else if (zones.length > 0) {
+        // Evaluate all zones in garden with Promise.allSettled
+        const results = await Promise.allSettled(
+          zones.map((z) => api.evaluateZone(z.id))
+        );
+        const fulfilled = results.filter((r) => r.status === "fulfilled").length;
+        const cooldown = results.filter(
+          (r) => r.status === "rejected" && String(r.reason).includes("429")
+        ).length;
+
+        if (fulfilled > 0) {
+          setStatusNotice(
+            `Evaluated ${fulfilled} zone${fulfilled > 1 ? "s" : ""}.${
+              cooldown > 0 ? ` (${cooldown} zone${cooldown > 1 ? "s" : ""} in 60s cooldown)` : ""
+            }`
+          );
+        } else if (cooldown > 0) {
+          setStatusNotice("Zones were recently evaluated and are in active 60s cooldown.");
+        }
+      } else {
+        setErrorMessage("No plant zones available to evaluate.");
+      }
+      await loadAdvisories();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to run AI evaluation."
+      );
+    } finally {
+      setEvaluating(false);
     }
   };
 
-  const handleSecondaryAction = (recommendation: Recommendation) => {
-    setLastAction(recommendation.secondaryButton);
-    setNotice(
-      `${recommendation.secondaryButton} selected for "${recommendation.title}" (demo action).`
-    );
+  // Confirm Alert
+  const handleConfirmAlert = async (alertId: string) => {
+    try {
+      await api.confirmAlert(alertId, "Confirmed by user on AI Recommendations page");
+      setStatusNotice("Alert confirmed. Automated microclimate action queued.");
+      await loadAdvisories();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to confirm alert.");
+    }
+  };
+
+  // Override / Dismiss Alert
+  const handleOverrideAlert = async (alertId: string) => {
+    try {
+      await api.overrideAlert(alertId, "Overridden by user on AI Recommendations page");
+      setStatusNotice("Alert overridden and marked resolved.");
+      await loadAdvisories();
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Failed to override alert.");
+    }
   };
 
   return (
-    <div className="ai-recommendations-page">
-      
-    {/* SIDEBAR */}
-    <aside className="ai-sidebar">
-      <div className="ai-brand">
-        <div className="ai-brand-logo">
-          <img src="/LogoMenara.png" alt="MENARA Logo" />
+    <div className="ai-container">
+      {/* PAGE HEADER */}
+      <div className="page-header">
+        <div>
+          <h1>AI Recommendations &amp; Alerts</h1>
+          <p>
+            Autonomous agronomical care advisories synthesized from real-time microclimate sensors, botanical threshold models, and BMKG predictive forecasts.
+          </p>
         </div>
 
-        <div className="ai-brand-text">
-          <h2>
-            MENARA <span />
-          </h2>
-          <p>ROOFTOP AGRITECH</p>
-        </div>
+        <button
+          type="button"
+          className="app-btn-primary"
+          onClick={handleRunEvaluation}
+          disabled={evaluating || zones.length === 0}
+        >
+          <Sparkles size={16} />
+          <span>{evaluating ? "Evaluating..." : selectedZone ? `Evaluate ${selectedZone.label}` : "Run AI Evaluation (All Zones)"}</span>
+        </button>
       </div>
 
-      <nav className="ai-navigation">
-        {navigation.map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `ai-nav-item ${isActive ? "active" : ""}`
-              }
-            >
-              <Icon size={21} strokeWidth={2.2} />
-
-              <span>{item.label}</span>
-
-              {item.tag && (
-                <span className="ai-nav-tag">{item.tag}</span>
-              )}
-
-              {item.path === "/recommendations" && (
-                <span className="ai-nav-indicator" />
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
-
-      <div className="ai-sidebar-bottom">
-        <div className="ai-online-status">
-          <span />
-          <span>Online • Node Mesh</span>
-          <Radio size={17} />
+      {/* STATUS & ERROR BANNERS */}
+      {statusNotice && (
+        <div style={{ padding: "10px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", borderRadius: "8px", fontSize: "13px" }}>
+          {statusNotice}
         </div>
+      )}
+      {errorMessage && (
+        <div style={{ padding: "10px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: "8px", fontSize: "13px" }}>
+          {errorMessage}
+        </div>
+      )}
 
-        <div className="ai-user-profile">
-          <div className="ai-user-avatar">
-            <UserRound size={22} />
-          </div>
-
-          <div className="ai-user-info">
-            <strong>Dr. Ezzedine Ruzash</strong>
-            <span>Lead Agronomist</span>
-          </div>
-
+      {/* CONTROLS STRIP (ZONE CHIPS & STATS) */}
+      <div className="ai-controls-strip">
+        <div className="zone-chips" style={{ margin: 0 }}>
           <button
-            className="ai-more-button"
-            aria-label="More options"
+            type="button"
+            className={`zone-chip ${selectedZone === null ? "active" : ""}`}
+            onClick={() => setSelectedZone(null)}
           >
-            <MoreVertical size={20} />
+            All Plant Zones
           </button>
+          {zones.map((zone) => (
+            <button
+              key={zone.id}
+              type="button"
+              className={`zone-chip ${selectedZone?.id === zone.id ? "active" : ""}`}
+              onClick={() => setSelectedZone(zone)}
+            >
+              {zone.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "12px", color: "#64748b" }}>
+            {alerts.length} Alert{alerts.length === 1 ? "" : "s"} • {recommendations.length} Recommendation{recommendations.length === 1 ? "" : "s"}
+          </span>
         </div>
       </div>
-    </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="ai-main">
-        <div className="ai-content">
-          {/* TOP BAR */}
-          <div className="ai-topbar">
-            <div className="ai-location-pill">
-              <Building2 size={16} />
-              <strong>Kebun Atap Menteng</strong>
-              <span>/ Rooftop Block B (Zone 2B)</span>
-            </div>
+      {/* ACTIVE ALERTS REQUIRING ATTENTION */}
+      {alerts.length > 0 && (
+        <section className="ai-alerts-section">
+          <div className="ai-alerts-header">
+            <h2>
+              <AlertTriangle size={18} />
+              <span>Microclimate Alerts Requiring Action ({alerts.length})</span>
+            </h2>
 
-            <div className="ai-sync-pill">
-              <RefreshCw size={12} />
-              Synced 2m ago
-            </div>
-
-            <div className="ai-evaluation">
-              <Clock size={14} />
-              <span>Evaluation cycle: Every 15 min</span>
-              <i />
-              <strong>{recommendations.length} Active Advisories</strong>
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                type="button"
+                className={`app-btn-secondary ${alertFilter === "active" ? "active" : ""}`}
+                style={{ padding: "4px 10px", fontSize: "11px", height: "auto" }}
+                onClick={() => setAlertFilter("active")}
+              >
+                Active Only
+              </button>
+              <button
+                type="button"
+                className={`app-btn-secondary ${alertFilter === "all" ? "active" : ""}`}
+                style={{ padding: "4px 10px", fontSize: "11px", height: "auto" }}
+                onClick={() => setAlertFilter("all")}
+              >
+                Include Resolved
+              </button>
             </div>
           </div>
 
-          {/* HEADING */}
-          <header className="ai-page-heading">
-            <h1>AI Recommendations</h1>
-            <p>
-              Real-time automated agronomical care interventions synthesized
-              from live microclimate telemetry, sensor nodes, and BMKG
-              predictive data.
-            </p>
-          </header>
-
-          {/* RECOMMENDATION CARDS */}
-          <section className="ai-recommendation-grid">
-            {recommendations.map((recommendation) => {
-              const Icon = recommendation.icon;
-              const PrimaryIcon = recommendation.primaryIcon;
+          <div className="ai-alerts-grid">
+            {alerts.map((alert) => {
+              const zoneLabel = alert.zone_label || zoneMap.get(alert.zone_id) || "Zone Alert";
+              const isResolved = alert.resolved_at !== null;
 
               return (
-                <article
-                  className="ai-recommendation-card"
-                  key={recommendation.id}
-                >
-                  {/* CARD HEADER */}
-                  <div className="ai-card-heading">
-                    <div className={`ai-card-icon ${recommendation.iconType}`}>
-                      <Icon size={21} />
-                    </div>
+                <article key={alert.id} className="ai-alert-card">
+                  <div className="ai-alert-top">
+                    <span className="ai-alert-type">{alert.type}</span>
+                    <span className="ai-alert-time">{formatDateTime(alert.created_at)}</span>
+                  </div>
 
-                    <div className="ai-card-title">
-                      <span className={`ai-category ${recommendation.iconType}`}>
-                        {recommendation.category}
-                      </span>
-                      <h2>{recommendation.title}</h2>
-                    </div>
+                  <strong>{zoneLabel}</strong>
+                  <p>{alert.message}</p>
 
-                    <span
-                      className={`ai-priority ${recommendation.priorityType}`}
-                    >
-                      <i />
-                      {recommendation.priority}
+                  {!isResolved ? (
+                    <div className="ai-alert-actions">
+                      <button
+                        type="button"
+                        className="ai-btn-confirm"
+                        onClick={() => handleConfirmAlert(alert.id)}
+                      >
+                        <Check size={14} />
+                        <span>Confirm &amp; Run Action</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="ai-btn-override"
+                        onClick={() => handleOverrideAlert(alert.id)}
+                      >
+                        <span>Dismiss / Override</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "11.5px", color: "#166534", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                      <CheckCircle2 size={13} />
+                      <span>Resolved</span>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* RECOMMENDATIONS SECTION */}
+      <section className="ai-rec-section">
+        <div className="ai-rec-header">
+          <h2>Synthesized Agronomical Recommendations</h2>
+          <span style={{ fontSize: "12px", color: "#64748b" }}>
+            Showing {recommendations.length} {recommendations.length === 1 ? "advisory" : "advisories"}
+          </span>
+        </div>
+
+        {recommendations.length === 0 && alerts.length === 0 && !loading ? (
+          <div className="ai-empty-state">
+            <CheckCircle2 size={40} />
+            <h3>All Microclimates Optimal</h3>
+            <p>
+              Telemetry across all active plant zones complies with botanical thresholds. No automated interventions required.
+            </p>
+            <button
+              type="button"
+              className="app-btn-primary"
+              style={{ margin: "0 auto" }}
+              onClick={handleRunEvaluation}
+              disabled={evaluating}
+            >
+              <Sparkles size={15} />
+              <span>{evaluating ? "Evaluating..." : "Run AI Evaluation Now"}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="ai-rec-grid">
+            {recommendations.map((rec) => {
+              const zoneLabel = zoneMap.get(rec.zone_id) || "Plant Zone";
+              const priorityClass =
+                rec.status_level === "warning"
+                  ? "warning"
+                  : rec.status_level === "advisory"
+                  ? "advisory"
+                  : "optimal";
+
+              return (
+                <article key={rec.id} className="ai-rec-card">
+                  <div className="ai-rec-card-top">
+                    <span className="ai-rec-zone-badge">{zoneLabel}</span>
+                    <span className={`ai-priority-badge ${priorityClass}`}>
+                      {rec.status_level}
                     </span>
                   </div>
 
-                  {/* SENSOR METRICS */}
-                  <div className="ai-card-metrics">
-                    {recommendation.metrics.map((metric, index) => {
-                      const MetricIcon = metric.icon;
+                  <p className="ai-rec-message">{rec.message}</p>
 
-                      return (
-                        <div className="ai-metric-pill" key={index}>
-                          <MetricIcon size={13} />
-                          <span>{metric.text}</span>
+                  {/* Diagnostic Trigger Reasons */}
+                  {rec.reasons && rec.reasons.length > 0 && (
+                    <div className="ai-reasons-container">
+                      {rec.reasons.map((reason, idx) => (
+                        <div key={idx} className="ai-reason-pill">
+                          <Info size={13} color="#2b4f35" style={{ flexShrink: 0, marginTop: "2px" }} />
+                          <span>{reason}</span>
                         </div>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
-                  {/* OBSERVATION */}
-                  <div className="ai-information-box">
-                    <h3>OBSERVATION REASON</h3>
-                    <p>{recommendation.observation}</p>
-                  </div>
-
-                  {/* PRESCRIBED ACTION */}
-                  <div className="ai-action-box">
-                    <h3>PRESCRIBED ACTION</h3>
-                    <p>{recommendation.action}</p>
-                  </div>
-
-                  {/* BUTTONS */}
-                  <div className="ai-card-actions">
-                    <button
-                      className="ai-primary-button"
-                      onClick={() => handlePrimaryAction(recommendation)}
-                    >
-                      <PrimaryIcon size={15} />
-                      {recommendation.primaryButton}
-                    </button>
-
-                    <button
-                      className="ai-secondary-button"
-                      onClick={() =>
-                        recommendation.id === 1
-                          ? handleDismiss(recommendation.id)
-                          : handleSecondaryAction(recommendation)
-                      }
-                    >
-                      {recommendation.secondaryButton}
-                    </button>
+                  <div className="ai-rec-footer">
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                      <Clock size={12} />
+                      Evaluated: {formatDateTime(rec.created_at)}
+                    </span>
                   </div>
                 </article>
               );
             })}
-          </section>
-
-          {/* EMPTY STATE */}
-          {recommendations.length === 0 && (
-            <div className="ai-empty-state">
-              <CheckCircle2 size={34} />
-              <h2>All recommendations reviewed</h2>
-              <p>There are currently no active recommendations to display.</p>
-              <button
-                onClick={() => setRecommendations(initialRecommendations)}
-              >
-                Restore Demo Recommendations
-              </button>
-            </div>
-          )}
-
-          {/* NOTICE */}
-          <div className="ai-notice">
-            <Info size={17} />
-            <p>
-              <strong>Notice:</strong> {notice}
-              {lastAction && (
-                <span className="ai-last-action">
-                  {" "}Last action: {lastAction}.
-                </span>
-              )}
-            </p>
           </div>
-        </div>
-
-        {/* FOOTER */}
-        <footer className="ai-footer">
-          <span className="ai-footer-dots">•••</span>
-          © 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
-        </footer>
-      </main>
+        )}
+      </section>
     </div>
   );
 };

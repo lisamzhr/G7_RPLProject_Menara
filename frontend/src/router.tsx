@@ -5,11 +5,13 @@ import {
   useLocation,
 } from "react-router-dom";
 
+import { Layout } from "./components/layout/Layout";
+import { GardenProvider } from "./context/GardenContext";
 import { Dashboard } from "./pages/Dashboard";
 import { GardenProfile } from "./pages/GardenProfile";
 import { EnvironmentalMonitoring } from "./pages/EnvironmentalMonitoring";
 import { AIRecommendations } from "./pages/AIRecommendations";
-import { Devices } from "./pages/Devices";
+import { Actuators } from "./pages/Actuators";
 import { Settings } from "./pages/Settings";
 
 import { Login } from "./pages/Login";
@@ -50,51 +52,46 @@ export const router = createBrowserRouter([
     element: <Register />,
   },
   {
-    path: "/dashboard",
     element: (
       <RequireAuth>
-        <Dashboard />
+        <GardenProvider>
+          <Layout />
+        </GardenProvider>
       </RequireAuth>
     ),
+    children: [
+      {
+        path: "/dashboard",
+        element: <Dashboard />,
+      },
+      {
+        path: "/garden-profile",
+        element: <GardenProfile />,
+      },
+      {
+        path: "/monitoring",
+        element: <EnvironmentalMonitoring />,
+      },
+      {
+        path: "/recommendations",
+        element: <AIRecommendations />,
+      },
+      {
+        path: "/actuators",
+        element: <Actuators />,
+      },
+      {
+        path: "/devices",
+        element: <Navigate to="/actuators" replace />,
+      },
+      {
+        path: "/settings",
+        element: <Settings />,
+      },
+    ],
   },
   {
-    path: "/garden-profile",
-    element: (
-      <RequireAuth>
-        <GardenProfile />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/monitoring",
-    element: (
-      <RequireAuth>
-        <EnvironmentalMonitoring />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/recommendations",
-    element: (
-      <RequireAuth>
-        <AIRecommendations />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/devices",
-    element: (
-      <RequireAuth>
-        <Devices />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: "/settings",
-    element: (
-      <RequireAuth>
-        <Settings />
-      </RequireAuth>
-    ),
+    path: "*",
+    element: <Navigate to="/dashboard" replace />,
   },
 ]);

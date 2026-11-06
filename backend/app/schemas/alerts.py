@@ -11,6 +11,7 @@ class AlertOut(BaseModel):
 
     id: str
     zone_id: str
+    zone_label: str | None = None
     level: str
     type: str
     message: str
@@ -34,6 +35,13 @@ class RecommendationOut(BaseModel):
     created_at: datetime
 
 
+class ActuatorLastActionOut(BaseModel):
+    command: str
+    source: str
+    status: str
+    executed_at: datetime | None = None
+
+
 class ActuatorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -43,6 +51,7 @@ class ActuatorOut(BaseModel):
     driver: str
     max_on_seconds: int
     min_interval_minutes: int
+    last_action: ActuatorLastActionOut | None = None
 
 
 class ActuatorCommandRequest(BaseModel):

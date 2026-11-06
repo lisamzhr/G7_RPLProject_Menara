@@ -11,6 +11,7 @@ class SensorNodeOut(BaseModel):
 
     id: str
     zone_id: str
+    zone_label: str | None = None
     last_seen_at: datetime | None = None
     status: str
 
