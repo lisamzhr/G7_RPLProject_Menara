@@ -19,9 +19,19 @@ async def lifespan(app: FastAPI):
     setup_logging()
     logger.info("Starting RoofGarden Backend application...")
     # Create DB tables if not present (useful for local development & SQLite)
-    Base.metadata.create_all(bind=engine)
-    if engine.dialect.name == "sqlite":
-        with engine.begin() as conn:
+    import app.core.database as _db
+    active_engine = _db.engine or engine
+    Base.metadata.create_all(bind=active_engine)
+    if active_engine.dialect.name == "postgresql":
+        with active_engine.begin() as conn:
+            try:
+                conn.exec_driver_sql("ALTER TABLE sensor_nodes ADD COLUMN IF NOT EXISTS mac_address VARCHAR(17) UNIQUE;")
+                conn.exec_driver_sql("ALTER TABLE sensor_nodes ADD COLUMN IF NOT EXISTS name VARCHAR(100);")
+                conn.exec_driver_sql("ALTER TABLE sensor_nodes ALTER COLUMN api_key_hash DROP NOT NULL;")
+            except Exception as exc:
+                logger.warning("Could not execute automated column migration: %s", exc)
+    if active_engine.dialect.name == "sqlite":
+        with active_engine.begin() as conn:
             conn.exec_driver_sql("""
             CREATE VIEW IF NOT EXISTS readings_hourly AS
             SELECT

@@ -1,5 +1,6 @@
 """Test configuration and fixtures using in-memory SQLite with StaticPool."""
 
+import os
 from datetime import UTC, datetime
 
 import pytest
@@ -8,6 +9,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import app.core.database as core_db
+import app.core.config as core_config
 from app.core.database import Base, get_db
 from app.core.security import hash_api_key, create_access_token
 from app.main import app
@@ -25,6 +28,11 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
+core_db.engine = engine
+app.engine = engine
+import app.main as app_main
+app_main.engine = engine
+core_config.settings.DATABASE_URL = "sqlite:///:memory:"
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

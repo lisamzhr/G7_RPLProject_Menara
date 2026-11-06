@@ -63,12 +63,33 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
     latest = None
     recent_moistures = []
     if node_ids:
-        latest = (
-            db.query(SensorReading)
-            .filter(SensorReading.node_id.in_(node_ids))
-            .order_by(desc(SensorReading.ts))
-            .first()
-        )
+        node_readings = []
+        for nid in node_ids:
+            r = (
+                db.query(SensorReading)
+                .filter(SensorReading.node_id == nid)
+                .order_by(desc(SensorReading.ts))
+                .first()
+            )
+            if r:
+                node_readings.append(r)
+
+        if node_readings:
+            current_moisture = sum(r.soil_moisture_pct for r in node_readings) / len(node_readings)
+            current_temp = sum(r.temperature_c for r in node_readings) / len(node_readings)
+            current_humidity = sum(r.humidity_pct for r in node_readings) / len(node_readings)
+            current_lux = sum(r.lux for r in node_readings) / len(node_readings)
+            is_valid = all(r.is_valid for r in node_readings)
+            latest_ts = max(ensure_utc(r.ts) for r in node_readings)
+            reading_age = (datetime.now(UTC) - latest_ts).total_seconds()
+        else:
+            current_moisture = 70.0
+            current_temp = 26.0
+            current_humidity = 70.0
+            current_lux = 20000.0
+            is_valid = True
+            reading_age = 0.0
+
         recent_rows = (
             db.query(SensorReading.soil_moisture_pct)
             .filter(SensorReading.node_id.in_(node_ids), SensorReading.is_valid.is_(True))
@@ -77,17 +98,13 @@ def run_evaluation_for_zone(db: Session, zone: PlantZone, rain_chance: float = 2
             .all()
         )
         recent_moistures = [r[0] for r in reversed(recent_rows)]
-
-    current_moisture = latest.soil_moisture_pct if latest else 70.0
-    current_temp = latest.temperature_c if latest else 26.0
-    current_humidity = latest.humidity_pct if latest else 70.0
-    current_lux = latest.lux if latest else 20000.0
-    is_valid = latest.is_valid if latest else True
-
-    reading_age = 0.0
-    if latest and latest.ts:
-        latest_ts = ensure_utc(latest.ts)
-        reading_age = (datetime.now(UTC) - latest_ts).total_seconds()
+    else:
+        current_moisture = 70.0
+        current_temp = 26.0
+        current_humidity = 70.0
+        current_lux = 20000.0
+        is_valid = True
+        reading_age = 0.0
 
     # Query actuator history for autonomy safety gate
     last_watered_min = None

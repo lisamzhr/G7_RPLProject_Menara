@@ -2,7 +2,7 @@
 
 Base URL: `/api/v1`
 
-All authenticated endpoints require an `Authorization: Bearer <jwt_token>` header unless explicitly noted. Hardware ingestion endpoints authenticate using the `X-Node-Key: <node_api_key>` header.
+All authenticated endpoints require an `Authorization: Bearer <jwt_token>` header unless explicitly noted. Hardware ingestion and polling endpoints authenticate using either the `X-Node-MAC: <mac_address>` header (recommended, dynamically registered per plant zone via the web dashboard) or legacy `X-Node-Key: <node_api_key>`. Unregistered MAC addresses are strictly rejected with `401 Unauthorized` (auto-discovery is disabled).
 
 ---
 
@@ -128,11 +128,12 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 - **Method / Path**: `POST /api/v1/ingest/readings`
 - **Headers**:
   - `Content-Type: application/json`
-  - `X-Node-Key: <node_api_key>` (required)
+  - `X-Node-MAC: <mac_address>` (recommended for registered ESP32 nodes) OR `X-Node-Key: <node_api_key>`
 - **Request Body**:
 ```json
 {
   "node_id": "esp32-node-01",
+  "mac_address": "24:6F:28:01:00:01",
   "ts": "2026-11-06T15:30:00Z",
   "soil_moisture_pct": 68.5,
   "temperature_c": 28.2,
@@ -142,7 +143,7 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
   "is_valid": true
 }
 ```
-*Note: `ts` is optional (defaults to server UTC time if omitted or unsynced < year 2000). Out-of-bounds metrics are flagged `is_valid: false`.*
+*Note: `mac_address` can be provided in header (`X-Node-MAC`) or body. When `X-Node-MAC` or `mac_address` is provided, `node_id` is optional. `ts` is optional (defaults to server UTC time if omitted or unsynced < year 2000). Out-of-bounds metrics are flagged `is_valid: false`.*
 - **Response `201 Created`**:
 ```json
 {
@@ -154,14 +155,15 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 }
 ```
 - **Error Responses**:
-  - `401 Unauthorized`: Missing or invalid `X-Node-Key`.
+  - `401 Unauthorized`: Missing authentication, invalid API key, or unregistered MAC address (auto-discovery disabled).
 
 ---
 
 ### 2.2 Poll Pending Actuator Commands (Node Polling)
 - **Method / Path**: `GET /api/v1/nodes/{id}/commands`
+- **Path Parameter**: `{id}` can be either the sensor node UUID/identifier or its hardware MAC address.
 - **Headers**:
-  - `X-Node-Key: <node_api_key>`
+  - `X-Node-MAC: <mac_address>` OR `X-Node-Key: <node_api_key>`
 - **Response `200 OK`**:
 ```json
 [
@@ -179,8 +181,9 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 
 ### 2.3 Acknowledge Command Execution
 - **Method / Path**: `POST /api/v1/nodes/{id}/commands/{cid}/ack`
+- **Path Parameter**: `{id}` can be either the sensor node UUID/identifier or its hardware MAC address.
 - **Headers**:
-  - `X-Node-Key: <node_api_key>`
+  - `X-Node-MAC: <mac_address>` OR `X-Node-Key: <node_api_key>`
 - **Request Body**:
 ```json
 {
@@ -349,7 +352,8 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
     },
     "label": "Zone A - Hydroponic Greens",
     "plant_names": ["Bok Choy", "Spinach", "Kale"],
-    "created_at": "2026-10-01T08:30:00Z"
+    "created_at": "2026-10-01T08:30:00Z",
+    "sensor_node_count": 2
   }
 ]
 ```
@@ -480,18 +484,85 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 [
   {
     "id": "esp32-node-01",
+    "mac_address": "24:6F:28:01:00:01",
     "name": "Zone A ESP32 Node",
     "zone_id": "e2f89c4d-6b5e-4c7b-9f21-728b9c1d3e4f",
     "status": "online",
     "last_seen_at": "2026-11-06T15:30:00Z",
-    "battery_v": 3.95
+    "battery_v": 3.95,
+    "created_at": "2026-11-06T10:00:00Z"
   }
 ]
 ```
 
 ---
 
-### 4.2 List Actuators
+### 4.2 Register Sensor Node to Zone (Dynamic MAC Registration)
+- **Method / Path**: `POST /api/v1/zones/{id}/nodes`
+- **Auth**: Bearer JWT (Garden owner/member)
+- **Request Body**:
+```json
+{
+  "mac_address": "24:6F:28:01:00:01",
+  "name": "Tomato Bed ESP32"
+}
+```
+- **Response `201 Created`**:
+```json
+{
+  "id": "24:6F:28:01:00:01",
+  "mac_address": "24:6F:28:01:00:01",
+  "name": "Tomato Bed ESP32",
+  "zone_id": "e2f89c4d-6b5e-4c7b-9f21-728b9c1d3e4f",
+  "status": "active",
+  "last_seen_at": null,
+  "battery_v": null,
+  "created_at": "2026-11-06T15:35:00Z"
+}
+```
+- **Error Responses**:
+  - `400 Bad Request`: Invalid MAC address format (must be 6 pairs of hex digits separated by `:` or `-`).
+  - `404 Not Found`: Plant zone does not exist or user lacks access.
+  - `409 Conflict`: MAC address is already registered to another plant zone.
+
+---
+
+### 4.3 Get Sensor Node by ID or MAC
+- **Method / Path**: `GET /api/v1/nodes/{id}`
+- **Path Parameter**: `{id}` can be sensor node identifier or MAC address.
+- **Auth**: Bearer JWT
+- **Response `200 OK`**: Single `SensorNodeOut` object.
+- **Error Responses**:
+  - `404 Not Found`: Node does not exist or user lacks access to the parent garden.
+
+---
+
+### 4.4 Update Sensor Node Metadata
+- **Method / Path**: `PATCH /api/v1/nodes/{id}`
+- **Path Parameter**: `{id}` can be sensor node identifier or MAC address.
+- **Auth**: Bearer JWT (Garden owner/member)
+- **Request Body**:
+```json
+{
+  "name": "Updated ESP32 Name",
+  "zone_id": "b1c2d3e4-5f6a-7b8c-9d0e-1f2a3b4c5d6e"
+}
+```
+- **Response `200 OK`**: Updated `SensorNodeOut` object.
+
+---
+
+### 4.5 Unregister / Delete Sensor Node
+- **Method / Path**: `DELETE /api/v1/nodes/{id}`
+- **Path Parameter**: `{id}` can be sensor node identifier or MAC address.
+- **Auth**: Bearer JWT (Garden owner/member)
+- **Response `204 No Content`**
+- **Error Responses**:
+  - `404 Not Found`: Node does not exist or user lacks access to the parent garden.
+
+---
+
+### 4.6 List Actuators
 - **Method / Path**: `GET /api/v1/actuators`
 - **Query Parameters**: `zone_id={optional_uuid}`
 - **Auth**: Bearer JWT
@@ -512,7 +583,7 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 
 ---
 
-### 4.3 Trigger Actuator Manual Command
+### 4.7 Trigger Actuator Manual Command
 - **Method / Path**: `POST /api/v1/actuators/{id}/command`
 - **Auth**: Bearer JWT
 - **Request Body**:

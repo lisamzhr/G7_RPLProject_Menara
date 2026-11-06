@@ -142,6 +142,7 @@ def list_garden_zones(
             label=z.label,
             plant_names=z.plant_names if isinstance(z.plant_names, list) else [],
             created_at=z.created_at,
+            sensor_node_count=len(z.sensor_nodes),
         )
         for z in zones
     ]

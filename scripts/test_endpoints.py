@@ -296,6 +296,14 @@ def main() -> int:
     set_section("Nodes")
     call("list sensor nodes", "GET", "/nodes", 200, token=tok)
     call("nodes requires token", "GET", "/nodes", 401)
+    if zone:
+        dyn_mac = f"EE:FF:11:{stamp[-6:-4]}:{stamp[-4:-2]}:{stamp[-2:]}"
+        st_node, reg_node = call("register node with MAC", "POST", f"/zones/{zone['id']}/nodes", 201, token=tok, json={"mac_address": dyn_mac, "name": "Dynamic Test Node"})
+        if st_node == 201 and reg_node:
+            call("duplicate MAC is rejected", "POST", f"/zones/{zone['id']}/nodes", 409, token=tok, json={"mac_address": dyn_mac})
+            call("get node by MAC", "GET", f"/nodes/{dyn_mac}", 200, token=tok)
+            call("update node metadata", "PATCH", f"/nodes/{dyn_mac}", 200, token=tok, json={"name": "Renamed Dynamic Node"})
+            call("delete registered node", "DELETE", f"/nodes/{dyn_mac}", 204, token=tok)
 
     # ----------------------------------------------------------------- Zones
     set_section("Zones")

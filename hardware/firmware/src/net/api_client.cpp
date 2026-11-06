@@ -17,18 +17,25 @@ static bool beginHttpClient(HTTPClient& http, WiFiClient& plainClient, WiFiClien
 }
 #endif
 
-ApiClient::ApiClient(const char* baseUrl, const char* nodeId, const char* apiKey) {
-    setConfig(baseUrl, nodeId, apiKey);
+ApiClient::ApiClient(const char* baseUrl, const char* nodeId, const char* apiKey, const char* macAddress) {
+    setConfig(baseUrl, nodeId, apiKey, macAddress);
 }
 
-void ApiClient::setConfig(const char* baseUrl, const char* nodeId, const char* apiKey) {
+void ApiClient::setConfig(const char* baseUrl, const char* nodeId, const char* apiKey, const char* macAddress) {
     memset(_baseUrl, 0, sizeof(_baseUrl));
     memset(_nodeId, 0, sizeof(_nodeId));
     memset(_apiKey, 0, sizeof(_apiKey));
+    memset(_macAddress, 0, sizeof(_macAddress));
 
     if (baseUrl) strncpy(_baseUrl, baseUrl, sizeof(_baseUrl) - 1);
     if (nodeId)  strncpy(_nodeId, nodeId, sizeof(_nodeId) - 1);
     if (apiKey)  strncpy(_apiKey, apiKey, sizeof(_apiKey) - 1);
+    if (macAddress) strncpy(_macAddress, macAddress, sizeof(_macAddress) - 1);
+}
+
+void ApiClient::setMacAddress(const char* macAddress) {
+    memset(_macAddress, 0, sizeof(_macAddress));
+    if (macAddress) strncpy(_macAddress, macAddress, sizeof(_macAddress) - 1);
 }
 
 const char* ApiClient::getBaseUrl() const {
@@ -39,6 +46,10 @@ const char* ApiClient::getNodeId() const {
     return _nodeId;
 }
 
+const char* ApiClient::getMacAddress() const {
+    return _macAddress;
+}
+
 bool ApiClient::isHttps() const {
     return (strncmp(_baseUrl, "https://", 8) == 0);
 }
@@ -46,7 +57,7 @@ bool ApiClient::isHttps() const {
 bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
     if (isRetryable) *isRetryable = true;
 #if defined(ARDUINO)
-    if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
+    if (strlen(_baseUrl) == 0 || (strlen(_apiKey) == 0 && strlen(_macAddress) == 0)) {
         if (isRetryable) *isRetryable = false;
         return false;
     }
@@ -61,11 +72,21 @@ bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
         return false;
     }
     http.addHeader("Content-Type", "application/json");
-    http.addHeader("X-Node-Key", _apiKey);
+    if (strlen(_macAddress) > 0) {
+        http.addHeader("X-Node-MAC", _macAddress);
+    }
+    if (strlen(_apiKey) > 0) {
+        http.addHeader("X-Node-Key", _apiKey);
+    }
     http.setTimeout(8000);
 
     JsonDocument doc;
-    doc["node_id"] = _nodeId;
+    if (strlen(_nodeId) > 0) {
+        doc["node_id"] = _nodeId;
+    }
+    if (strlen(_macAddress) > 0) {
+        doc["mac_address"] = _macAddress;
+    }
     if (strlen(reading.timestamp) > 0 && strncmp(reading.timestamp, "1970-01-01", 10) != 0) {
         doc["ts"] = reading.timestamp;
     }
@@ -108,19 +129,26 @@ bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
 bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasCommand) {
     hasCommand = false;
 #if defined(ARDUINO)
-    if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
+    if (strlen(_baseUrl) == 0 || (strlen(_apiKey) == 0 && strlen(_macAddress) == 0)) {
         return false;
     }
 
+    const char* targetId = (strlen(_nodeId) > 0) ? _nodeId : _macAddress;
     HTTPClient http;
     WiFiClient plainClient;
     WiFiClientSecure secureClient;
-    String url = String(_baseUrl) + "/nodes/" + _nodeId + "/commands";
+    String url = String(_baseUrl) + "/nodes/" + targetId + "/commands";
 
     if (!beginHttpClient(http, plainClient, secureClient, isHttps(), url)) {
         return false;
     }
-    http.addHeader("X-Node-Key", _apiKey);
+    http.addHeader("Accept", "application/json");
+    if (strlen(_macAddress) > 0) {
+        http.addHeader("X-Node-MAC", _macAddress);
+    }
+    if (strlen(_apiKey) > 0) {
+        http.addHeader("X-Node-Key", _apiKey);
+    }
     http.setTimeout(8000);
 
     int httpCode = http.GET();
@@ -133,23 +161,30 @@ bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasComman
     http.end();
 
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, response);
-    if (error || !doc.is<JsonArray>()) {
+    DeserializationError err = deserializeJson(doc, response);
+    if (err || !doc.is<JsonArray>()) {
         return false;
     }
 
     JsonArray array = doc.as<JsonArray>();
     if (array.size() == 0) {
-        return true; // No pending commands
+        return true;
     }
 
     JsonObject first = array[0];
-    strlcpy(outCommand.command_id, first["command_id"] | "", sizeof(outCommand.command_id));
-    strlcpy(outCommand.actuator_id, first["actuator_id"] | "", sizeof(outCommand.actuator_id));
-    strlcpy(outCommand.command, first["command"] | "turn_on", sizeof(outCommand.command));
-    outCommand.duration_seconds = first["duration_seconds"] | 30;
-    hasCommand = true;
+    const char* cid = first["command_id"] | "";
+    const char* aid = first["actuator_id"] | "";
+    const char* cmd = first["command"] | "";
+    uint32_t dur = first["duration_seconds"] | 0;
 
+    if (strlen(cid) == 0) return true;
+
+    strncpy(outCommand.command_id, cid, sizeof(outCommand.command_id) - 1);
+    strncpy(outCommand.actuator_id, aid, sizeof(outCommand.actuator_id) - 1);
+    strncpy(outCommand.command, cmd, sizeof(outCommand.command) - 1);
+    outCommand.duration_seconds = dur;
+
+    hasCommand = true;
     return true;
 #else
     return true;
@@ -158,24 +193,30 @@ bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasComman
 
 bool ApiClient::ackCommand(const char* commandId, const char* status, const char* result, const char* executedAt) {
 #if defined(ARDUINO)
-    if (strlen(_baseUrl) == 0 || strlen(_apiKey) == 0) {
+    if (strlen(_baseUrl) == 0 || (strlen(_apiKey) == 0 && strlen(_macAddress) == 0) || !commandId) {
         return false;
     }
 
+    const char* targetId = (strlen(_nodeId) > 0) ? _nodeId : _macAddress;
     HTTPClient http;
     WiFiClient plainClient;
     WiFiClientSecure secureClient;
-    String url = String(_baseUrl) + "/nodes/" + _nodeId + "/commands/" + commandId + "/ack";
+    String url = String(_baseUrl) + "/nodes/" + targetId + "/commands/" + commandId + "/ack";
 
     if (!beginHttpClient(http, plainClient, secureClient, isHttps(), url)) {
         return false;
     }
     http.addHeader("Content-Type", "application/json");
-    http.addHeader("X-Node-Key", _apiKey);
+    if (strlen(_macAddress) > 0) {
+        http.addHeader("X-Node-MAC", _macAddress);
+    }
+    if (strlen(_apiKey) > 0) {
+        http.addHeader("X-Node-Key", _apiKey);
+    }
     http.setTimeout(8000);
 
     JsonDocument doc;
-    doc["status"] = status;
+    doc["status"] = status ? status : "acked";
     if (result && strlen(result) > 0) {
         doc["result"] = result;
     }
@@ -187,15 +228,10 @@ bool ApiClient::ackCommand(const char* commandId, const char* status, const char
     serializeJson(doc, payload);
 
     int httpCode = http.POST(payload);
-    bool success = (httpCode == 200);
     http.end();
 
-    return success;
+    return (httpCode == 200);
 #else
-    (void)commandId;
-    (void)status;
-    (void)result;
-    (void)executedAt;
     return true;
 #endif
 }

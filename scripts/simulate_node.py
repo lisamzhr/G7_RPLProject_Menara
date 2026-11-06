@@ -2,7 +2,7 @@
 """ESP32 Simulator Script for RoofGarden.
 
 Simulates physical hardware node behavior:
-- Posts telemetry to /api/v1/ingest/readings
+- Posts telemetry to /api/v1/ingest/readings authenticated via X-Node-MAC or X-Node-Key
 - Polls pending commands from /api/v1/nodes/{id}/commands
 - Acknowledges command execution to /api/v1/nodes/{id}/commands/{cid}/ack
 - Supports scenarios: normal, dry, heatwave, offline
@@ -17,19 +17,22 @@ import httpx
 
 DEFAULT_API_URL = "http://localhost:8000/api/v1"
 DEFAULT_NODE_ID = "esp32-node-01"
+DEFAULT_MAC = "24:6F:28:01:00:01"
 DEFAULT_API_KEY = "dev-node-api-key-secret-12345"
 
 
 def run_simulator(
     api_url: str,
     node_id: str,
-    api_key: str,
+    mac_address: str | None,
+    api_key: str | None,
     scenario: str,
     interval_sec: int,
     iterations: int,
 ):
-    print(f"=== ESP32 Node Simulator [{node_id}] ===")
+    print(f"=== ESP32 Node Simulator [{node_id or mac_address}] ===")
     print(f"Target API Base: {api_url}")
+    print(f"MAC: {mac_address} | API Key: {bool(api_key)}")
     print(f"Scenario: {scenario} | Interval: {interval_sec}s")
 
     if scenario == "offline":
@@ -39,8 +42,11 @@ def run_simulator(
 
     headers = {
         "Content-Type": "application/json",
-        "X-Node-Key": api_key,
     }
+    if mac_address:
+        headers["X-Node-MAC"] = mac_address
+    if api_key:
+        headers["X-Node-Key"] = api_key
 
     count = 0
     current_moisture = 80.0 if scenario == "normal" else (62.0 if scenario == "dry" else 55.0)
@@ -56,7 +62,6 @@ def run_simulator(
             hum = round(72.0 + random.uniform(-3.0, 3.0), 1)
             lux = round(15000.0 + random.uniform(-2000, 3000), 0)
         elif scenario == "dry":
-            # Dehydrating soil below 76%
             current_moisture = max(50.0, current_moisture - random.uniform(0.8, 1.5))
             temp = round(28.5 + random.uniform(-0.5, 1.5), 1)
             hum = round(58.0 + random.uniform(-2.0, 2.0), 1)
@@ -69,6 +74,7 @@ def run_simulator(
 
         payload = {
             "node_id": node_id,
+            "mac_address": mac_address,
             "ts": ts,
             "soil_moisture_pct": round(current_moisture, 1),
             "temperature_c": temp,
@@ -83,13 +89,14 @@ def run_simulator(
             if res.status_code in [200, 201]:
                 print(f"[{count}] Ingested: Moisture={payload['soil_moisture_pct']}% Temp={temp}C Hum={hum}% Lux={lux}")
             else:
-                print(f"[{count}] Ingest error {res.status_code}: {res.text}")
+                print(f"[{count}] Ingest response {res.status_code}: {res.text}")
         except httpx.HTTPError as e:
             print(f"[{count}] Ingest request failed: {e}")
 
         # 2. Poll pending commands
+        poll_id = node_id or mac_address
         try:
-            poll_res = httpx.get(f"{api_url}/nodes/{node_id}/commands", headers=headers, timeout=5)
+            poll_res = httpx.get(f"{api_url}/nodes/{poll_id}/commands", headers=headers, timeout=5)
             if poll_res.status_code == 200:
                 commands = poll_res.json()
                 if commands:
@@ -99,9 +106,8 @@ def run_simulator(
                         action = cmd["command"]
                         duration = cmd["duration_seconds"]
                         print(f"  -> Executing: {action} (Duration: {duration}s)")
-                        time.sleep(1) # Simulate valve opening
+                        time.sleep(1)
 
-                        # If watering was commanded, simulate moisture increase!
                         if action == "turn_on":
                             current_moisture = min(92.0, current_moisture + 15.0)
                             print(f"  -> Valve opened! Moisture replenished to {round(current_moisture, 1)}%")
@@ -112,7 +118,7 @@ def run_simulator(
                             "executed_at": datetime.now(UTC).isoformat(),
                             "result": f"Simulated relay executed {action} for {duration}s",
                         }
-                        ack_res = httpx.post(f"{api_url}/nodes/{node_id}/commands/{cid}/ack", json=ack_payload, headers=headers)
+                        ack_res = httpx.post(f"{api_url}/nodes/{poll_id}/commands/{cid}/ack", json=ack_payload, headers=headers)
                         print(f"  -> Ack response: {ack_res.status_code}")
         except httpx.HTTPError as e:
             print(f"[{count}] Poll command failed: {e}")
@@ -125,7 +131,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Simulate RoofGarden ESP32 sensor node")
     parser.add_argument("--api-url", default=DEFAULT_API_URL, help="Backend API base URL")
     parser.add_argument("--node-id", default=DEFAULT_NODE_ID, help="Node identifier")
-    parser.add_argument("--api-key", default=DEFAULT_API_KEY, help="Node API secret key")
+    parser.add_argument("--mac", default=DEFAULT_MAC, help="Hardwired MAC address (e.g. 24:6F:28:01:00:01)")
+    parser.add_argument("--api-key", default=None, help="Node API secret key (optional)")
     parser.add_argument("--scenario", choices=["normal", "dry", "heatwave", "offline"], default="normal", help="Simulation scenario")
     parser.add_argument("--interval", type=int, default=5, help="Reporting interval in seconds")
     parser.add_argument("--iterations", type=int, default=1, help="Number of reading cycles (0 for infinite loop)")
@@ -134,6 +141,7 @@ if __name__ == "__main__":
     run_simulator(
         api_url=args.api_url,
         node_id=args.node_id,
+        mac_address=args.mac,
         api_key=args.api_key,
         scenario=args.scenario,
         interval_sec=args.interval,

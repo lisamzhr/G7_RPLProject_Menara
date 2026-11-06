@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Sprout,
   MapPin,
@@ -6,17 +7,20 @@ import {
   Trash2,
   Building2,
   Leaf,
+  Cpu,
 } from "lucide-react";
 import { useGarden } from "../context/GardenContext";
 import { api } from "../api/client";
-import { PlantCategoryKey } from "../types";
+import { PlantCategoryKey, SensorNodeItem } from "../types";
 import "../styles/garden-profile.css";
 
 export const GardenProfile: React.FC = () => {
+  const navigate = useNavigate();
   const {
     selectedGarden,
     setSelectedGarden,
     zones,
+    setSelectedZone,
     categories,
     refreshZones,
     refreshGardens,
@@ -122,6 +126,24 @@ export const GardenProfile: React.FC = () => {
       setDeletingGarden(false);
     }
   };
+
+  // Node summary state (scoped to garden)
+  const [nodes, setNodes] = useState<SensorNodeItem[]>([]);
+
+  const loadNodes = async () => {
+    try {
+      const data = await api.getNodes();
+      setNodes(data);
+    } catch (err) {
+      console.error("Failed to load sensor nodes:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedGarden) {
+      loadNodes();
+    }
+  }, [selectedGarden, zones]);
 
   // Handle Create Garden submit
   const handleCreateGarden = async (e: React.FormEvent) => {
@@ -331,6 +353,8 @@ export const GardenProfile: React.FC = () => {
                 // Find matching category or use embedded threshold profile
                 const matchedCategory = categories.find((c) => c.key === zone.category.key);
                 const profile = zone.category.threshold_profile || matchedCategory?.threshold_profile;
+                const zoneNodes = nodes.filter((n) => n.zone_id === zone.id);
+                const activeCount = zoneNodes.filter((n) => n.status === "active").length;
 
                 return (
                   <div key={zone.id} className="gp-zone-card">
@@ -358,6 +382,93 @@ export const GardenProfile: React.FC = () => {
                       >
                         <Trash2 size={13} />
                         <span>Delete</span>
+                      </button>
+                    </div>
+
+                    {/* Linked Sensor Nodes Summary */}
+                    <div
+                      style={{
+                        margin: "10px 0 12px",
+                        padding: "10px 14px",
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "8px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: "10px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                        <div
+                          style={{
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "6px",
+                            background: zoneNodes.length > 0 ? "#ecfdf5" : "#f1f5f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Cpu size={18} color={zoneNodes.length > 0 ? "#059669" : "#94a3b8"} />
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                            <strong style={{ fontSize: "13px", color: "#1e293b" }}>
+                              Sensor Nodes ({zoneNodes.length})
+                            </strong>
+                            {zoneNodes.length > 0 && (
+                              <span
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: 600,
+                                  padding: "2px 6px",
+                                  borderRadius: "10px",
+                                  background: activeCount > 0 ? "#dcfce7" : "#fee2e2",
+                                  color: activeCount > 0 ? "#166534" : "#991b1b",
+                                }}
+                              >
+                                {activeCount}/{zoneNodes.length} ACTIVE
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            {zoneNodes.length === 0 ? (
+                              <span>No hardware sensor nodes linked to this zone.</span>
+                            ) : (
+                              zoneNodes.map((n) => (
+                                <span
+                                  key={n.id}
+                                  style={{
+                                    fontFamily: "monospace",
+                                    background: "#e2e8f0",
+                                    padding: "1px 6px",
+                                    borderRadius: "4px",
+                                    color: "#334155",
+                                  }}
+                                  title={`ID: ${n.id} • MAC: ${n.mac_address || "None"}`}
+                                >
+                                  {n.name ? `${n.name} (${n.mac_address || n.id.slice(0, 8)})` : (n.mac_address || n.id)}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="app-btn-secondary"
+                        style={{ padding: "5px 10px", fontSize: "11px" }}
+                        onClick={() => {
+                          setSelectedZone(zone);
+                          navigate("/actuators");
+                        }}
+                        title="Manage sensor nodes & actuators in the Hardware Control Center"
+                      >
+                        <span>Manage in Actuators &amp; Nodes &rarr;</span>
                       </button>
                     </div>
 

@@ -49,24 +49,38 @@ def get_zone_status(db: Session, zone_id: str) -> ZoneStatusResponse:
     # Get nodes belonging to this zone
     node_ids = [n.id for n in zone.sensor_nodes]
 
-    # Query latest reading
+    # Query latest readings across all nodes in this zone
     latest_reading = None
     if node_ids:
-        latest = (
-            db.query(SensorReading)
-            .filter(SensorReading.node_id.in_(node_ids))
-            .order_by(desc(SensorReading.ts))
-            .first()
-        )
-        if latest:
+        node_readings = []
+        for nid in node_ids:
+            r = (
+                db.query(SensorReading)
+                .filter(SensorReading.node_id == nid)
+                .order_by(desc(SensorReading.ts))
+                .first()
+            )
+            if r:
+                node_readings.append(r)
+
+        if node_readings:
+            avg_m = sum(r.soil_moisture_pct for r in node_readings) / len(node_readings)
+            avg_t = sum(r.temperature_c for r in node_readings) / len(node_readings)
+            avg_h = sum(r.humidity_pct for r in node_readings) / len(node_readings)
+            avg_l = sum(r.lux for r in node_readings) / len(node_readings)
+            all_valid = all(r.is_valid for r in node_readings)
+            latest_ts = max(ensure_utc(r.ts) for r in node_readings)
+            batteries = [r.battery_v for r in node_readings if r.battery_v is not None]
+            min_battery = min(batteries) if batteries else None
+
             latest_reading = LatestReadingSummary(
-                ts=ensure_utc(latest.ts),
-                soil_moisture_pct=latest.soil_moisture_pct,
-                temperature_c=latest.temperature_c,
-                humidity_pct=latest.humidity_pct,
-                lux=latest.lux,
-                is_valid=latest.is_valid,
-                battery_v=latest.battery_v,
+                ts=latest_ts,
+                soil_moisture_pct=round(avg_m, 1),
+                temperature_c=round(avg_t, 1),
+                humidity_pct=round(avg_h, 1),
+                lux=round(avg_l, 0),
+                is_valid=all_valid,
+                battery_v=min_battery,
             )
 
     # Parameter evaluations
@@ -245,6 +259,7 @@ def get_zone_readings_history(
     return [
         {
             "ts": ensure_utc(r.ts).isoformat(),
+            "node_id": r.node_id,
             "soil_moisture_pct": r.soil_moisture_pct,
             "temperature_c": r.temperature_c,
             "humidity_pct": r.humidity_pct,
