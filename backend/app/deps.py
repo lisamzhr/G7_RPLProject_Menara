@@ -1,6 +1,7 @@
 """FastAPI dependencies for database, authentication, and security."""
 
 from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -8,30 +9,28 @@ from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
 
+bearer_scheme = HTTPBearer(auto_error=False)
+
 
 def get_current_user(
-    authorization: str | None = Header(None),
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
-    """Return authenticated user or default demo gardener for MVP."""
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization[7:]
-        payload = decode_access_token(token)
-        if payload and "sub" in payload:
-            user = db.query(User).filter(User.id == payload["sub"]).first()
-            if user:
-                return user
-
-    # Default fallback demo user for seamless MVP evaluation
-    demo_user = db.query(User).first()
-    if not demo_user:
-        demo_user = User(
-            name="Jakarta Gardener", email="gardener@jakarta-roofs.id", role="gardener"
-        )
-        db.add(demo_user)
-        db.commit()
-        db.refresh(demo_user)
-    return demo_user
+    """Return the authenticated user, or reject with 401."""
+    unauthorized = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Not authenticated or token expired",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    if creds is None:
+        raise unauthorized
+    payload = decode_access_token(creds.credentials)
+    if not payload or "sub" not in payload:
+        raise unauthorized
+    user = db.query(User).filter(User.id == payload["sub"]).first()
+    if not user:
+        raise unauthorized
+    return user
 
 
 def verify_node_key(
