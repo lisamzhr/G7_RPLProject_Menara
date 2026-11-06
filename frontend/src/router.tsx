@@ -1,4 +1,9 @@
-import { createBrowserRouter } from "react-router-dom";
+import { type ReactNode } from "react";
+import {
+  createBrowserRouter,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 import { Dashboard } from "./pages/Dashboard";
 import { GardenProfile } from "./pages/GardenProfile";
@@ -11,14 +16,31 @@ import { Login } from "./pages/Login";
 import Register from "./pages/Register";
 import LandingPage from "./pages/LandingPage";
 
+function RequireAuth({ children }: { children: ReactNode }) {
+  const location = useLocation();
+
+  const token =
+    localStorage.getItem("roofgarden_token") ||
+    sessionStorage.getItem("roofgarden_token");
+
+  if (!token) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location }}
+      />
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export const router = createBrowserRouter([
-  // Public Landing Page
   {
     path: "/",
     element: <LandingPage />,
   },
-
-  // Authentication
   {
     path: "/login",
     element: <Login />,
@@ -27,40 +49,52 @@ export const router = createBrowserRouter([
     path: "/register",
     element: <Register />,
   },
-
-  // MENARA Dashboard
   {
     path: "/dashboard",
-    element: <Dashboard />,
+    element: (
+      <RequireAuth>
+        <Dashboard />
+      </RequireAuth>
+    ),
   },
-
-  // Garden Profile
   {
     path: "/garden-profile",
-    element: <GardenProfile />,
+    element: (
+      <RequireAuth>
+        <GardenProfile />
+      </RequireAuth>
+    ),
   },
-
-  // Environmental Monitoring
   {
     path: "/monitoring",
-    element: <EnvironmentalMonitoring />,
+    element: (
+      <RequireAuth>
+        <EnvironmentalMonitoring />
+      </RequireAuth>
+    ),
   },
-
-  // AI Recommendations
   {
     path: "/recommendations",
-    element: <AIRecommendations />,
+    element: (
+      <RequireAuth>
+        <AIRecommendations />
+      </RequireAuth>
+    ),
   },
-
-  // Device Control
   {
     path: "/devices",
-    element: <Devices />,
+    element: (
+      <RequireAuth>
+        <Devices />
+      </RequireAuth>
+    ),
   },
-
-  // Settings
   {
     path: "/settings",
-    element: <Settings />,
+    element: (
+      <RequireAuth>
+        <Settings />
+      </RequireAuth>
+    ),
   },
 ]);

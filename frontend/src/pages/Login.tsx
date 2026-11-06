@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,14 +13,29 @@ import { api } from "../api/client";
 import "../styles/login.css";
 
 export const Login: React.FC = () => {
-  const [email, setEmail] = useState("gardener@jakarta-roofs.id");
-  const [password, setPassword] = useState("password123");
-  const [rememberMe, setRememberMe] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const locationState = location.state as {
+    registeredEmail?: string;
+    registrationSuccess?: boolean;
+    from?: { pathname?: string };
+  } | null;
+
+  const [email, setEmail] = useState(
+    () =>
+      locationState?.registeredEmail ||
+      localStorage.getItem("roofgarden_email") ||
+      ""
+  );
+
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(
+    Boolean(localStorage.getItem("roofgarden_email"))
+  );
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -29,17 +44,34 @@ export const Login: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const res = await api.login(email, password);
+      const cleanEmail = email.trim().toLowerCase();
 
-      localStorage.setItem("roofgarden_token", res.access_token);
+      const res = await api.login(cleanEmail, password);
 
+      // Clear previous authentication data.
+      localStorage.removeItem("roofgarden_token");
+      sessionStorage.removeItem("roofgarden_token");
+      localStorage.removeItem("roofgarden_user");
+      sessionStorage.removeItem("roofgarden_user");
+
+      // Choose storage based on Remember Me.
+      const storage = rememberMe ? localStorage : sessionStorage;
+
+      // Save authentication token and user profile.
+      storage.setItem("roofgarden_token", res.access_token);
+      storage.setItem("roofgarden_user", JSON.stringify(res.user));
+
+      // Remember email only if Remember Me is checked.
       if (rememberMe) {
-        localStorage.setItem("roofgarden_email", email);
+        localStorage.setItem("roofgarden_email", cleanEmail);
       } else {
         localStorage.removeItem("roofgarden_email");
       }
 
-      navigate("/dashboard");
+      const destination =
+        locationState?.from?.pathname || "/dashboard";
+
+      navigate(destination, { replace: true });
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Login failed";
@@ -114,7 +146,7 @@ export const Login: React.FC = () => {
             </p>
 
             {error && (
-              <div className="login-error">
+              <div className="login-error" role="alert">
                 {error}
               </div>
             )}

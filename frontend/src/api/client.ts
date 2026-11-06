@@ -24,7 +24,9 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
-  const token = localStorage.getItem("roofgarden_token");
+  const token =
+  localStorage.getItem("roofgarden_token") ||
+  sessionStorage.getItem("roofgarden_token");
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
