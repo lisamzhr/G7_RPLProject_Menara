@@ -1,9 +1,10 @@
 # Deployment Guide
 
-This guide covers deployment instructions for the **RoofGarden Monitoring System** to production hosting providers:
-- **Frontend SPA**: [Vercel](https://vercel.com)
+This guide covers deployment instructions for the **RoofGarden Monitoring System (MENARA)** to production hosting providers:
+- **Full Stack / Containers**: [Docker Compose](https://docs.docker.com/compose/)
+- **Frontend SPA**: [Vercel](https://vercel.com) / [Cloudflare Pages](https://pages.cloudflare.com)
 - **Backend API & Scheduled Jobs**: [Render](https://render.com)
-- **Database & Authentication**: [Supabase](https://supabase.com)
+- **Database & Authentication**: [Supabase](https://supabase.com) (PostgreSQL 16 with pgvector)
 
 ---
 
@@ -46,7 +47,9 @@ This guide covers deployment instructions for the **RoofGarden Monitoring System
    - `DATABASE_URL`: Your Supabase connection string.
    - `SECRET_KEY`: High-entropy random 32+ character JWT secret string.
    - `INTERNAL_TOKEN`: Random token string used for cron triggers.
-   - `ANTHROPIC_API_KEY`: Anthropic Claude API key.
+   - `GROQ_API_KEY`: Groq Cloud API key (recommended for high-speed inference) or `ANTHROPIC_API_KEY`.
+   - `LLM_PROVIDER`: `groq` (default) or `anthropic`.
+   - `LLM_MODEL`: `llama-3.3-70b-versatile` (or `claude-3-5-sonnet-20241022`).
    - `ENVIRONMENT`: `production`
    - `LOG_LEVEL`: `INFO`
 3. **Cron Worker (Overcoming Render Free Tier Sleep)**:
@@ -62,14 +65,14 @@ This guide covers deployment instructions for the **RoofGarden Monitoring System
 
 ## 3. Frontend Deployment
 
-### Option A: Docker Container / Docker Compose (Recommended for Unified Stack)
+### Option A: Docker Container / Docker Compose (Unified Stack)
 
 The frontend is packaged as a lightweight multi-stage Docker container (`node:20-alpine` for building static assets &rarr; `nginx:stable-alpine` for serving with gzip compression, SPA fallback routing, and reverse proxy):
 
 1. **Run via Docker Compose**:
    From the repository root:
    ```bash
-   docker compose up -d
+   docker compose up -d --build
    ```
    The frontend will be available at `http://localhost:5173` (or configured host port), routing API requests directly to the backend service.
 
@@ -106,4 +109,4 @@ The frontend is packaged as a lightweight multi-stage Docker container (`node:20
      ```
 2. **Field Deployment**:
    - Place sensor probe in container root zone.
-   - Seal the enclosure against rain (IP65 waterproof rating).
+   - Seal the enclosure against tropical rain (IP65 waterproof rating).

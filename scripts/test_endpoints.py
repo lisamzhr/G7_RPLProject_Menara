@@ -237,8 +237,14 @@ def main() -> int:
     if st == 200 and data:
         out_tok = data["access_token"]
 
+    call("get own profile", "GET", "/auth/me", 200, token=tok)
+    call("update own profile", "PATCH", "/auth/me", 200, token=tok, json={"name": "G7 Gardener", "email": EMAIL})
+    call("profile requires token", "GET", "/auth/me", 401)
+
     # --------------------------------------------------------------- Gardens
     set_section("Gardens")
+    call("list plant categories", "GET", "/gardens/categories", 200, token=tok)
+    call("categories requires token", "GET", "/gardens/categories", 401)
     st, gardens = call("list my gardens", "GET", "/gardens", 200, token=tok)
     garden = gardens[0] if st == 200 and gardens else None
     check("mock account has at least one garden", garden is not None, "run the seed and backfill_garden_members.py")
@@ -283,6 +289,13 @@ def main() -> int:
         call("owner removes a member", "DELETE", f"/gardens/{ng}/members/{out_id}", 204, token=tok)
         call("removed member loses access", "GET", f"/gardens/{ng}/zones", 404, token=out_tok)
         call("remove non-member", "DELETE", f"/gardens/{ng}/members/{out_id}", 404, token=tok)
+        call("update garden metadata", "PATCH", f"/gardens/{ng}", 200, token=tok, json={"name": f"TEST Garden Renamed {stamp}"})
+        call("delete garden", "DELETE", f"/gardens/{ng}", 204, token=tok)
+
+    # ----------------------------------------------------------------- Nodes
+    set_section("Nodes")
+    call("list sensor nodes", "GET", "/nodes", 200, token=tok)
+    call("nodes requires token", "GET", "/nodes", 401)
 
     # ----------------------------------------------------------------- Zones
     set_section("Zones")
@@ -301,6 +314,10 @@ def main() -> int:
     else:
         check("a zone exists to test", False, "no zone found in the mock account's garden")
     call("unknown zone id", "GET", f"/zones/{fake_id}/status", 404, token=tok)
+    if garden:
+        st_z, new_z = call("create plant zone", "POST", f"/gardens/{garden['id']}/zones", 201, token=tok, json={"category_key": "leafy", "label": f"Test Zone {stamp}", "plant_names": ["Spinach"]})
+        if st_z == 201 and new_z:
+            call("delete plant zone", "DELETE", f"/zones/{new_z['id']}", 204, token=tok)
 
     # ------------------------------------------------------------- Internal
     set_section("Internal (X-Internal-Token)")

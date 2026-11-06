@@ -11,7 +11,7 @@ from app.models.garden_member import GardenMember
 from app.models.plant_category import PlantCategory
 from app.models.plant_zone import PlantZone
 from app.models.user import User
-from app.schemas.gardens import AddMemberRequest, GardenCreate, GardenOut, MemberOut
+from app.schemas.gardens import AddMemberRequest, GardenCreate, GardenOut, GardenUpdate, MemberOut
 from app.schemas.zones import CategoryOut, ThresholdProfileOut, ZoneCreate, ZoneOut
 
 router = APIRouter()
@@ -64,6 +64,31 @@ def delete_garden(
     garden = get_garden_for_member(db, id, current_user, owner_only=True)
     db.delete(garden)
     db.commit()
+
+
+@router.patch("/{id}", response_model=GardenOut, summary="Update garden metadata (owner only)")
+def update_garden(
+    id: str,
+    req: GardenUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    garden = get_garden_for_member(db, id, current_user, owner_only=True)
+    if req.name is not None:
+        garden.name = req.name
+    if req.location_name is not None:
+        garden.location_name = req.location_name
+    if req.lat is not None:
+        garden.lat = req.lat
+    if req.lon is not None:
+        garden.lon = req.lon
+    if req.elevation_m is not None:
+        garden.elevation_m = req.elevation_m
+    if req.adm4_code is not None:
+        garden.adm4_code = req.adm4_code
+    db.commit()
+    db.refresh(garden)
+    return garden
 
 
 def _category_out(cat: PlantCategory) -> CategoryOut:

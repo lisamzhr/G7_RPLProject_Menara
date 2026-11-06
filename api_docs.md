@@ -1,21 +1,22 @@
 # MENARA API Test Documentation
 
-Run: 2026-11-06 15:42:01 | Base URL: `http://localhost:8000/api/v1` | Account: `G7-RPL@gmail.com`
+Run: 2026-11-06 18:45:27 | Base URL: `http://localhost:8000/api/v1` | Account: `G7-RPL@gmail.com`
 
-Result: 75/77 passed. Tokens and passwords are masked.
+Result: 88/88 passed. Tokens and passwords are masked.
 
 | Section | Passed | Failed |
 |---|---|---|
 | Health | 1 | 0 |
-| Auth | 12 | 0 |
-| Gardens | 21 | 0 |
-| Zones | 11 | 0 |
+| Auth | 15 | 0 |
+| Gardens | 25 | 0 |
+| Nodes | 2 | 0 |
+| Zones | 13 | 0 |
 | Internal (X-Internal-Token) | 4 | 0 |
 | Admin (x-admin-key) | 4 | 0 |
 | Dashboard | 6 | 0 |
 | Alerts | 8 | 0 |
 | Recommendations | 4 | 0 |
-| Actuators | 4 | 2 |
+| Actuators | 6 | 0 |
 
 ## Health
 
@@ -82,8 +83,9 @@ Response (200):
   "access_token": "<jwt>",
   "token_type": "bearer",
   "user": {
-    "id": "ef07705a-215a-423c-927e-56d48627120e",
-    "name": "G7",
+    "id": "9f12f622-aec6-4afb-a172-35da04d47169",
+    "name": "G7 Gardener",
+    "email": "g7-rpl@gmail.com",
     "role": "gardener"
   }
 }
@@ -128,7 +130,7 @@ Sent:
 ```json
 {
   "name": "X",
-  "email": "tes+20261106154201@example.com",
+  "email": "tes+20261106184527@example.com",
   "password": "<password>"
 }
 ```
@@ -189,7 +191,7 @@ Sent:
 ```json
 {
   "name": "Tes Outsider",
-  "email": "tes+20261106154201@example.com",
+  "email": "tes+20261106184527@example.com",
   "password": "<password>"
 }
 ```
@@ -201,8 +203,9 @@ Response (201):
   "access_token": "<jwt>",
   "token_type": "bearer",
   "user": {
-    "id": "f158a011-786e-4fca-a746-ae828c338ddf",
+    "id": "1981f34b-9b9c-4899-8be2-ceef5ad1d089",
     "name": "Tes Outsider",
+    "email": "tes+20261106184527@example.com",
     "role": "gardener"
   }
 }
@@ -218,7 +221,7 @@ Sent:
 
 ```json
 {
-  "email": "tes+20261106154201@example.com",
+  "email": "tes+20261106184527@example.com",
   "password": "<password>"
 }
 ```
@@ -230,8 +233,9 @@ Response (200):
   "access_token": "<jwt>",
   "token_type": "bearer",
   "user": {
-    "id": "f158a011-786e-4fca-a746-ae828c338ddf",
+    "id": "1981f34b-9b9c-4899-8be2-ceef5ad1d089",
     "name": "Tes Outsider",
+    "email": "tes+20261106184527@example.com",
     "role": "gardener"
   }
 }
@@ -277,7 +281,7 @@ Response (200):
 
 ```json
 {
-  "email": "tes+20261106154201@example.com",
+  "email": "tes+20261106184527@example.com",
   "status": "password updated"
 }
 ```
@@ -292,7 +296,7 @@ Sent:
 
 ```json
 {
-  "email": "tes+20261106154201@example.com",
+  "email": "tes+20261106184527@example.com",
   "password": "<password>"
 }
 ```
@@ -315,7 +319,7 @@ Sent:
 
 ```json
 {
-  "email": "tes+20261106154201@example.com",
+  "email": "tes+20261106184527@example.com",
   "password": "<password>"
 }
 ```
@@ -327,14 +331,139 @@ Response (200):
   "access_token": "<jwt>",
   "token_type": "bearer",
   "user": {
-    "id": "f158a011-786e-4fca-a746-ae828c338ddf",
+    "id": "1981f34b-9b9c-4899-8be2-ceef5ad1d089",
     "name": "Tes Outsider",
+    "email": "tes+20261106184527@example.com",
     "role": "gardener"
   }
 }
 ```
 
+### Get own profile
+
+`GET /api/v1/auth/me`
+
+Expected 200, got 200: PASS | Auth: Bearer token
+
+Response (200):
+
+```json
+{
+  "id": "9f12f622-aec6-4afb-a172-35da04d47169",
+  "name": "G7 Gardener",
+  "email": "g7-rpl@gmail.com",
+  "role": "gardener"
+}
+```
+
+### Update own profile
+
+`PATCH /api/v1/auth/me`
+
+Expected 200, got 200: PASS | Auth: Bearer token
+
+Sent:
+
+```json
+{
+  "name": "G7 Gardener",
+  "email": "G7-RPL@gmail.com"
+}
+```
+
+Response (200):
+
+```json
+{
+  "id": "9f12f622-aec6-4afb-a172-35da04d47169",
+  "name": "G7 Gardener",
+  "email": "g7-rpl@gmail.com",
+  "role": "gardener"
+}
+```
+
+### Profile requires token
+
+`GET /api/v1/auth/me`
+
+Expected 401, got 401: PASS
+
+Response (401):
+
+```json
+{
+  "detail": "Not authenticated or token expired"
+}
+```
+
 ## Gardens
+
+### List plant categories
+
+`GET /api/v1/gardens/categories`
+
+Expected 200, got 200: PASS | Auth: Bearer token
+
+Response (200):
+
+```json
+[
+  {
+    "id": "6b091560-17df-44bf-9447-7209b5a3a3d3",
+    "key": "herbs",
+    "name": "Culinary Herbs",
+    "response_timescale": "days",
+    "threshold_profile": {
+      "id": "e9114046-031b-43d1-bbff-f826c0828231",
+      "category_id": "6b091560-17df-44bf-9447-7209b5a3a3d3",
+      "moisture_min": 50.0,
+      "moisture_max": 70.0,
+      "temp_min": 20.0,
+      "temp_max": 30.0,
+      "humidity_min": 70.0,
+      "humidity_max": 80.0,
+      "lux_min": 15000.0,
+      "lux_max": 30000.0,
+      "source_note": "Lestari & Hartono (2022). Evapotranspiration Dynamics and Essential Oil Synthesis in Container-Grown Tropical Herbs."
+    }
+  },
+  {
+    "id": "f2d242d0-7ba7-4290-b9a8-b3d512fe984c",
+    "key": "fruiting_veg",
+    "name": "Fruiting Vegetables",
+    "response_timescale": "days",
+    "threshold_profile": {
+      "id": "9dd9bae4-ff6d-4144-9ce4-f40e03b43827",
+      "category_id": "f2d242d0-7ba7-4290-b9a8-b3d512fe984c",
+      "moisture_min": 50.0,
+      "moisture_max": 70.0,
+      "temp_min": 24.0,
+      "temp_max": 28.0,
+      "humidity_min": 70.0,
+      "humidity_max": 85.0,
+      "lux_min": 30000.0,
+      "lux_max": 50000.0,
+      "source_note": "Siregar & Wibowo (2020). Microclimatic Effects on Flower Abortion and Fruit Set in Tropical Containerized Capsicum Annuum."
+    }
+  }
+]
+```
+
+4 items, showing the first 2.
+
+### Categories requires token
+
+`GET /api/v1/gardens/categories`
+
+Expected 401, got 401: PASS
+
+Response (401):
+
+```json
+{
+  "detail": "Not authenticated or token expired"
+}
+```
 
 ### List my gardens
 
@@ -347,35 +476,35 @@ Response (200):
 ```json
 [
   {
-    "id": "755bafac-f3fc-47ce-987e-ce13adf4fd7e",
-    "user_id": "03a47a28-37cf-479d-908f-a61d46b84364",
-    "name": "Menteng Rooftop Garden",
-    "location_name": "Jakarta Pusat, DKI Jakarta",
-    "lat": -6.1931,
-    "lon": 106.8242,
-    "elevation_m": 24.5,
-    "adm4_code": "31.71.06.1001",
-    "created_at": "2026-10-30T08:36:21.794257Z"
+    "id": "602d3db8-87ec-40d5-ae11-b3da92ceddcf",
+    "user_id": "7fd4f788-fac1-46f9-9a61-a76017d54936",
+    "name": "Test",
+    "location_name": "Kos",
+    "lat": -6.2234,
+    "lon": 106.8291,
+    "elevation_m": 35.0,
+    "adm4_code": "31.74.02.1001",
+    "created_at": "2026-11-06T09:48:00.364059Z"
   },
   {
-    "id": "0d808bd3-b77d-42fb-9aec-f438941c7eb9",
-    "user_id": "ef07705a-215a-423c-927e-56d48627120e",
-    "name": "TEST Garden 20261106152259",
+    "id": "f65de6f1-03eb-4f09-b1b5-047e954a55e4",
+    "user_id": "9f12f622-aec6-4afb-a172-35da04d47169",
+    "name": "TEST Garden 20261106182710",
     "location_name": "Jakarta Pusat",
     "lat": -6.2,
     "lon": 106.8,
     "elevation_m": 15.0,
     "adm4_code": "31.71.06.1001",
-    "created_at": "2026-11-06T08:23:03.840508Z"
+    "created_at": "2026-11-06T11:27:11.896234Z"
   }
 ]
 ```
 
-5 items, showing the first 2.
+4 items, showing the first 2.
 
 ### List zones of my garden
 
-`GET /api/v1/gardens/755bafac-f3fc-47ce-987e-ce13adf4fd7e/zones`
+`GET /api/v1/gardens/602d3db8-87ec-40d5-ae11-b3da92ceddcf/zones`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
@@ -384,13 +513,26 @@ Response (200):
 ```json
 [
   {
-    "id": "447439d8-479c-4a0e-8f87-f7940141987f",
-    "garden_id": "755bafac-f3fc-47ce-987e-ce13adf4fd7e",
+    "id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "garden_id": "602d3db8-87ec-40d5-ae11-b3da92ceddcf",
     "category": {
-      "id": "843d1a1a-fefd-4875-9bf9-52c69db5835e",
+      "id": "15f90036-7e73-4071-a5f0-f94dcedd41d1",
       "key": "leafy",
       "name": "Leafy Vegetables",
-      "response_timescale": "days"
+      "response_timescale": "days",
+      "threshold_profile": {
+        "id": "b6e1d6e1-b740-4e48-a96e-3384e132acce",
+        "category_id": "15f90036-7e73-4071-a5f0-f94dcedd41d1",
+        "moisture_min": 76.0,
+        "moisture_max": 98.0,
+        "temp_min": 22.0,
+        "temp_max": 27.0,
+        "humidity_min": 60.0,
+        "humidity_max": 80.0,
+        "lux_min": 10000.0,
+        "lux_max": 20000.0,
+        "source_note": "Kusumawardani & Hermawan (2021). Optimization of Automated Micro-Irrigation for Hydroponic Brassica in High-Temperature Tropical Urban Environments."
+      }
     },
     "label": "Zone A - Hydroponic Greens",
     "plant_names": [
@@ -398,23 +540,36 @@ Response (200):
       "Caisim",
       "Bok Choy"
     ],
-    "created_at": "2026-10-30T08:36:21.802062Z"
+    "created_at": "2026-11-06T11:27:44.265593Z"
   },
   {
-    "id": "5930fce6-97fb-433d-975f-445c89a70e1d",
-    "garden_id": "755bafac-f3fc-47ce-987e-ce13adf4fd7e",
+    "id": "3653831d-a2d7-443f-a328-a7e76954b9f2",
+    "garden_id": "602d3db8-87ec-40d5-ae11-b3da92ceddcf",
     "category": {
-      "id": "9efcee60-d74f-40c3-99e2-9a8ff562a9ca",
+      "id": "f2d242d0-7ba7-4290-b9a8-b3d512fe984c",
       "key": "fruiting_veg",
       "name": "Fruiting Vegetables",
-      "response_timescale": "days"
+      "response_timescale": "days",
+      "threshold_profile": {
+        "id": "9dd9bae4-ff6d-4144-9ce4-f40e03b43827",
+        "category_id": "f2d242d0-7ba7-4290-b9a8-b3d512fe984c",
+        "moisture_min": 50.0,
+        "moisture_max": 70.0,
+        "temp_min": 24.0,
+        "temp_max": 28.0,
+        "humidity_min": 70.0,
+        "humidity_max": 85.0,
+        "lux_min": 30000.0,
+        "lux_max": 50000.0,
+        "source_note": "Siregar & Wibowo (2020). Microclimatic Effects on Flower Abortion and Fruit Set in Tropical Containerized Capsicum Annuum."
+      }
     },
     "label": "Zone B - Capsicum & Tomatoes",
     "plant_names": [
       "Cabai Rawit",
       "Cherry Tomato"
     ],
-    "created_at": "2026-10-30T08:36:21.819276Z"
+    "created_at": "2026-11-06T11:27:44.304979Z"
   }
 ]
 ```
@@ -423,7 +578,7 @@ Response (200):
 
 ### List members
 
-`GET /api/v1/gardens/755bafac-f3fc-47ce-987e-ce13adf4fd7e/members`
+`GET /api/v1/gardens/602d3db8-87ec-40d5-ae11-b3da92ceddcf/members`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
@@ -432,23 +587,25 @@ Response (200):
 ```json
 [
   {
-    "user_id": "ef07705a-215a-423c-927e-56d48627120e",
-    "name": "G7",
-    "email": "G7-RPL@gmail.com",
-    "role": "member"
+    "user_id": "7fd4f788-fac1-46f9-9a61-a76017d54936",
+    "name": "Carlsson Khovis",
+    "email": "carlkho99@gmail.com",
+    "role": "owner"
   },
   {
-    "user_id": "03a47a28-37cf-479d-908f-a61d46b84364",
-    "name": "Siti Rahmawati",
-    "email": "gardener@jakarta-roofs.id",
+    "user_id": "9f12f622-aec6-4afb-a172-35da04d47169",
+    "name": "G7 Gardener",
+    "email": "g7-rpl@gmail.com",
     "role": "owner"
   }
 ]
 ```
 
+3 items, showing the first 2.
+
 ### Outsider cannot see the garden zones
 
-`GET /api/v1/gardens/755bafac-f3fc-47ce-987e-ce13adf4fd7e/zones`
+`GET /api/v1/gardens/602d3db8-87ec-40d5-ae11-b3da92ceddcf/zones`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -462,7 +619,7 @@ Response (404):
 
 ### Outsider cannot list members
 
-`GET /api/v1/gardens/755bafac-f3fc-47ce-987e-ce13adf4fd7e/members`
+`GET /api/v1/gardens/602d3db8-87ec-40d5-ae11-b3da92ceddcf/members`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -476,7 +633,7 @@ Response (404):
 
 ### Outsider cannot add members
 
-`POST /api/v1/gardens/755bafac-f3fc-47ce-987e-ce13adf4fd7e/members`
+`POST /api/v1/gardens/602d3db8-87ec-40d5-ae11-b3da92ceddcf/members`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -484,7 +641,7 @@ Sent:
 
 ```json
 {
-  "email": "tes+20261106154201@example.com"
+  "email": "tes+20261106184527@example.com"
 }
 ```
 
@@ -510,7 +667,7 @@ Response (200):
 
 ### Unknown garden id
 
-`GET /api/v1/gardens/8f39154a-9769-4043-a5b6-455713431fe9/zones`
+`GET /api/v1/gardens/87e4d71d-9a40-4fb4-9765-a7f858457395/zones`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -532,7 +689,7 @@ Sent:
 
 ```json
 {
-  "name": "TEST Garden 20261106154201",
+  "name": "TEST Garden 20261106184527",
   "location_name": "Jakarta Pusat",
   "lat": -6.2,
   "lon": 106.8,
@@ -545,21 +702,21 @@ Response (201):
 
 ```json
 {
-  "id": "b85e6e5b-ce3e-4dbe-b836-1891427d5396",
-  "user_id": "ef07705a-215a-423c-927e-56d48627120e",
-  "name": "TEST Garden 20261106154201",
+  "id": "c45218a9-0ced-4fa2-8b84-5a10ceea3bc5",
+  "user_id": "9f12f622-aec6-4afb-a172-35da04d47169",
+  "name": "TEST Garden 20261106184527",
   "location_name": "Jakarta Pusat",
   "lat": -6.2,
   "lon": 106.8,
   "elevation_m": 15.0,
   "adm4_code": "31.71.06.1001",
-  "created_at": "2026-11-06T08:42:04.343852Z"
+  "created_at": "2026-11-06T11:45:29.244412Z"
 }
 ```
 
 ### Add member by email
 
-`POST /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/members`
+`POST /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/members`
 
 Expected 201, got 201: PASS | Auth: Bearer token
 
@@ -567,7 +724,7 @@ Sent:
 
 ```json
 {
-  "email": "tes+20261106154201@example.com"
+  "email": "tes+20261106184527@example.com"
 }
 ```
 
@@ -575,16 +732,16 @@ Response (201):
 
 ```json
 {
-  "user_id": "f158a011-786e-4fca-a746-ae828c338ddf",
+  "user_id": "1981f34b-9b9c-4899-8be2-ceef5ad1d089",
   "name": "Tes Outsider",
-  "email": "tes+20261106154201@example.com",
+  "email": "tes+20261106184527@example.com",
   "role": "member"
 }
 ```
 
 ### Add same member again
 
-`POST /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/members`
+`POST /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/members`
 
 Expected 409, got 409: PASS | Auth: Bearer token
 
@@ -592,7 +749,7 @@ Sent:
 
 ```json
 {
-  "email": "tes+20261106154201@example.com"
+  "email": "tes+20261106184527@example.com"
 }
 ```
 
@@ -606,7 +763,7 @@ Response (409):
 
 ### Add unknown email
 
-`POST /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/members`
+`POST /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/members`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -614,7 +771,7 @@ Sent:
 
 ```json
 {
-  "email": "nobody+20261106154201@example.com"
+  "email": "nobody+20261106184527@example.com"
 }
 ```
 
@@ -637,22 +794,22 @@ Response (200):
 ```json
 [
   {
-    "id": "b85e6e5b-ce3e-4dbe-b836-1891427d5396",
-    "user_id": "ef07705a-215a-423c-927e-56d48627120e",
-    "name": "TEST Garden 20261106154201",
+    "id": "c45218a9-0ced-4fa2-8b84-5a10ceea3bc5",
+    "user_id": "9f12f622-aec6-4afb-a172-35da04d47169",
+    "name": "TEST Garden 20261106184527",
     "location_name": "Jakarta Pusat",
     "lat": -6.2,
     "lon": 106.8,
     "elevation_m": 15.0,
     "adm4_code": "31.71.06.1001",
-    "created_at": "2026-11-06T08:42:04.343852Z"
+    "created_at": "2026-11-06T11:45:29.244412Z"
   }
 ]
 ```
 
 ### Member (not owner) cannot add members
 
-`POST /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/members`
+`POST /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/members`
 
 Expected 403, got 403: PASS | Auth: Bearer token
 
@@ -674,7 +831,7 @@ Response (403):
 
 ### Owner cannot be removed
 
-`DELETE /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/members/ef07705a-215a-423c-927e-56d48627120e`
+`DELETE /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/members/9f12f622-aec6-4afb-a172-35da04d47169`
 
 Expected 400, got 400: PASS | Auth: Bearer token
 
@@ -688,7 +845,7 @@ Response (400):
 
 ### Owner removes a member
 
-`DELETE /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/members/f158a011-786e-4fca-a746-ae828c338ddf`
+`DELETE /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/members/1981f34b-9b9c-4899-8be2-ceef5ad1d089`
 
 Expected 204, got 204: PASS | Auth: Bearer token
 
@@ -700,7 +857,7 @@ Response (204):
 
 ### Removed member loses access
 
-`GET /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/zones`
+`GET /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/zones`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -714,7 +871,7 @@ Response (404):
 
 ### Remove non-member
 
-`DELETE /api/v1/gardens/b85e6e5b-ce3e-4dbe-b836-1891427d5396/members/f158a011-786e-4fca-a746-ae828c338ddf`
+`DELETE /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5/members/1981f34b-9b9c-4899-8be2-ceef5ad1d089`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -726,17 +883,104 @@ Response (404):
 }
 ```
 
+### Update garden metadata
+
+`PATCH /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5`
+
+Expected 200, got 200: PASS | Auth: Bearer token
+
+Sent:
+
+```json
+{
+  "name": "TEST Garden Renamed 20261106184527"
+}
+```
+
+Response (200):
+
+```json
+{
+  "id": "c45218a9-0ced-4fa2-8b84-5a10ceea3bc5",
+  "user_id": "9f12f622-aec6-4afb-a172-35da04d47169",
+  "name": "TEST Garden Renamed 20261106184527",
+  "location_name": "Jakarta Pusat",
+  "lat": -6.2,
+  "lon": 106.8,
+  "elevation_m": 15.0,
+  "adm4_code": "31.71.06.1001",
+  "created_at": "2026-11-06T11:45:29.244412Z"
+}
+```
+
+### Delete garden
+
+`DELETE /api/v1/gardens/c45218a9-0ced-4fa2-8b84-5a10ceea3bc5`
+
+Expected 204, got 204: PASS | Auth: Bearer token
+
+Response (204):
+
+```
+(empty)
+```
+
 Checks:
 
 - PASS: mock account has at least one garden
 - PASS: outsider garden list is empty
 - PASS: shared garden is in member list
 
+## Nodes
+
+### List sensor nodes
+
+`GET /api/v1/nodes`
+
+Expected 200, got 200: PASS | Auth: Bearer token
+
+Response (200):
+
+```json
+[
+  {
+    "id": "esp32-node-01",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "zone_label": "Zone A - Hydroponic Greens",
+    "last_seen_at": "2026-11-06T11:27:44.272624Z",
+    "status": "offline"
+  },
+  {
+    "id": "esp32-node-02",
+    "zone_id": "3653831d-a2d7-443f-a328-a7e76954b9f2",
+    "zone_label": "Zone B - Capsicum & Tomatoes",
+    "last_seen_at": "2026-11-06T11:27:44.308463Z",
+    "status": "offline"
+  }
+]
+```
+
+4 items, showing the first 2.
+
+### Nodes requires token
+
+`GET /api/v1/nodes`
+
+Expected 401, got 401: PASS
+
+Response (401):
+
+```json
+{
+  "detail": "Not authenticated or token expired"
+}
+```
+
 ## Zones
 
 ### Zone status
 
-`GET /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/status`
+`GET /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/status`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
@@ -744,87 +988,131 @@ Response (200):
 
 ```json
 {
-  "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+  "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
   "zone_label": "Zone A - Hydroponic Greens",
   "category_key": "leafy",
-  "overall_status": "normal",
+  "overall_status": "advisory",
   "latest_reading": {
-    "ts": "2026-10-30T08:37:26.056286Z",
-    "soil_moisture_pct": 79.9,
-    "temperature_c": 24.4,
-    "humidity_pct": 70.7,
-    "lux": 14962.0,
-    "is_valid": true
+    "ts": "2026-11-06T10:27:44.288868Z",
+    "soil_moisture_pct": 78.1,
+    "temperature_c": 24.9,
+    "humidity_pct": 75.5,
+    "lux": 5759.0,
+    "is_valid": true,
+    "battery_v": 3.95
   },
   "parameter_status": {
     "moisture": {
-      "value": 79.9,
+      "value": 78.1,
       "status": "ok",
       "ideal_min": 76.0,
       "ideal_max": 98.0,
       "unit": "%"
     },
     "temperature": {
-      "value": 24.4,
+      "value": 24.9,
       "status": "ok",
       "ideal_min": 22.0,
       "ideal_max": 27.0,
       "unit": "°C"
     },
     "humidity": {
-      "value": 70.7,
+      "value": 75.5,
       "status": "ok",
       "ideal_min": 60.0,
       "ideal_max": 80.0,
       "unit": "%"
     },
     "lux": {
-      "value": 14962.0,
-      "status": "ok",
+      "value": 5759.0,
+      "status": "low",
       "ideal_min": 10000.0,
       "ideal_max": 20000.0,
       "unit": "lx"
     }
   },
   "latest_recommendation": {
-    "id": "d67063f1-1035-458d-8dd4-52872012c1d5",
-    "status_level": "normal",
-    "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C.",
+    "id": "2e70abf2-2321-4d65-a8d8-fb9ae171bab9",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "status_level": "warning",
+    "message": "Zone condition is currently warning. Moisture and temperature levels are monitored.",
     "reasons": [
-      "All physical parameters are within ideal botanical thresholds."
+      "Automated mock rule explanation."
     ],
-    "created_at": "2026-11-06T08:31:41.158849Z"
+    "created_at": "2026-11-06T11:39:37.205138Z"
   }
 }
 ```
 
 ### Readings 24h raw
 
-`GET /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/readings?range=24h&agg=raw`
+`GET /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/readings?range=24h&agg=raw`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
 Response (200):
 
 ```json
-[]
+[
+  {
+    "ts": "2026-11-05T12:27:44.288868+00:00",
+    "soil_moisture_pct": 80.7,
+    "temperature_c": 26.3,
+    "humidity_pct": 75.5,
+    "lux": 18785.0,
+    "is_valid": true,
+    "battery_v": 3.95
+  },
+  {
+    "ts": "2026-11-05T13:27:44.288868+00:00",
+    "soil_moisture_pct": 80.8,
+    "temperature_c": 29.0,
+    "humidity_pct": 75.3,
+    "lux": 15435.0,
+    "is_valid": true,
+    "battery_v": 3.95
+  }
+]
 ```
+
+23 items, showing the first 2.
 
 ### Readings 7d hourly
 
-`GET /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/readings?range=7d&agg=hourly`
+`GET /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/readings?range=7d&agg=hourly`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
 Response (200):
 
 ```json
-[]
+[
+  {
+    "ts": "2026-11-05T11:00:00Z",
+    "soil_moisture_pct": 80.4,
+    "temperature_c": 29.5,
+    "humidity_pct": 72.3,
+    "lux": 23927.0,
+    "is_valid": true,
+    "battery_v": 3.95
+  },
+  {
+    "ts": "2026-11-05T12:00:00Z",
+    "soil_moisture_pct": 80.7,
+    "temperature_c": 26.3,
+    "humidity_pct": 75.5,
+    "lux": 18785.0,
+    "is_valid": true,
+    "battery_v": 3.95
+  }
+]
 ```
+
+24 items, showing the first 2.
 
 ### Readings invalid range
 
-`GET /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/readings?range=1y`
+`GET /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/readings?range=1y`
 
 Expected 422, got 422: PASS | Auth: Bearer token
 
@@ -839,10 +1127,10 @@ Response (422):
         "query",
         "range"
       ],
-      "msg": "String should match pattern '^(24h|7d)$'",
+      "msg": "String should match pattern '^(24h|7d|30d)$'",
       "input": "1y",
       "ctx": {
-        "pattern": "^(24h|7d)$"
+        "pattern": "^(24h|7d|30d)$"
       }
     }
   ]
@@ -851,7 +1139,7 @@ Response (422):
 
 ### Readings invalid agg
 
-`GET /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/readings?agg=minute`
+`GET /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/readings?agg=minute`
 
 Expected 422, got 422: PASS | Auth: Bearer token
 
@@ -878,7 +1166,7 @@ Response (422):
 
 ### Evaluate zone (200, or 429 if just evaluated)
 
-`POST /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/evaluate`
+`POST /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/evaluate`
 
 Expected 200/429, got 200: PASS | Auth: Bearer token
 
@@ -886,20 +1174,20 @@ Response (200):
 
 ```json
 {
-  "id": "c9889569-0391-42b4-8e8c-b469e256cbde",
-  "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
-  "status_level": "normal",
-  "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C.",
+  "id": "e6f96f86-105e-46e2-a21e-1e419ab69bbc",
+  "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+  "status_level": "warning",
+  "message": "Zone condition is currently warning. Moisture and temperature levels are monitored.",
   "reasons": [
-    "All physical parameters are within ideal botanical thresholds."
+    "Automated mock rule explanation."
   ],
-  "created_at": "2026-11-06T08:42:07.512640Z"
+  "created_at": "2026-11-06T11:45:30.061191Z"
 }
 ```
 
 ### Outsider cannot read zone status
 
-`GET /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/status`
+`GET /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/status`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -913,7 +1201,7 @@ Response (404):
 
 ### Outsider cannot read zone readings
 
-`GET /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/readings`
+`GET /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/readings`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -927,7 +1215,7 @@ Response (404):
 
 ### Outsider cannot evaluate zone
 
-`POST /api/v1/zones/447439d8-479c-4a0e-8f87-f7940141987f/evaluate`
+`POST /api/v1/zones/df985ed5-b1bd-4acf-85ab-db958b64aea8/evaluate`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -941,7 +1229,7 @@ Response (404):
 
 ### Unknown zone id
 
-`GET /api/v1/zones/8f39154a-9769-4043-a5b6-455713431fe9/status`
+`GET /api/v1/zones/87e4d71d-9a40-4fb4-9765-a7f858457395/status`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -953,6 +1241,69 @@ Response (404):
 }
 ```
 
+### Create plant zone
+
+`POST /api/v1/gardens/602d3db8-87ec-40d5-ae11-b3da92ceddcf/zones`
+
+Expected 201, got 201: PASS | Auth: Bearer token
+
+Sent:
+
+```json
+{
+  "category_key": "leafy",
+  "label": "Test Zone 20261106184527",
+  "plant_names": [
+    "Spinach"
+  ]
+}
+```
+
+Response (201):
+
+```json
+{
+  "id": "82d95016-883e-40fd-9264-56148ee79ddc",
+  "garden_id": "602d3db8-87ec-40d5-ae11-b3da92ceddcf",
+  "category": {
+    "id": "15f90036-7e73-4071-a5f0-f94dcedd41d1",
+    "key": "leafy",
+    "name": "Leafy Vegetables",
+    "response_timescale": "days",
+    "threshold_profile": {
+      "id": "b6e1d6e1-b740-4e48-a96e-3384e132acce",
+      "category_id": "15f90036-7e73-4071-a5f0-f94dcedd41d1",
+      "moisture_min": 76.0,
+      "moisture_max": 98.0,
+      "temp_min": 22.0,
+      "temp_max": 27.0,
+      "humidity_min": 60.0,
+      "humidity_max": 80.0,
+      "lux_min": 10000.0,
+      "lux_max": 20000.0,
+      "source_note": "Kusumawardani & Hermawan (2021). Optimization of Automated Micro-Irrigation for Hydroponic Brassica in High-Temperature Tropical Urban Environments."
+    }
+  },
+  "label": "Test Zone 20261106184527",
+  "plant_names": [
+    "Spinach"
+  ],
+  "created_at": "2026-11-06T11:45:30.143074Z"
+}
+```
+
+### Delete plant zone
+
+`DELETE /api/v1/zones/82d95016-883e-40fd-9264-56148ee79ddc`
+
+Expected 204, got 204: PASS | Auth: Bearer token
+
+Response (204):
+
+```
+(empty)
+```
+
 Checks:
 
 - PASS: readings is a list
@@ -961,7 +1312,7 @@ Checks:
 
 ### Evaluate without token
 
-`POST /api/v1/internal/evaluate?zone_id=447439d8-479c-4a0e-8f87-f7940141987f`
+`POST /api/v1/internal/evaluate?zone_id=df985ed5-b1bd-4acf-85ab-db958b64aea8`
 
 Expected 403, got 403: PASS
 
@@ -975,7 +1326,7 @@ Response (403):
 
 ### Evaluate with wrong token
 
-`POST /api/v1/internal/evaluate?zone_id=447439d8-479c-4a0e-8f87-f7940141987f`
+`POST /api/v1/internal/evaluate?zone_id=df985ed5-b1bd-4acf-85ab-db958b64aea8`
 
 Expected 403, got 403: PASS | Header: X-Internal-Token
 
@@ -989,7 +1340,7 @@ Response (403):
 
 ### Evaluate one zone with internal token
 
-`POST /api/v1/internal/evaluate?zone_id=447439d8-479c-4a0e-8f87-f7940141987f`
+`POST /api/v1/internal/evaluate?zone_id=df985ed5-b1bd-4acf-85ab-db958b64aea8`
 
 Expected 200, got 200: PASS | Header: X-Internal-Token
 
@@ -1057,16 +1408,16 @@ Response (200):
 ```json
 [
   {
-    "id": "ed6ede24-fcdf-4a53-98ec-07e93efa6557",
-    "name": "Jakarta Gardener",
-    "email": "G7@gmail.com",
+    "id": "7fd4f788-fac1-46f9-9a61-a76017d54936",
+    "name": "Carlsson Khovis",
+    "email": "carlkho99@gmail.com",
     "role": "gardener",
     "has_password": "<password>"
   },
   {
-    "id": "ef07705a-215a-423c-927e-56d48627120e",
-    "name": "G7",
-    "email": "G7-RPL@gmail.com",
+    "id": "9f12f622-aec6-4afb-a172-35da04d47169",
+    "name": "G7 Gardener",
+    "email": "g7-rpl@gmail.com",
     "role": "gardener",
     "has_password": "<password>"
   }
@@ -1092,34 +1443,38 @@ Response (200):
 ```json
 {
   "total_zones": 4,
-  "zones_ok": 2,
-  "zones_need_attention": 2,
-  "active_alerts_count": 24,
+  "zones_ok": 0,
+  "zones_need_attention": 4,
+  "active_alerts_count": 14,
   "weather_summary": {
-    "location": "Jakarta Pusat, DKI Jakarta",
-    "forecast": "Cerah Berawan",
-    "temp_c": 30.0,
-    "rain_probability_pct": 30.0,
-    "attribution": "BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)"
+    "location": "Kos",
+    "forecast": "Cerah (Sunny)",
+    "temp_c": 29.0,
+    "rain_probability_pct": 40.0,
+    "attribution": "BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)",
+    "humidity_pct": 73.0,
+    "wind_speed_kmh": 4.8,
+    "icon_url": "https://api-apps.bmkg.go.id/storage/icon/cuaca/cerah-pm.svg",
+    "local_datetime": "2026-11-06 18:00:00"
   },
   "top_recommendations": [
     {
-      "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+      "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
       "zone_label": "Zone A - Hydroponic Greens",
-      "status_level": "normal",
-      "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C."
+      "status_level": "warning",
+      "message": "Zone condition is currently warning. Moisture and temperature levels are monitored."
     },
     {
-      "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+      "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
       "zone_label": "Zone A - Hydroponic Greens",
-      "status_level": "normal",
-      "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C."
+      "status_level": "warning",
+      "message": "Zone condition is currently warning. Moisture and temperature levels are monitored."
     },
     {
-      "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+      "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
       "zone_label": "Zone A - Hydroponic Greens",
-      "status_level": "normal",
-      "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C."
+      "status_level": "warning",
+      "message": "Zone condition is currently warning. Moisture and temperature levels are monitored."
     }
   ]
 }
@@ -1127,7 +1482,7 @@ Response (200):
 
 ### Summary for one garden
 
-`GET /api/v1/dashboard/summary?garden_id=755bafac-f3fc-47ce-987e-ce13adf4fd7e`
+`GET /api/v1/dashboard/summary?garden_id=602d3db8-87ec-40d5-ae11-b3da92ceddcf`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
@@ -1136,34 +1491,38 @@ Response (200):
 ```json
 {
   "total_zones": 4,
-  "zones_ok": 2,
-  "zones_need_attention": 2,
-  "active_alerts_count": 24,
+  "zones_ok": 0,
+  "zones_need_attention": 4,
+  "active_alerts_count": 14,
   "weather_summary": {
-    "location": "Jakarta Pusat, DKI Jakarta",
-    "forecast": "Cerah Berawan",
-    "temp_c": 30.0,
-    "rain_probability_pct": 30.0,
-    "attribution": "BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)"
+    "location": "Kos",
+    "forecast": "Cerah (Sunny)",
+    "temp_c": 29.0,
+    "rain_probability_pct": 40.0,
+    "attribution": "BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)",
+    "humidity_pct": 73.0,
+    "wind_speed_kmh": 4.8,
+    "icon_url": "https://api-apps.bmkg.go.id/storage/icon/cuaca/cerah-pm.svg",
+    "local_datetime": "2026-11-06 18:00:00"
   },
   "top_recommendations": [
     {
-      "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+      "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
       "zone_label": "Zone A - Hydroponic Greens",
-      "status_level": "normal",
-      "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C."
+      "status_level": "warning",
+      "message": "Zone condition is currently warning. Moisture and temperature levels are monitored."
     },
     {
-      "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+      "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
       "zone_label": "Zone A - Hydroponic Greens",
-      "status_level": "normal",
-      "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C."
+      "status_level": "warning",
+      "message": "Zone condition is currently warning. Moisture and temperature levels are monitored."
     },
     {
-      "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+      "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
       "zone_label": "Zone A - Hydroponic Greens",
-      "status_level": "normal",
-      "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C."
+      "status_level": "warning",
+      "message": "Zone condition is currently warning. Moisture and temperature levels are monitored."
     }
   ]
 }
@@ -1171,7 +1530,7 @@ Response (200):
 
 ### Outsider summary for my garden
 
-`GET /api/v1/dashboard/summary?garden_id=755bafac-f3fc-47ce-987e-ce13adf4fd7e`
+`GET /api/v1/dashboard/summary?garden_id=602d3db8-87ec-40d5-ae11-b3da92ceddcf`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -1198,11 +1557,15 @@ Response (200):
   "zones_need_attention": 0,
   "active_alerts_count": 0,
   "weather_summary": {
-    "location": "Jakarta Pusat",
-    "forecast": "Cerah Berawan",
-    "temp_c": 30.0,
-    "rain_probability_pct": 30.0,
-    "attribution": "BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)"
+    "location": "Menteng, Kota Adm. Jakarta Pusat",
+    "forecast": "Cerah Berawan (Partly Cloudy)",
+    "temp_c": 28.0,
+    "rain_probability_pct": 40.0,
+    "attribution": "BMKG (Badan Meteorologi, Klimatologi, dan Geofisika)",
+    "humidity_pct": 77.0,
+    "wind_speed_kmh": 4.8,
+    "icon_url": "https://api-apps.bmkg.go.id/storage/icon/cuaca/cerah berawan-pm.svg",
+    "local_datetime": "2026-11-06 19:00:00"
   },
   "top_recommendations": []
 }
@@ -1226,29 +1589,31 @@ Response (200):
 ```json
 [
   {
-    "id": "3c888e6f-a2b2-4cf9-92a2-71eeb1c149b9",
-    "zone_id": "5930fce6-97fb-433d-975f-445c89a70e1d",
+    "id": "2505ee53-c1c4-4b1e-aac8-3ea1f0b7d4d5",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "zone_label": "Zone A - Hydroponic Greens",
     "level": "warning",
-    "type": "action_shade",
-    "message": "Action 'shade' requires confirmation: Category 'fruiting_veg' requires human supervision for actuation | Action 'shade' cannot be triggered autonomously | Sensor telemetry is stale (595794s old)",
+    "type": "action_add_light",
+    "message": "Action 'add_light' requires confirmation: Action 'add_light' cannot be triggered autonomously | Sensor telemetry is stale (4666s old)",
     "requires_confirmation": true,
     "resolved_at": null,
-    "created_at": "2026-11-06T05:06:16.034734Z"
+    "created_at": "2026-11-06T11:45:30.212053Z"
   },
   {
-    "id": "56e5f523-76b5-4124-87ec-95f8c2da11d5",
-    "zone_id": "5930fce6-97fb-433d-975f-445c89a70e1d",
+    "id": "f44feb3c-db77-4c0c-a19d-de779d88184a",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "zone_label": "Zone A - Hydroponic Greens",
     "level": "warning",
-    "type": "action_shade",
-    "message": "Action 'shade' requires confirmation: Category 'fruiting_veg' requires human supervision for actuation | Action 'shade' cannot be triggered autonomously | Sensor telemetry is stale (591463s old)",
+    "type": "action_add_light",
+    "message": "Action 'add_light' requires confirmation: Action 'add_light' cannot be triggered autonomously | Sensor telemetry is stale (4666s old)",
     "requires_confirmation": true,
     "resolved_at": null,
-    "created_at": "2026-11-06T03:54:04.754304Z"
+    "created_at": "2026-11-06T11:45:30.059823Z"
   }
 ]
 ```
 
-24 items, showing the first 2.
+14 items, showing the first 2.
 
 ### List alerts invalid filter
 
@@ -1291,7 +1656,7 @@ Response (200):
 
 ### Confirm unknown alert
 
-`POST /api/v1/alerts/8f39154a-9769-4043-a5b6-455713431fe9/confirm`
+`POST /api/v1/alerts/87e4d71d-9a40-4fb4-9765-a7f858457395/confirm`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -1313,7 +1678,7 @@ Response (404):
 
 ### Override unknown alert
 
-`POST /api/v1/alerts/8f39154a-9769-4043-a5b6-455713431fe9/override`
+`POST /api/v1/alerts/87e4d71d-9a40-4fb4-9765-a7f858457395/override`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -1335,7 +1700,7 @@ Response (404):
 
 ### Outsider cannot confirm my alert
 
-`POST /api/v1/alerts/3c888e6f-a2b2-4cf9-92a2-71eeb1c149b9/confirm`
+`POST /api/v1/alerts/2505ee53-c1c4-4b1e-aac8-3ea1f0b7d4d5/confirm`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -1357,7 +1722,7 @@ Response (404):
 
 ### Outsider cannot override my alert
 
-`POST /api/v1/alerts/3c888e6f-a2b2-4cf9-92a2-71eeb1c149b9/override`
+`POST /api/v1/alerts/2505ee53-c1c4-4b1e-aac8-3ea1f0b7d4d5/override`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -1394,33 +1759,33 @@ Response (200):
 ```json
 [
   {
-    "id": "e3c7c5e5-bd83-40b8-86a1-05713aba88b6",
-    "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
-    "status_level": "normal",
-    "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C.",
+    "id": "1813339a-d545-4c9a-9f0c-bd722516da12",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "status_level": "warning",
+    "message": "Zone condition is currently warning. Moisture and temperature levels are monitored.",
     "reasons": [
-      "All physical parameters are within ideal botanical thresholds."
+      "Automated mock rule explanation."
     ],
-    "created_at": "2026-11-06T08:42:07.932056Z"
+    "created_at": "2026-11-06T11:45:30.212678Z"
   },
   {
-    "id": "c9889569-0391-42b4-8e8c-b469e256cbde",
-    "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
-    "status_level": "normal",
-    "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C.",
+    "id": "e6f96f86-105e-46e2-a21e-1e419ab69bbc",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "status_level": "warning",
+    "message": "Zone condition is currently warning. Moisture and temperature levels are monitored.",
     "reasons": [
-      "All physical parameters are within ideal botanical thresholds."
+      "Automated mock rule explanation."
     ],
-    "created_at": "2026-11-06T08:42:07.512640Z"
+    "created_at": "2026-11-06T11:45:30.061191Z"
   }
 ]
 ```
 
-87 items, showing the first 2.
+15 items, showing the first 2.
 
 ### Filter by zone
 
-`GET /api/v1/recommendations?zone_id=447439d8-479c-4a0e-8f87-f7940141987f`
+`GET /api/v1/recommendations?zone_id=df985ed5-b1bd-4acf-85ab-db958b64aea8`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
@@ -1429,33 +1794,33 @@ Response (200):
 ```json
 [
   {
-    "id": "e3c7c5e5-bd83-40b8-86a1-05713aba88b6",
-    "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
-    "status_level": "normal",
-    "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C.",
+    "id": "1813339a-d545-4c9a-9f0c-bd722516da12",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "status_level": "warning",
+    "message": "Zone condition is currently warning. Moisture and temperature levels are monitored.",
     "reasons": [
-      "All physical parameters are within ideal botanical thresholds."
+      "Automated mock rule explanation."
     ],
-    "created_at": "2026-11-06T08:42:07.932056Z"
+    "created_at": "2026-11-06T11:45:30.212678Z"
   },
   {
-    "id": "c9889569-0391-42b4-8e8c-b469e256cbde",
-    "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
-    "status_level": "normal",
-    "message": "Normal: Leafy Vegetables is thriving within optimal botanical ranges. Moisture is 79.9% and temp is 24.4°C.",
+    "id": "e6f96f86-105e-46e2-a21e-1e419ab69bbc",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
+    "status_level": "warning",
+    "message": "Zone condition is currently warning. Moisture and temperature levels are monitored.",
     "reasons": [
-      "All physical parameters are within ideal botanical thresholds."
+      "Automated mock rule explanation."
     ],
-    "created_at": "2026-11-06T08:42:07.512640Z"
+    "created_at": "2026-11-06T11:45:30.061191Z"
   }
 ]
 ```
 
-24 items, showing the first 2.
+9 items, showing the first 2.
 
 ### Outsider filters my zone
 
-`GET /api/v1/recommendations?zone_id=447439d8-479c-4a0e-8f87-f7940141987f`
+`GET /api/v1/recommendations?zone_id=df985ed5-b1bd-4acf-85ab-db958b64aea8`
 
 Expected 200, got 200: PASS | Auth: Bearer token
 
@@ -1482,12 +1847,13 @@ Response (200):
 ```json
 [
   {
-    "id": "afb911b1-8a14-4242-91d5-ae1d342af1d2",
-    "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
+    "id": "7351da59-56b0-4656-bc70-5f12a2bada84",
+    "zone_id": "df985ed5-b1bd-4acf-85ab-db958b64aea8",
     "type": "sprinkler",
     "driver": "relay",
     "max_on_seconds": 60,
-    "min_interval_minutes": 120
+    "min_interval_minutes": 120,
+    "last_action": null
   }
 ]
 ```
@@ -1501,21 +1867,12 @@ Expected 200, got 200: PASS | Auth: Bearer token
 Response (200):
 
 ```json
-[
-  {
-    "id": "afb911b1-8a14-4242-91d5-ae1d342af1d2",
-    "zone_id": "447439d8-479c-4a0e-8f87-f7940141987f",
-    "type": "sprinkler",
-    "driver": "relay",
-    "max_on_seconds": 60,
-    "min_interval_minutes": 120
-  }
-]
+[]
 ```
 
 ### Invalid command is rejected
 
-`POST /api/v1/actuators/8f39154a-9769-4043-a5b6-455713431fe9/command`
+`POST /api/v1/actuators/87e4d71d-9a40-4fb4-9765-a7f858457395/command`
 
 Expected 422, got 422: PASS | Auth: Bearer token
 
@@ -1550,7 +1907,7 @@ Response (422):
 
 ### Command to unknown actuator
 
-`POST /api/v1/actuators/8f39154a-9769-4043-a5b6-455713431fe9/command`
+`POST /api/v1/actuators/87e4d71d-9a40-4fb4-9765-a7f858457395/command`
 
 Expected 404, got 404: PASS | Auth: Bearer token
 
@@ -1573,9 +1930,9 @@ Response (404):
 
 ### Outsider cannot command my actuator (turn_off only)
 
-`POST /api/v1/actuators/afb911b1-8a14-4242-91d5-ae1d342af1d2/command`
+`POST /api/v1/actuators/7351da59-56b0-4656-bc70-5f12a2bada84/command`
 
-Expected 404, got 200: FAIL | Auth: Bearer token
+Expected 404, got 404: PASS | Auth: Bearer token
 
 Sent:
 
@@ -1586,19 +1943,17 @@ Sent:
 }
 ```
 
-Response (200):
+Response (404):
 
 ```json
 {
-  "status": "pending",
-  "command_id": "a617c82e-ea45-4b13-b88f-a17cff938864",
-  "message": "Command 'turn_off' queued for node polling"
+  "detail": "Actuator not found"
 }
 ```
 
 Checks:
 
-- FAIL: outsider actuator list is empty (outsider sees 1 actuator(s))
+- PASS: outsider actuator list is empty
 
 ## Cleanup
 
