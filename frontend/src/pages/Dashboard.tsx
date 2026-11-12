@@ -521,7 +521,7 @@ export const Dashboard: React.FC = () => {
   const displayZoneLabel = activeZoneStatus?.zone_label || selectedZone?.label || "Primary Zone";
 
   return (
-    <div>
+  <div className="dashboard-page">
       {/* PAGE HEADING */}
       <div className="page-header">
         <div>

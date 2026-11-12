@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowDown,
@@ -101,6 +101,31 @@ export default function LandingPage() {
   const [activeImage, setActiveImage] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
 
+    useEffect(() => {
+    const elements = document.querySelectorAll(
+      ".landing-page .reveal-on-scroll"
+    );
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.12,
+        rootMargin: "0px 0px -40px 0px",
+      }
+    );
+
+    elements.forEach((element) => observer.observe(element));
+
+    return () => observer.disconnect();
+  }, []);
+
   const previousImage = () => {
     setActiveImage((current) =>
       current === 0 ? heroImages.length - 1 : current - 1
@@ -184,8 +209,8 @@ export default function LandingPage() {
         </button>
 
         <div className="hero-content">
-          <h1>Smarter Gardens, Greener Cities.</h1>
-          <p>
+          <h1 className="reveal-on-scroll">Smarter Gardens, Greener Cities.</h1>
+          <p className="reveal-on-scroll">
             Meet MENARA, a smarter way to monitor rooftop gardens,
             understand environmental conditions, and make informed
             plant-care decisions with AI and IoT.
@@ -220,25 +245,25 @@ export default function LandingPage() {
       {/* ABOUT MENARA */}
       <section className="about-section section-padding" id="about">
         <div className="about-copy">
-          <span className="eyebrow">
+          <span className="eyebrow reveal-on-scroll">
             <Leaf size={12} /> ABOUT MENARA
           </span>
-          <h2>Meet MENARA</h2>
-          <p>
+          <h2 className="reveal-on-scroll">Meet MENARA</h2>
+          <p className="reveal-on-scroll">
             Urbanization limits available agricultural land in Jakarta,
             while many rooftops have the potential to become productive
             urban gardens. Managing these gardens can be challenging
             because environmental conditions vary and monitoring often
             depends on manual observation.
           </p>
-          <p>
+          <p className="reveal-on-scroll">
             MENARA stands for Monitoring Environment for AI Rooftop
             Agriculture. It combines IoT-based environmental monitoring,
             BMKG-integrated weather insights, AI-powered care
             recommendations, and supported automated controls in one
             platform.
           </p>
-          <a className="text-link" href="#features">
+          <a className="text-link reveal-on-scroll" href="#features">
             Discover our capabilities <ArrowUpRight size={16} />
           </a>
         </div>
@@ -263,11 +288,11 @@ export default function LandingPage() {
       {/* CORE CAPABILITIES */}
       <section className="features-section section-padding" id="features">
         <div className="section-heading">
-          <span className="eyebrow">
+          <span className="eyebrow reveal-on-scroll">
             <Leaf size={12} /> CORE CAPABILITIES
           </span>
-          <h2>Everything Your Rooftop Garden Needs.</h2>
-          <p>
+          <h2 className="reveal-on-scroll">Everything Your Rooftop Garden Needs.</h2>
+          <p className="reveal-on-scroll">
             Purpose-engineered tools that bring environmental monitoring, weather insights, and smarter plant care together.
           </p>
         </div>
@@ -281,8 +306,8 @@ export default function LandingPage() {
                 <div className="feature-icon">
                   <Icon size={21} strokeWidth={1.8} />
                 </div>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
+                <h3 className="reveal-on-scroll">{item.title}</h3>
+                <p className="reveal-on-scroll">{item.description}</p>
                 <div className="tag-list">
                   {item.tags.map((tag) => (
                     <span className="soft-tag" key={tag}>
@@ -299,11 +324,11 @@ export default function LandingPage() {
       {/* WHO IT IS FOR */}
       <section className="audience-section section-padding" id="audience">
         <div className="section-heading">
-          <span className="eyebrow">
+           <span className="eyebrow reveal-on-scroll">
             <Users size={12} /> COMMUNITY & OPERATORS
           </span>
-          <h2>Built for Urban Gardeners</h2>
-          <p>
+          <h2 className="reveal-on-scroll">Built for Urban Gardeners</h2>
+          <p className="reveal-on-scroll">
             Designed for people and communities making better use of
             urban rooftop spaces.
           </p>
@@ -321,8 +346,8 @@ export default function LandingPage() {
                   </span>
                   <span className="audience-number">{item.number}</span>
                 </div>
-                <h3>{item.title}</h3>
-                <p>{item.description}</p>
+                <h3 className="reveal-on-scroll">{item.title}</h3>
+                <p className="reveal-on-scroll">{item.description}</p>
                 <div className="audience-label">
                   <Leaf size={13} /> {item.label}
                 </div>
@@ -338,8 +363,8 @@ export default function LandingPage() {
           <span className="eyebrow eyebrow-light">
             <span className="status-dot" /> MENARA PLATFORM ACCESS
           </span>
-          <h2>Ready to Grow Smarter?</h2>
-          <p>
+          <h2 className="reveal-on-scroll">Ready to Grow Smarter?</h2>
+          <p className="reveal-on-scroll">
             Sign in to explore your gardens, monitor environmental
             conditions, and access MENARA&apos;s available tools.
           </p>

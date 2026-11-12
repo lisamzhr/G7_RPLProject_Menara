@@ -730,6 +730,21 @@
   justify-content: center;
 }
 
+/* TEXT SCROLL REVEAL */
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 1.3s ease,
+    transform 1.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* Footer */
 
 .landing-footer {

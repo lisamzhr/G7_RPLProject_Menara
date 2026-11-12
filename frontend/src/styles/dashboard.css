@@ -1,1152 +1,1077 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
-:root {
+/* ==========================================================================
+   MENARA — DASHBOARD
+   Designed for the MENARA visual identity
+   Typography: Plus Jakarta Sans + Inter
+   ========================================================================== */
+
+.dashboard-page {
   --dash-forest: #244b32;
-  --dash-deep: #14291b;
+  --dash-deep: #26352b;
+  --dash-dark: #14291b;
   --dash-leaf: #527a4d;
   --dash-sage: #a8c3a0;
+  --dash-gold: #d9a441;
+
   --dash-ivory: #f5f3e9;
-  --dash-text: #203b28;
+  --dash-white: #ffffff;
+  --dash-text: #26352b;
+  --dash-body: #405344;
   --dash-muted: #748074;
   --dash-line: #e2e6da;
-  --dash-white: #ffffff;
-}
 
-.menara-dashboard,
-.menara-dashboard * {
+  width: 100%;
+  min-width: 0;
+
+  color: var(--dash-text);
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+
   box-sizing: border-box;
 }
 
-.menara-dashboard {
-  display: flex;
-  width: 100%;
-  min-height: 100vh;
-  color: var(--dash-text);
-  background: var(--dash-ivory);
+.dashboard-page *,
+.dashboard-page *::before,
+.dashboard-page *::after {
+  box-sizing: border-box;
+}
+
+.dashboard-page button,
+.dashboard-page a {
   font-family: "Inter", sans-serif;
-  font-size: 12px;
-  line-height: 1.45;
 }
 
-.menara-dashboard button,
-.menara-dashboard a {
-  font: inherit;
-}
-
-.menara-dashboard a {
+.dashboard-page a {
   color: inherit;
   text-decoration: none;
 }
 
-/* SIDEBAR */
-
-.dashboard-sidebar {
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex: 0 0 272px;
-  flex-direction: column;
-  height: 100vh;
-  min-height: 650px;
-  padding: 20px 19px 17px;
-  color: #dce8d9;
-  background: #14291b;
-  border-right: 1px solid rgba(255,255,255,.08);
-}
-
-.dashboard-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 54px;
-  margin-bottom: 36px;
-  padding: 0 0 0 0;
-}
-
-.dashboard-brand-logo {
-  display: grid;
-  width: 74px;
-  height: 43px;
-  flex-shrink: 0;
-  place-items: center;
-  overflow: hidden;
-  background: #f5f3e9;
-  border-radius: 12px;
-}
-
-.dashboard-brand-logo img {
-  width: 90%;
-  height: 90%;
-  object-fit: contain;
-}
-
-.dashboard-brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.dashboard-brand-text strong {
-  color: #fff;
+.dashboard-page h1,
+.dashboard-page h2,
+.dashboard-page h3,
+.dashboard-page .sensor-value,
+.dashboard-page .weather-current-main strong,
+.dashboard-page .rain-probability strong {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -.5px;
 }
 
-.brand-online-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-left: 5px;
-  vertical-align: middle;
-  background: #81d88a;
-  border-radius: 50%;
-  box-shadow: 0 0 9px #81d88a;
-}
+/* ==========================================================================
+   PAGE HEADER
+   ========================================================================== */
 
-.dashboard-brand-text small {
-  color: #aabca5;
-  font-size: 9px;
-  letter-spacing: 1px;
-}
-
-.dashboard-navigation {
+.dashboard-page .page-header {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.dashboard-nav-link {
-  position: relative;
-  display: flex;
-  min-height: 42px;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 13px;
-  color: #b6c7b4;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  font-size: 13px;
-  transition: .2s ease;
-}
-
-.dashboard-nav-link:hover {
-  color: white;
-  background: rgba(255,255,255,.07);
-}
-
-.dashboard-nav-link.active {
-  color: white;
-  background: #304c35;
-  border-color: #486b4b;
-  box-shadow: 0 0 18px rgba(111, 176, 102, .16);
-}
-
-.dashboard-nav-link.active::before {
-  position: absolute;
-  top: 8px;
-  bottom: 8px;
-  left: 0;
-  width: 3px;
-  background: #83d68a;
-  border-radius: 0 5px 5px 0;
-  content: "";
-}
-
-.dashboard-nav-link.active > svg {
-  color: #9ce69b;
-}
-
-.dashboard-nav-link span:nth-child(2) {
-  flex: 1;
-}
-
-.nav-active-dot {
-  width: 8px;
-  height: 8px;
-  background: #81d88a;
-  border-radius: 50%;
-}
-
-.nav-ai-tag {
-  padding: 4px 7px;
-  color: white;
-  background: #51416e;
-  border: 1px solid #74618e;
-  border-radius: 6px;
-  font-size: 9px;
-}
-
-.sidebar-bottom {
-  margin-top: auto;
-}
-
-.network-status {
-  display: flex;
-  min-height: 34px;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 14px;
-  padding: 8px 11px;
-  color: #c9dfc6;
-  background: #263e2a;
-  border: 1px solid #405a3c;
-  border-radius: 9px;
-  font-size: 10px;
-}
-
-.network-status > span:nth-child(2) {
-  flex: 1;
-}
-
-.network-dot {
-  width: 8px;
-  height: 8px;
-  background: #71b85e;
-  border-radius: 50%;
-  box-shadow: 0 0 8px rgba(113,184,94,.7);
-}
-
-.sidebar-profile {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 13px 4px 2px;
-  border-top: 1px solid rgba(255,255,255,.12);
-}
-
-.profile-avatar {
-  display: grid;
-  width: 39px;
-  height: 39px;
-  flex-shrink: 0;
-  place-items: center;
-  color: white;
-  background: #304d35;
-  border: 1px solid #5c7655;
-  border-radius: 50%;
-}
-
-.profile-info {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.profile-info strong {
-  overflow: hidden;
-  color: white;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-info small {
-  color: #a9bba4;
-  font-size: 10px;
-}
-
-.profile-menu {
-  padding: 5px;
-  color: #b7c7b3;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-}
-
-/* MAIN CONTENT */
-
-
-.dashboard-main {
-  min-width: 0;
-  flex: 1;
-  padding: 24px 24px 17px;
-  background:
-    radial-gradient(ellipse at 80% 0%, rgba(255,255,255,.6), transparent 38%),
-    #f0f0e6;
-}
-
-.dashboard-content {
-  width: 100%;
-  max-width: 1500px;
-  margin: 0 auto;
-}
-
-.dashboard-header {
-  display: flex;
-  min-height: 55px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 11px;
-  padding-bottom: 11px;
-  border-bottom: 1px solid #dce1d4;
+  gap: 16px;
+
+  margin-bottom: 18px;
+  padding: 8px 0 17px;
+
+  border-bottom: 1px solid #dfe3d7;
 }
 
-.dashboard-heading {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.dashboard-heading h1 {
+.dashboard-page .page-header h1 {
   margin: 0;
-  color: #1e3926;
+
+  color: #26352b;
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 29px;
   font-weight: 800;
-  letter-spacing: -1.3px;
+  letter-spacing: -1.1px;
+  line-height: 1.3;
 }
 
-.sync-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  color: #567b4d;
-  background: white;
-  border: 1px solid #dce4d5;
-  border-radius: 20px;
-  font-size: 10px;
+.dashboard-page .page-header h1 small {
+  display: inline-block;
+  margin-left: 5px;
+  vertical-align: middle;
+
+  color: #748074 !important;
+  font-family: "Inter", sans-serif;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0;
 }
 
-.garden-selector {
+.dashboard-page .page-header p {
+  max-width: 760px;
+  margin: 6px 0 0;
+
+  color: #748074;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+/* ==========================================================================
+   ERROR MESSAGE
+   ========================================================================== */
+
+.dashboard-page > div[style*="background: rgb(254, 242, 242)"] {
+  padding: 12px 16px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+}
+
+/* ==========================================================================
+   GARDEN OVERVIEW
+   ========================================================================== */
+
+.dashboard-page .garden-overview {
   display: flex;
-  min-width: 280px;
-  align-items: center;
-  gap: 9px;
-  padding: 7px 11px;
-  color: #304c35;
-  text-align: left;
-  background: white;
-  border: 1px solid #dce2d8;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 2px 5px rgba(25,50,30,.03);
-}
-
-.garden-selector-icon {
-  display: grid;
-  width: 23px;
-  height: 23px;
-  flex-shrink: 0;
-  place-items: center;
-  color: white;
-  background: #304b35;
-  border-radius: 7px;
-}
-
-.garden-selector-text {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.garden-selector-text strong {
-  overflow: hidden;
-  font-size: 10px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.garden-selector-text small {
-  color: #7b8679;
-  font-size: 9px;
-}
-
-/* GARDEN OVERVIEW */
-
-.garden-overview {
-  display: flex;
-  min-height: 56px;
+  min-height: 70px;
   align-items: center;
   justify-content: space-between;
-  gap: 13px;
-  margin-bottom: 11px;
-  padding: 9px 13px;
-  background: white;
+  gap: 16px;
+
+  padding: 12px 16px;
+
+  background: #ffffff;
   border: 1px solid #dfe4d9;
   border-radius: 13px;
-  box-shadow: 0 2px 4px rgba(27,48,29,.04);
+
+  box-shadow: 0 2px 5px rgba(27, 48, 29, 0.035);
 }
 
-.garden-overview-info {
+.dashboard-page .garden-overview-info {
   display: flex;
   min-width: 190px;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
 }
 
-.overview-icon {
+.dashboard-page .overview-icon {
   display: grid;
-  width: 27px;
-  height: 27px;
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
   place-items: center;
+
   color: #294a31;
-  background: #e6f0e3;
-  border: 1px solid #cfddca;
-  border-radius: 8px;
+  background: #e8f0e4;
+  border: 1px solid #d2dfcc;
+  border-radius: 9px;
 }
 
-.garden-overview-info > div {
+.dashboard-page .garden-overview-info > div {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.garden-overview-info strong {
+.dashboard-page .garden-overview-info strong {
+  color: #26352b;
   font-size: 12px;
+  font-weight: 700;
 }
 
-.garden-overview-info small {
-  display: flex;
-  align-items: center;
-  gap: 3px;
+.dashboard-page .garden-overview-info small {
   color: #7b8678;
   font-size: 10px;
 }
 
-.garden-condition {
+.dashboard-page .garden-condition {
   display: flex;
   flex-direction: column;
-  padding: 5px 13px;
+  gap: 3px;
+
+  padding: 7px 14px;
+
   color: #315d36;
-  background: #e0f2d9;
-  border: 1px solid #b9d6ae;
-  border-radius: 25px;
-  font-size: 9px;
-  line-height: 1.55;
+  background: #e7f1e2;
+  border: 1px solid #c9ddc0;
+  border-radius: 24px;
+
+  font-size: 10px;
+  line-height: 1.5;
   white-space: nowrap;
 }
 
-.overview-divider {
+.dashboard-page .overview-divider {
   width: 1px;
-  height: 29px;
+  height: 34px;
+  flex-shrink: 0;
   background: #e6e9e1;
 }
 
-.sensor-connection {
+.dashboard-page .sensor-connection {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
-.sensor-connection strong {
+.dashboard-page .sensor-connection strong {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
+
+  color: #263f2b;
   font-size: 11px;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.sensor-connection small {
+.dashboard-page .sensor-connection small {
   color: #9aa398;
   font-size: 9px;
   white-space: nowrap;
 }
 
-.status-small-dot {
+.dashboard-page .status-small-dot {
   display: inline-block;
   width: 7px;
   height: 7px;
   flex-shrink: 0;
-  background: #4d853e;
+
+  background: #527a4d;
   border-radius: 50%;
 }
 
-.hardware-status {
+.dashboard-page .hardware-status {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
+
   color: #425c45;
   font-size: 10px;
   white-space: nowrap;
 }
 
-.hardware-status span {
+.dashboard-page .hardware-status span {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
-/* SENSOR CARDS */
+.dashboard-page .hardware-status svg {
+  color: #527a4d;
+}
 
-.sensor-grid {
+/* ==========================================================================
+   ZONE SELECTOR
+   ========================================================================== */
+
+.dashboard-page .zone-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+
+  margin: 0 0 14px;
+}
+
+.dashboard-page .zone-chips > span {
+  color: #748074 !important;
+  font-size: 11px !important;
+}
+
+.dashboard-page .zone-chip {
+  padding: 6px 12px;
+
+  color: #52704f;
+  background: #ffffff;
+  border: 1px solid #dce4d5;
+  border-radius: 20px;
+
+  font-size: 10px;
+  font-weight: 600;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard-page .zone-chip:hover {
+  color: #294b32;
+  background: #edf4e9;
+  border-color: #a8c3a0;
+}
+
+.dashboard-page .zone-chip.active {
+  color: #ffffff;
+  background: #304b35;
+  border-color: #304b35;
+}
+
+/* ==========================================================================
+   LIVE SENSOR LABEL
+   ========================================================================== */
+
+.dashboard-page > div[style*="margin-bottom: 8px"] {
+  margin-bottom: 9px !important;
+
+  color: #748074 !important;
+  font-size: 11px !important;
+}
+
+.dashboard-page > div[style*="margin-bottom: 8px"] strong {
+  color: #405344;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   SENSOR GRID
+   ========================================================================== */
+
+.dashboard-page .sensor-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 11px;
+  gap: 12px;
 }
 
-.sensor-card {
+.dashboard-page .sensor-grid + .dashboard-panel {
+  margin-top: 0;
+}
+
+.dashboard-page .sensor-card {
   min-width: 0;
-  padding: 12px 12px 10px;
-  background: white;
+  padding: 14px 13px 11px;
+
+  background: #ffffff;
   border: 1px solid #dce3d6;
-  border-radius: 13px;
-  box-shadow: 0 2px 5px rgba(25,50,30,.04);
+  border-radius: 14px;
+
+  box-shadow: 0 2px 5px rgba(25, 50, 30, 0.04);
+
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
-.sensor-card-heading {
+.dashboard-page .sensor-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd9c5;
+  box-shadow: 0 5px 13px rgba(25, 50, 30, 0.075);
+}
+
+.dashboard-page .sensor-card-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 5px;
+  gap: 7px;
 }
 
-.sensor-card-heading > span:first-child {
+.dashboard-page .sensor-card-heading > span:first-child {
   color: #637264;
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: .35px;
+  letter-spacing: 0.35px;
 }
 
-.sensor-icon {
+.dashboard-page .sensor-icon {
   display: grid;
-  width: 27px;
-  height: 30px;
+  width: 30px;
+  height: 32px;
   flex-shrink: 0;
   place-items: center;
+
   color: #294d32;
   background: #e7f1e5;
-  border-radius: 8px;
+  border-radius: 9px;
 }
 
-.sensor-name {
-  margin: 2px 0 5px;
+.dashboard-page .sensor-name {
+  margin: 4px 0 6px;
   color: #849083;
   font-size: 9px;
 }
 
-.sensor-value {
+.dashboard-page .sensor-value {
   display: flex;
   align-items: baseline;
   gap: 5px;
+
   color: #203b28;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 800;
-  letter-spacing: -.8px;
-  line-height: 1.3;
+  letter-spacing: -0.8px;
+  line-height: 1.35;
   white-space: nowrap;
 }
 
-.sensor-value span {
+.dashboard-page .sensor-value span {
+  color: #536354;
   font-family: "Inter", sans-serif;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0;
 }
 
-.sensor-bars {
+/* Sensor level bars */
+
+.dashboard-page .sensor-bars {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
-  margin: 8px 0 7px;
+
+  margin: 9px 0 8px;
 }
 
-.sensor-bars span {
+.dashboard-page .sensor-bars span {
   height: 10px;
   background: #edf0e9;
   border-radius: 2px;
 }
 
-.sensor-bars.green span.filled {
+.dashboard-page .sensor-bars.green span.filled {
   background: #d9efd1;
 }
 
-.sensor-bars.green span.filled:nth-last-child(-n+2) {
+.dashboard-page .sensor-bars.green span.filled:nth-last-child(-n + 2) {
   background: #557a50;
 }
 
-.sensor-bars.gold span.filled {
+.dashboard-page .sensor-bars.gold span.filled {
   background: #f5d77c;
 }
 
-.sensor-bars.gold span.filled:nth-last-child(-n+3) {
+.dashboard-page .sensor-bars.gold span.filled:nth-last-child(-n + 3) {
   background: #cba34f;
 }
 
-.sensor-card-footer {
+/* Sensor footer */
+
+.dashboard-page .sensor-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 5px;
-  padding-top: 6px;
+  gap: 6px;
+
+  padding-top: 7px;
   border-top: 1px solid #edf0e9;
 }
 
-.sensor-status {
+.dashboard-page .sensor-status {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
+  gap: 5px;
+
+  padding: 4px 7px;
+
   border-radius: 5px;
+
   font-size: 9px;
   font-weight: 700;
   white-space: nowrap;
 }
 
-.sensor-status.green {
+.dashboard-page .sensor-status.green {
   color: #294b2d;
   background: #e0f2d8;
 }
 
-.sensor-status.gold {
+.dashboard-page .sensor-status.gold {
   color: #584719;
   background: #fff1c7;
 }
 
-.sensor-status .status-small-dot {
+.dashboard-page .sensor-status .status-small-dot {
   width: 6px;
   height: 6px;
 }
 
-.sensor-card-footer small {
+.dashboard-page .sensor-card-footer small {
   color: #738071;
   font-size: 8px;
   text-align: right;
   white-space: nowrap;
 }
 
-/* GENERAL PANELS */
+/* ==========================================================================
+   GENERAL DASHBOARD PANELS
+   ========================================================================== */
 
-.dashboard-panel {
-  margin-bottom: 11px;
-  padding: 13px;
-  background: white;
+.dashboard-page .dashboard-panel {
+  margin-bottom: 13px;
+  padding: 15px;
+
+  background: #ffffff;
   border: 1px solid #dce3d6;
   border-radius: 14px;
-  box-shadow: 0 2px 6px rgba(25,50,30,.04);
+
+  box-shadow: 0 2px 6px rgba(25, 50, 30, 0.04);
 }
 
-.panel-heading {
+.dashboard-page .panel-heading {
   display: flex;
   min-height: 37px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 11px;
-  padding-bottom: 9px;
+
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+
   border-bottom: 1px solid #e7ece3;
 }
 
-.panel-title {
+.dashboard-page .panel-title {
   display: flex;
   align-items: center;
   gap: 9px;
 }
 
-.panel-title h2 {
+.dashboard-page .panel-title h2 {
   margin: 0;
+
   color: #263f2b;
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 13px;
   font-weight: 700;
 }
 
-.panel-icon {
+.dashboard-page .panel-icon {
   display: grid;
-  width: 27px;
-  height: 30px;
+  width: 30px;
+  height: 31px;
   flex-shrink: 0;
   place-items: center;
-  border-radius: 8px;
+
+  border-radius: 9px;
 }
 
-.weather-icon {
+.dashboard-page .weather-icon {
   color: #3867b2;
   background: #eaf0fa;
   border: 1px solid #d3dff2;
 }
 
-.source-tag,
-.engine-tag {
+.dashboard-page .source-tag,
+.dashboard-page .engine-tag {
   padding: 4px 9px;
+
   border-radius: 20px;
+
   font-size: 9px;
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.source-tag {
+.dashboard-page .source-tag {
   color: #3567b4;
   background: #edf2f8;
   border: 1px solid #d4deea;
 }
 
-.engine-tag {
+.dashboard-page .engine-tag {
   color: #65538c;
   background: #f0edf7;
   border: 1px solid #ddd5ed;
 }
 
-/* WEATHER */
+/* ==========================================================================
+   WEATHER SECTION
+   ========================================================================== */
 
-.weather-current {
+.dashboard-page .weather-current {
   display: flex;
-  min-height: 60px;
+  min-height: 68px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 9px 13px;
+
+  padding: 10px 14px;
+
   background: #f5f4ed;
   border: 1px solid #e4e2d7;
   border-radius: 12px;
 }
 
-.weather-current-main {
+.dashboard-page .weather-current-main {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
-.weather-main-icon {
+.dashboard-page .weather-main-icon {
   flex-shrink: 0;
   color: #4a76bd;
 }
 
-.weather-current-main > div {
+.dashboard-page .weather-current-main > div {
   display: flex;
+  min-width: 0;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
-.weather-current-main strong {
+.dashboard-page .weather-current-main strong {
   color: #203b28;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 21px;
+  font-size: 22px;
   font-weight: 800;
   line-height: 1.2;
 }
 
-.weather-current-main span {
+.dashboard-page .weather-current-main span {
   color: #687568;
   font-size: 10px;
 }
 
-.rain-probability {
+.dashboard-page .rain-probability {
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0;
 }
 
-.rain-probability small {
+.dashboard-page .rain-probability small {
   color: #69766a;
   font-size: 9px;
   font-weight: 700;
+  letter-spacing: 0.2px;
 }
 
-.rain-probability strong {
+.dashboard-page .rain-probability strong {
   color: #4774bb;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 20px;
+  font-size: 21px;
   line-height: 1.2;
 }
 
-.weather-alert {
-  margin: 9px 0;
-  color: #293a2c;
+.dashboard-page .weather-alert {
+  margin: 10px 0;
+
+  color: #405344;
   font-size: 10px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-.weather-alert strong {
+.dashboard-page .weather-alert strong {
+  color: #26352b;
   font-weight: 800;
 }
 
-.weather-forecast {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.forecast-item {
-  display: flex;
-  min-height: 73px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  color: #687568;
-  background: #f4f3eb;
-  border: 1px solid #e4e2d7;
-  border-radius: 9px;
-}
-
-.forecast-item small {
-  font-size: 9px;
-}
-
-.forecast-item strong {
-  color: #29432e;
-  font-size: 11px;
-}
-
-.forecast-item span {
-  font-size: 9px;
-}
-
-.forecast-item.active {
-  color: #396bb9;
-  background: #edf2f9;
-  border-color: #b8cbe7;
-}
-
-.forecast-item.active strong,
-.forecast-item.active span {
-  color: #3569b8;
-}
-
-.sunny-icon {
-  color: #d6a83e;
-}
-
-.weather-footer {
+.dashboard-page .weather-footer {
   display: flex;
   justify-content: flex-end;
-  margin-top: 10px;
-  padding-top: 8px;
+
+  margin-top: 11px;
+  padding-top: 9px;
+
   border-top: 1px solid #edf0e9;
 }
 
-.weather-footer span {
+.dashboard-page .weather-footer > span {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+
   color: #657363;
   font-size: 9px;
 }
 
-/* AI RECOMMENDATIONS */
+.dashboard-page .weather-footer .status-small-dot {
+  width: 6px;
+  height: 6px;
+}
 
-.ai-icon {
+/* ==========================================================================
+   AI RECOMMENDATIONS
+   ========================================================================== */
+
+.dashboard-page .ai-icon {
   color: #65538c;
   background: #f0edf7;
   border: 1px solid #ddd5ed;
 }
 
-.recommendation-list {
+.dashboard-page .generate-rec-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: stretch;
+  gap: 10px;
+
+  margin-bottom: 15px;
+}
+
+.dashboard-page .generate-rec-container .app-btn-primary {
+  width: 100%;
+  align-self: stretch;
+  justify-content: center;
+}
+
+.dashboard-page .generate-rec-container p {
+  margin: 0;
+
+  color: #687568;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.dashboard-page .generate-rec-container .generate-error {
+  padding: 8px 10px;
+
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+}
+
+.dashboard-page .generate-rec-container .generate-success {
+  padding: 8px 10px;
+
+  color: #315d36;
+  background: #edf5e9;
+  border: 1px solid #d2e5c9;
+  border-radius: 7px;
+}
+
+/* Generate button */
+
+.dashboard-page .app-btn-primary {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  padding: 9px 14px;
+
+  color: #ffffff;
+  background: #203c28;
+  border: 1px solid #1a3321;
+  border-radius: 8px;
+
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard-page .app-btn-primary:hover:not(:disabled) {
+  background: #2b4f35;
+  border-color: #24432d;
+  box-shadow: 0 3px 8px rgba(20, 41, 27, 0.13);
+}
+
+.dashboard-page .app-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.dashboard-page .app-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Recommendation list */
+
+.dashboard-page .recommendation-list {
   display: flex;
   flex-direction: column;
   gap: 9px;
 }
 
-.recommendation-card {
-  padding: 9px 10px;
+.dashboard-page .recommendation-card {
+  padding: 11px 12px;
+
   background: #f7f6ef;
   border: 1px solid #e6e3d5;
   border-radius: 11px;
+
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.recommendation-top {
+.dashboard-page .recommendation-card:hover {
+  border-color: #d6ddca;
+  box-shadow: 0 2px 7px rgba(38, 53, 43, 0.04);
+}
+
+.dashboard-page .recommendation-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
 
-.recommendation-top h3 {
+.dashboard-page .recommendation-top h3 {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+
   margin: 0;
+
   color: #29412d;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
 }
 
-.priority-tag {
+.dashboard-page .recommendation-top h3 svg {
+  flex-shrink: 0;
+  color: #527a4d;
+}
+
+.dashboard-page .priority-tag {
+  flex-shrink: 0;
   padding: 3px 7px;
+
   border-radius: 5px;
+
   font-size: 8px;
   font-weight: 700;
   white-space: nowrap;
 }
 
-.priority-tag.high {
+.dashboard-page .priority-tag.high {
   color: #66501c;
   background: #fff1c5;
   border: 1px solid #f0dc89;
 }
 
-.priority-tag.medium {
+.dashboard-page .priority-tag.medium {
   color: #2e552c;
   background: #d9edce;
   border: 1px solid #b9d6a9;
 }
 
-.recommendation-card > p {
-  margin: 5px 0 8px;
-  color: #334034;
-  font-size: 10px;
-  line-height: 1.55;
+.dashboard-page .priority-tag.low {
+  color: #42634a;
+  background: #e5eee2;
+  border: 1px solid #d0dfca;
 }
 
-.recommendation-bottom {
+.dashboard-page .recommendation-card > p {
+  margin: 6px 0 9px;
+
+  color: #405044;
+  font-size: 10px;
+  line-height: 1.65;
+}
+
+.dashboard-page .recommendation-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding-top: 6px;
+
+  padding-top: 7px;
   border-top: 1px solid #e9e7dd;
 }
 
-.recommendation-bottom small {
+.dashboard-page .recommendation-bottom small {
   color: #788276;
   font-size: 9px;
 }
 
-.recommendation-action {
+/* View details button */
+
+.dashboard-page .app-btn-secondary {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 9px;
-  color: white;
-  background: #304e36;
-  border: 0;
-  border-radius: 6px;
-  font-size: 9px !important;
-  font-weight: 700 !important;
+  justify-content: center;
+  gap: 5px;
+
+  padding: 5px 12px;
+
+  color: #203b28;
+  background: #e6efe4;
+  border: 1px solid #c2d4be;
+  border-radius: 7px;
+
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.recommendation-action:hover {
-  background: #416b47;
+.dashboard-page .app-btn-secondary:hover {
+  color: #14291b;
+  background: #d8e8d5;
+  border-color: #acc4a7;
 }
 
-.recommendation-footer {
+/* Empty state */
+
+.dashboard-page .recommendation-list > p {
+  margin: 0;
+  padding: 16px 0;
+
+  color: #748074 !important;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* Recommendation footer */
+
+.dashboard-page .recommendation-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 9px;
-  padding-top: 9px;
+
+  margin-top: 11px;
+  padding-top: 10px;
+
   color: #697768;
   border-top: 1px solid #e7ece3;
+
   font-size: 9px;
 }
 
-.recommendation-footer strong {
-  color: #526453;
-  font-weight: 600;
+.dashboard-page .recommendation-footer a {
+  color: #304e36 !important;
+  font-weight: 700;
+  text-decoration: none;
 }
 
-/* FOOTER */
-
-.dashboard-footer {
-  display: flex;
-  min-height: 35px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 8px;
-  color: #788376;
-  border-top: 1px solid #dce1d4;
-  font-size: 10px;
+.dashboard-page .recommendation-footer a:hover {
+  color: #527a4d !important;
+  text-decoration: underline;
 }
 
-.footer-decoration {
-  color: #c9d3c1;
-  letter-spacing: 5px;
-}
-
-/* RESPONSIVE */
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
 
 @media (min-width: 1500px) {
-  .sensor-card {
-    padding: 15px;
+  .dashboard-page .page-header h1 {
+    font-size: 31px;
   }
 
-  .dashboard-panel {
+  .dashboard-page .sensor-card {
     padding: 16px;
+  }
+
+  .dashboard-page .dashboard-panel {
+    padding: 17px;
   }
 }
 
 @media (max-width: 1100px) {
-  .dashboard-sidebar {
-    flex-basis: 220px;
-    padding-right: 13px;
-    padding-left: 13px;
-  }
-
-  .dashboard-main {
-    padding: 20px 17px;
-  }
-
-  .garden-overview {
+  .dashboard-page .garden-overview {
     flex-wrap: wrap;
   }
 
-  .garden-condition {
-    order: 2;
-  }
-
-  .overview-divider {
+  .dashboard-page .overview-divider {
     display: none;
   }
 
-  .sensor-grid {
+  .dashboard-page .sensor-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 760px) {
-  .menara-dashboard {
-    display: block;
-  }
-
-  .dashboard-sidebar {
-    position: relative;
-    width: 100%;
-    height: auto;
-    min-height: 0;
-    padding: 12px 15px;
-  }
-
-  .dashboard-brand {
-    margin-bottom: 12px;
-  }
-
-  .dashboard-navigation {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 5px;
-  }
-
-  .dashboard-nav-link {
-    min-height: 39px;
-    padding: 8px;
-    font-size: 11px;
-  }
-
-  .sidebar-bottom {
-    display: none;
-  }
-
-  .dashboard-main {
-    padding: 17px 13px;
-  }
-
-  .dashboard-header {
+  .dashboard-page .page-header {
     align-items: flex-start;
     flex-direction: column;
+    gap: 8px;
   }
 
-  .dashboard-heading h1 {
+  .dashboard-page .page-header h1 {
     font-size: 25px;
   }
 
-  .garden-selector {
+  .dashboard-page .garden-overview {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-page .garden-overview-info {
     width: 100%;
   }
 
-  .garden-overview {
-    align-items: flex-start;
-  }
-
-  .garden-overview-info {
-    width: 100%;
-  }
-
-  .garden-condition {
-    order: initial;
-  }
-
-  .hardware-status {
-    margin-left: auto;
-  }
-
-  .sensor-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .panel-heading {
-    align-items: flex-start;
-  }
-
-  .weather-current-main span {
-    font-size: 9px;
-  }
-}
-
-@media (max-width: 420px) {
-  .sensor-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .garden-overview {
-    flex-direction: column;
-  }
-
-  .garden-condition {
+  .dashboard-page .garden-condition {
     white-space: normal;
   }
 
-  .hardware-status {
+  .dashboard-page .hardware-status {
+    margin-left: auto;
+  }
+
+  .dashboard-page .panel-heading {
+    align-items: center;
+  }
+
+  .dashboard-page .weather-current-main span {
+    font-size: 9px;
+  }
+
+  .dashboard-page .sensor-card-footer small {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-page .sensor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-page .garden-overview {
+    flex-direction: column;
+  }
+
+  .dashboard-page .garden-overview-info {
+    width: 100%;
+  }
+
+  .dashboard-page .garden-condition {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .dashboard-page .sensor-connection {
+    width: 100%;
+  }
+
+  .dashboard-page .hardware-status {
+    width: 100%;
     margin-left: 0;
   }
 
-  .weather-forecast {
-    gap: 5px;
+  .dashboard-page .panel-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
   }
 
-  .forecast-item {
-    min-height: 68px;
-  }
-
-  .recommendation-top {
+  .dashboard-page .weather-current {
     align-items: flex-start;
   }
 
-  .dashboard-footer {
+  .dashboard-page .weather-current-main {
+    gap: 8px;
+  }
+
+  .dashboard-page .weather-current-main strong {
+    font-size: 19px;
+  }
+
+  .dashboard-page .weather-current-main span {
+    font-size: 9px;
+  }
+
+  .dashboard-page .recommendation-top {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-page .recommendation-bottom {
+    align-items: flex-start;
+  }
+
+  .dashboard-page .recommendation-footer {
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .dashboard-page .rain-probability small {
+    font-size: 8px;
+  }
 }
 
-.generate-rec-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.generate-rec-container p {
-  font-size: 13px;
-  color: var(--text-secondary, #8b91a5);
-  margin: 0;
-}
-
-.generate-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 11px 16px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 600;
-  width: fit-content;
-}
-
-.generate-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.generate-error {
-  color: #dc6464 !important;
-}
-
-.generate-success {
-  color: #4caf78 !important;
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-page *,
+  .dashboard-page *::before,
+  .dashboard-page *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
