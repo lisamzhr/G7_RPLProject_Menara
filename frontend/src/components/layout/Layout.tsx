@@ -193,7 +193,7 @@ export const Layout: React.FC = () => {
 
         {/* FOOTER */}
         <footer className="app-footer">
-          <span>&copy; 2026 MENARA &bull; Monitoring Environment for AI Rooftop Agriculture</span>
+          <span>&copy; 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.</span>
           <span>Weather data powered by BMKG Indonesia</span>
         </footer>
       </div>

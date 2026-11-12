@@ -1,26 +1,81 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
 
 :root {
-  --shell-forest-deep: #14291b;
-  --shell-forest-card: #1c3624;
-  --shell-forest-active: #2b4f35;
-  --shell-forest-border: rgba(140, 199, 128, 0.2);
-  --shell-green-accent: #76d88a;
-  --shell-green-dot: #81d88a;
+  --shell-forest: #244b32;
+  --shell-forest-deep: #26352b;
+  --shell-forest-dark: #14291b;
+  --shell-forest-active: #304b35;
+  --shell-leaf: #527a4d;
+  --shell-sage: #a8c3a0;
+  --shell-gold: #d9a441;
+
   --shell-bg-ivory: #f5f3e9;
   --shell-bg-card: #ffffff;
-  --shell-text-main: #1e3926;
-  --shell-text-body: #334e3a;
-  --shell-text-muted: #64748b;
-  --shell-border-subtle: #e2e8df;
-  --shell-border-card: #e5ebe1;
+  --shell-bg-soft: #faf9f4;
+
+  --shell-text-main: #26352b;
+  --shell-text-body: #405344;
+  --shell-text-muted: #748074;
+
+  --shell-border-subtle: #dfe4d9;
+  --shell-border-card: #e2e7dd;
+
+  --shell-sidebar-width: 272px;
 }
 
-/* Base shell reset */
-.app-shell,
-.app-shell * {
+/* ==========================================================================
+   BASE RESET
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--shell-bg-ivory);
+  color: var(--shell-text-main);
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(82, 122, 77, 0.25);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   APPLICATION SHELL
+   ========================================================================== */
 
 .app-shell {
   display: flex;
@@ -33,30 +88,42 @@
   line-height: 1.5;
 }
 
-/* SIDEBAR */
+/* ==========================================================================
+   SIDEBAR
+   ========================================================================== */
+
 .app-sidebar {
   position: sticky;
   top: 0;
+  z-index: 40;
+
   display: flex;
-  flex: 0 0 272px;
-  width: 272px;
+  flex: 0 0 var(--shell-sidebar-width);
+  flex-direction: column;
+
+  width: var(--shell-sidebar-width);
   height: 100vh;
   min-height: 650px;
-  flex-direction: column;
+
   padding: 22px 18px 18px;
-  background: var(--shell-forest-deep);
+
+  background: var(--shell-forest-dark);
   color: #dce8d9;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 40;
+
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
 }
+
+/* Brand */
 
 .app-brand {
   display: flex;
   align-items: center;
   gap: 12px;
+
   margin-bottom: 32px;
-  text-decoration: none;
+
   color: inherit;
+  text-decoration: none;
 }
 
 .app-brand-logo {
@@ -66,6 +133,7 @@
   flex-shrink: 0;
   place-items: center;
   overflow: hidden;
+
   background: var(--shell-bg-ivory);
   border-radius: 10px;
 }
@@ -96,9 +164,10 @@
   height: 8px;
   margin-left: 6px;
   vertical-align: middle;
-  background: var(--shell-green-dot);
+
+  background: #81d88a;
   border-radius: 50%;
-  box-shadow: 0 0 8px var(--shell-green-dot);
+  box-shadow: 0 0 8px rgba(129, 216, 138, 0.7);
 }
 
 .app-brand-text small {
@@ -108,7 +177,8 @@
   letter-spacing: 0.8px;
 }
 
-/* NAVIGATION */
+/* Navigation */
+
 .app-navigation {
   display: flex;
   flex-direction: column;
@@ -117,31 +187,37 @@
 
 .app-nav-link {
   position: relative;
+
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 42px;
+
+  min-height: 44px;
   padding: 10px 14px;
+
   color: #b0c3ad;
   border: 1px solid transparent;
   border-radius: 11px;
-  text-decoration: none;
+
   font-size: 12.5px;
   font-weight: 500;
-  transition: all 0.18s ease;
+
+  text-decoration: none;
+  transition: background 0.18s ease, color 0.18s ease,
+    border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .app-nav-link:hover {
-  background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .app-nav-link.active {
-  background: var(--shell-forest-active);
-  border-color: var(--shell-forest-border);
   color: #ffffff;
+  background: var(--shell-forest-active);
+  border-color: rgba(140, 199, 128, 0.2);
   font-weight: 600;
-  box-shadow: 0 0 16px rgba(118, 216, 138, 0.16);
+  box-shadow: 0 0 16px rgba(118, 216, 138, 0.12);
 }
 
 .app-nav-link.active::before {
@@ -150,21 +226,25 @@
   top: 9px;
   bottom: 9px;
   left: 0;
+
   width: 3.5px;
-  background: var(--shell-green-accent);
+
+  background: #76d88a;
   border-radius: 0 4px 4px 0;
 }
 
 .app-nav-link.active svg {
-  color: var(--shell-green-dot);
+  color: #81d88a;
 }
 
 .app-nav-tag {
   margin-left: auto;
   padding: 2px 6px;
-  background: #51406d;
+
   color: #e7dcff;
+  background: #51406d;
   border-radius: 5px;
+
   font-size: 9px;
   font-weight: 700;
 }
@@ -173,43 +253,53 @@
   width: 7px;
   height: 7px;
   margin-left: auto;
-  background: var(--shell-green-dot);
+
+  background: #81d88a;
   border-radius: 50%;
-  box-shadow: 0 0 6px var(--shell-green-dot);
+  box-shadow: 0 0 6px rgba(129, 216, 138, 0.7);
 }
 
-/* SIDEBAR BOTTOM */
+/* Sidebar bottom */
+
 .app-sidebar-bottom {
-  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: auto;
 }
 
 .app-node-mesh-status {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: rgba(118, 216, 138, 0.1);
-  border: 1px solid rgba(118, 216, 138, 0.2);
-  border-radius: 8px;
+
+  padding: 9px 12px;
+
   color: #c4d8c0;
+  background: rgba(118, 216, 138, 0.09);
+  border: 1px solid rgba(118, 216, 138, 0.19);
+  border-radius: 8px;
+
   font-size: 11px;
 }
 
 .app-mesh-dot {
   width: 8px;
   height: 8px;
-  background: var(--shell-green-dot);
+  flex-shrink: 0;
+
+  background: #81d88a;
   border-radius: 50%;
-  box-shadow: 0 0 7px var(--shell-green-dot);
+  box-shadow: 0 0 7px rgba(129, 216, 138, 0.7);
 }
+
+/* User profile */
 
 .app-user-profile {
   display: flex;
   align-items: center;
   gap: 10px;
+
   padding-top: 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -218,27 +308,31 @@
   display: grid;
   width: 38px;
   height: 38px;
+  flex-shrink: 0;
   place-items: center;
+
+  color: #ffffff;
   background: #314d36;
   border: 1px solid #5c7655;
   border-radius: 50%;
-  color: #ffffff;
-  font-weight: 700;
+
   font-size: 13px;
-  flex-shrink: 0;
+  font-weight: 700;
 }
 
 .app-user-info {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
   flex: 1;
+  min-width: 0;
+  flex-direction: column;
 }
 
 .app-user-info strong {
+  overflow: hidden;
+
   color: #ffffff;
   font-size: 12px;
-  overflow: hidden;
+
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -250,14 +344,17 @@
 }
 
 .app-logout-button {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #c4d8c0;
-  padding: 6px;
-  cursor: pointer;
-  border-radius: 6px;
   display: flex;
   align-items: center;
+  justify-content: center;
+
+  padding: 7px;
+
+  color: #c4d8c0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+
   transition: all 0.15s ease;
 }
 
@@ -267,54 +364,100 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-/* MAIN CANVAS */
+/* ==========================================================================
+   MAIN CANVAS
+   ========================================================================== */
+
 .app-main {
+  display: flex;
   flex: 1;
   min-width: 0;
-  display: flex;
+  min-height: 100vh;
   flex-direction: column;
+
   background: var(--shell-bg-ivory);
 }
 
+/* ==========================================================================
+   TOPBAR
+   Soft ivory background, integrated with the page canvas
+   ========================================================================== */
+
 .app-topbar {
+  position: relative;
+  z-index: 20;
+
   display: flex;
+  min-height: 76px;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px;
-  border-bottom: 1px solid var(--shell-border-subtle);
-  background: #faf8f2;
+  gap: 20px;
+
+  padding: 14px 32px;
+
+  background: var(--shell-forest-dark);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .app-topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.app-topbar-left span {
+  color: #a5bba0 !important;
+  font-size: 12px !important;
+}
+
+.app-topbar-left strong {
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 700;
 }
 
 .app-topbar-right {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
+/* Connection status */
+
 .app-sync-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  background: #eef4eb;
-  border: 1px solid #d8e6d3;
+  gap: 7px;
+
+  padding: 7px 12px;
+
+  color: #dce8d9;
+  background: rgba(129, 216, 138, 0.12);
+  border: 1px solid rgba(129, 216, 138, 0.25);
   border-radius: 20px;
-  color: #2e5234;
+
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .app-sync-pill.loading {
-  color: #64748b;
-  background: #f1f5f9;
-  border-color: #e2e8f0;
+  color: #d0d8ce;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
 }
+
+.animate-spin {
+  animation: app-spin 1s linear infinite;
+}
+
+@keyframes app-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Garden selector */
 
 .app-garden-selector {
   position: relative;
@@ -322,94 +465,124 @@
 
 .app-garden-button {
   display: flex;
+  min-height: 48px;
   align-items: center;
-  gap: 9px;
-  padding: 7px 14px;
+  gap: 10px;
+
+  padding: 7px 13px;
+
+  color: #26352b;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 9px;
+  border-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid #dfe4d9;
+  border-radius: 11px;
+
+  box-shadow: 0 2px 5px rgba(38, 53, 43, 0.04);
+
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  color: #1e293b;
   text-align: left;
-  font-size: 12px;
+
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.app-garden-button:hover {
+  border-color: #a8c3a0;
+  box-shadow: 0 3px 9px rgba(38, 53, 43, 0.07);
 }
 
 .app-garden-button strong {
   display: block;
-  font-size: 12.5px;
-  color: #1e3926;
+  color: #26352b;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .app-garden-button small {
   display: block;
+  margin-top: 2px;
+  color: #748074;
   font-size: 10px;
-  color: #64748b;
 }
 
 .app-garden-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   right: 0;
   z-index: 50;
-  min-width: 250px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+
+  min-width: 260px;
   padding: 8px 0;
+
+  background: #ffffff;
+  border: 1px solid #e2e6da;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(20, 41, 27, 0.12);
 }
 
 .app-garden-option {
   display: flex;
-  flex-direction: column;
   width: 100%;
-  padding: 9px 16px;
-  border: none;
+  flex-direction: column;
+  gap: 3px;
+
+  padding: 10px 16px;
+
   background: transparent;
+  border: none;
+
   text-align: left;
   cursor: pointer;
-  transition: background 0.12s ease;
+
+  transition: background 0.15s ease;
 }
 
 .app-garden-option:hover {
-  background: #f8fafc;
+  background: #f5f7f1;
 }
 
 .app-garden-option.selected {
-  background: #f0fdf4;
+  background: #edf3e9;
 }
 
 .app-garden-option strong {
-  font-size: 13px;
-  color: #1e293b;
+  color: #26352b;
+  font-size: 12px;
 }
 
 .app-garden-option small {
-  font-size: 11px;
-  color: #64748b;
+  color: #849083;
+  font-size: 10px;
 }
 
-/* CONTENT CONTAINER */
+/* ==========================================================================
+   CONTENT CONTAINER
+   ========================================================================== */
+
 .app-content {
   flex: 1;
   width: 100%;
   max-width: 1440px;
+
   margin: 0 auto;
   padding: 24px 32px 32px;
 }
 
-/* PAGE HEADER */
+/* ==========================================================================
+   SHARED PAGE HEADER
+   ========================================================================== */
+
 .page-header {
-  margin-bottom: 24px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+
+  margin-bottom: 24px;
 }
 
 .page-header h1 {
   margin: 0 0 4px;
+
   color: var(--shell-text-main);
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 26px;
@@ -418,58 +591,71 @@
 }
 
 .page-header p {
+  max-width: 760px;
   margin: 0;
+
   color: var(--shell-text-muted);
   font-size: 13px;
-  max-width: 760px;
 }
 
-/* SHARED CARDS */
+/* ==========================================================================
+   SHARED CARDS
+   ========================================================================== */
+
 .app-card {
+  padding: 20px;
+
   background: var(--shell-bg-card);
   border: 1px solid var(--shell-border-card);
   border-radius: 14px;
-  padding: 20px;
+
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
-/* ZONE CHIP SELECTORS */
+/* ==========================================================================
+   ZONE CHIP SELECTORS
+   ========================================================================== */
+
 .zone-chips {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+
   margin-bottom: 20px;
 }
 
 .zone-chip {
   padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid #c8d4c4;
-  background: #eaeee7;
+
   color: #26412d;
+  background: #eaeee7;
+  border: 1px solid #c8d4c4;
+  border-radius: 8px;
+
   font-size: 12px;
   font-weight: 500;
+
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .zone-chip:hover {
+  color: #14291b;
   background: #dce4d8;
   border-color: #b5c4b0;
-  color: #14291b;
 }
 
 .zone-chip.active {
+  color: #ffffff;
   background: #203c28;
   border-color: #203c28;
-  color: #ffffff;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(32, 60, 40, 0.2);
 }
 
 /* ==========================================================================
-   BUTTON DESIGN SYSTEM (UNIFIED FILLED STYLING)
+   UNIFIED BUTTON DESIGN SYSTEM
    ========================================================================== */
 
 button.app-btn-primary,
@@ -484,16 +670,20 @@ button.app-btn-danger-solid,
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
+
   padding: 8px 16px !important;
+
   border-radius: 9px !important;
-  font-family: inherit !important;
+  font-family: "Inter", sans-serif !important;
   font-size: 12.5px !important;
   font-weight: 600 !important;
-  cursor: pointer !important;
-  text-decoration: none !important;
-  transition: all 0.15s ease !important;
   line-height: 1.4 !important;
+
+  text-decoration: none !important;
   white-space: nowrap !important;
+
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
 }
 
 button.app-btn-primary:disabled,
@@ -504,143 +694,166 @@ button.app-btn-danger:disabled,
 .app-btn-danger:disabled,
 button.app-btn-danger-solid:disabled,
 .app-btn-danger-solid:disabled {
-  opacity: 0.6 !important;
+  opacity: 0.6;
   cursor: not-allowed !important;
 }
 
-/* Primary Button: Deep Forest Green Filled */
+/* Primary */
+
 button.app-btn-primary,
 .app-btn-primary {
-  background-color: #203c28 !important;
+  color: #ffffff !important;
   background: #203c28 !important;
   border: 1px solid #1a3321 !important;
-  color: #ffffff !important;
   box-shadow: 0 1px 3px rgba(20, 41, 27, 0.16) !important;
 }
 
 button.app-btn-primary:hover:not(:disabled),
 .app-btn-primary:hover:not(:disabled) {
-  background-color: #2b4f35 !important;
+  color: #ffffff !important;
   background: #2b4f35 !important;
   border-color: #24432d !important;
   box-shadow: 0 2px 6px rgba(20, 41, 27, 0.22) !important;
-  color: #ffffff !important;
 }
 
 button.app-btn-primary:active:not(:disabled),
 .app-btn-primary:active:not(:disabled) {
-  background-color: #172d1e !important;
   background: #172d1e !important;
   transform: translateY(1px);
 }
 
-/* Secondary Button: Soft Sage Green Filled */
+/* Secondary */
+
 button.app-btn-secondary,
 .app-btn-secondary {
-  background-color: #e6efe4 !important;
+  color: #1e3926 !important;
   background: #e6efe4 !important;
   border: 1px solid #c2d4be !important;
-  color: #1e3926 !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 button.app-btn-secondary:hover:not(:disabled),
 .app-btn-secondary:hover:not(:disabled) {
-  background-color: #d8e8d5 !important;
+  color: #14291b !important;
   background: #d8e8d5 !important;
   border-color: #acc4a7 !important;
-  color: #14291b !important;
 }
 
 button.app-btn-secondary.active,
 .app-btn-secondary.active {
-  background-color: #203c28 !important;
+  color: #ffffff !important;
   background: #203c28 !important;
   border-color: #203c28 !important;
-  color: #ffffff !important;
 }
 
-/* Danger Button: Soft Crimson Filled */
+/* Danger */
+
 button.app-btn-danger,
 .app-btn-danger {
-  background-color: #fee2e2 !important;
+  color: #b91c1c !important;
   background: #fee2e2 !important;
   border: 1px solid #fca5a5 !important;
-  color: #b91c1c !important;
 }
 
 button.app-btn-danger:hover:not(:disabled),
 .app-btn-danger:hover:not(:disabled) {
-  background-color: #fecaca !important;
+  color: #991b1b !important;
   background: #fecaca !important;
   border-color: #f87171 !important;
-  color: #991b1b !important;
 }
 
-/* Solid Danger Button (for destructive confirmation modals) */
+/* Solid danger */
+
 button.app-btn-danger-solid,
 .app-btn-danger-solid {
-  background-color: #dc2626 !important;
+  color: #ffffff !important;
   background: #dc2626 !important;
   border: 1px solid #b91c1c !important;
-  color: #ffffff !important;
   box-shadow: 0 1px 3px rgba(220, 38, 38, 0.2) !important;
 }
 
 button.app-btn-danger-solid:hover:not(:disabled),
 .app-btn-danger-solid:hover:not(:disabled) {
-  background-color: #b91c1c !important;
+  color: #ffffff !important;
   background: #b91c1c !important;
   border-color: #991b1b !important;
-  color: #ffffff !important;
 }
 
+/* ==========================================================================
+   FOOTER
+   Similar to the original dashboard reference: subtle, clean, right-aligned
+   ========================================================================== */
 
-/* FOOTER */
 .app-footer {
-  padding: 20px 32px;
-  border-top: 1px solid var(--shell-border-subtle);
   display: flex;
+  min-height: 52px;
   align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #64748b;
-  background: #faf8f2;
+  justify-content: flex-end;
+  gap: 16px;
+
+  padding: 13px 32px;
+
+  color: #748074;
+  background: var(--shell-bg-ivory);
+  border-top: 1px solid #dfe3d7;
+
+  font-size: 11px;
 }
 
-/* MODAL OVERLAY */
+.app-footer span:first-child {
+  color: #748074;
+  text-align: right;
+}
+
+.app-footer span:last-child {
+  display: none;
+}
+
+/* ==========================================================================
+   MODALS
+   ========================================================================== */
+
 .modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: rgba(15, 23, 42, 0.5);
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   padding: 16px;
+
+  background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(2px);
 }
 
 .modal-card {
+  width: 100%;
+  max-width: 500px;
+  padding: 24px;
+
   background: #ffffff;
   border-radius: 14px;
-  max-width: 500px;
-  width: 100%;
-  padding: 24px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 
 .modal-card h3 {
   margin: 0 0 12px;
+
+  color: #26352b;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
 }
 
 .modal-card p {
   margin: 0 0 18px;
+  color: #748074;
   font-size: 13px;
-  color: #64748b;
 }
 
 .modal-actions {
@@ -648,4 +861,128 @@ button.app-btn-danger-solid:hover:not(:disabled),
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 1100px) {
+  :root {
+    --shell-sidebar-width: 235px;
+  }
+
+  .app-sidebar {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .app-content {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .app-topbar {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+}
+
+@media (max-width: 760px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    position: relative;
+    top: auto;
+
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    flex: 0 0 auto;
+
+    padding: 14px 16px;
+  }
+
+  .app-brand {
+    margin-bottom: 14px;
+  }
+
+  .app-navigation {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .app-nav-link {
+    min-height: 40px;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  .app-sidebar-bottom {
+    margin-top: 14px;
+  }
+
+  .app-user-profile {
+    padding-top: 10px;
+  }
+
+  .app-main {
+    min-height: auto;
+  }
+
+  .app-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 20px;
+  }
+
+  .app-topbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .app-content {
+    padding: 20px;
+  }
+
+  .app-footer {
+    padding: 13px 20px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .app-navigation {
+    grid-template-columns: 1fr;
+  }
+
+  .app-topbar-right {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-garden-selector,
+  .app-garden-button {
+    width: 100%;
+  }
+
+  .app-garden-dropdown {
+    right: auto;
+    left: 0;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .app-content {
+    padding: 16px;
+  }
+
+  .app-footer {
+    justify-content: flex-end;
+    padding: 12px 16px;
+  }
 }
