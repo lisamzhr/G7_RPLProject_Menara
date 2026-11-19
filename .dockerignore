@@ -1,0 +1,35 @@
+# Git & IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Python virtualenvs, caches & build artifacts
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/*.egg-info
+**/build
+**/dist
+.coverage
+
+# Databases & local env secrets
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+.env
+.env.*
+!.env.example
+
+# Unrelated directories not needed by backend/ai container
+frontend
+hardware
+docs
+.github
+*.log
