@@ -48,6 +48,10 @@ public:
     bool isConfigSaved() const;
     DeviceConfig getSavedConfig() const;
 
+    const char* getMacAddress() const;
+    void setMacAddress(const char* macAddress);
+    static void formatMacAddress(const uint8_t mac[6], char* outBuf, size_t outBufSize);
+
     // Helper functions for captive portal detection & credential processing (unit testable)
     static bool isCaptiveProbe(const char* path);
     static bool isHex256(const char* str);
@@ -80,6 +84,7 @@ private:
     DeviceConfig _config;
     DeviceConfig _savedConfig;
     char _apSsid[32];
+    char _macAddress[18];
     unsigned long _startedMillis;
 
 #if defined(ARDUINO)

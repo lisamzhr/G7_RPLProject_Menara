@@ -1,5 +1,27 @@
 #include "captive_portal.h"
 #include <cstring>
+#include <cstdio>
+
+void CaptivePortal::formatMacAddress(const uint8_t mac[6], char* outBuf, size_t outBufSize) {
+    if (!outBuf || outBufSize == 0) return;
+    if (!mac || outBufSize < 18) {
+        outBuf[0] = '\0';
+        return;
+    }
+    snprintf(outBuf, outBufSize, "%02X:%02X:%02X:%02X:%02X:%02X",
+             mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+const char* CaptivePortal::getMacAddress() const {
+    return _macAddress;
+}
+
+void CaptivePortal::setMacAddress(const char* macAddress) {
+    memset(_macAddress, 0, sizeof(_macAddress));
+    if (macAddress) {
+        strncpy(_macAddress, macAddress, sizeof(_macAddress) - 1);
+    }
+}
 
 bool CaptivePortal::isCaptiveProbe(const char* path) {
     if (!path) return false;
@@ -78,6 +100,7 @@ CaptivePortal::CaptivePortal()
     memset(&_config, 0, sizeof(DeviceConfig));
     memset(&_savedConfig, 0, sizeof(DeviceConfig));
     memset(_apSsid, 0, sizeof(_apSsid));
+    memset(_macAddress, 0, sizeof(_macAddress));
     memset(_publicKeyHex, 0, sizeof(_publicKeyHex));
 }
 
@@ -243,11 +266,14 @@ bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefi
     WiFi.disconnect(true, true);
     delay(50);
 
-    // 4. Generate unique AP SSID using last 2 bytes of MAC
+    // 4. Read STA MAC address before switching to AP mode & build unique AP SSID
     uint8_t mac[6];
     WiFi.macAddress(mac);
+    formatMacAddress(mac, _macAddress, sizeof(_macAddress));
     snprintf(_apSsid, sizeof(_apSsid), "%s-%02X%02X", apPrefix, mac[4], mac[5]);
 
+    Serial.print("[Portal] Node MAC Address: ");
+    Serial.println(_macAddress);
     Serial.print("[Portal] Starting SoftAP: ");
     Serial.println(_apSsid);
 
@@ -476,6 +502,8 @@ void CaptivePortal::handleSave() {
     <h2>Credentials Saved!</h2>
     <p>The ESP32 node is now switching to <strong>Station Mode</strong> and connecting to:</p>
     <div class="badge">)rawliteral" + finalSsid + R"rawliteral(</div>
+    <p style="margin-top:16px; margin-bottom:4px; font-size:12px; color:#6b7280;">Sensor Node MAC Address:</p>
+    <div class="badge" style="margin-top:0; font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">)rawliteral" + String(_macAddress) + R"rawliteral(</div>
     <p style="margin-top:20px; font-size:13px; color:#6b7280;">You can reconnect your phone to your normal Wi-Fi network.</p>
   </div>
 </body>
@@ -591,8 +619,80 @@ String CaptivePortal::buildHtml() {
       color: #94a3b8;
       margin-top: 4px;
     }
+    .mac-box {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 18px;
+    }
+    .mac-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #065f46;
+      margin-bottom: 6px;
+    }
+    .mac-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .mac-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      word-break: break-all;
+    }
+    .copy-btn {
+      font-size: 12px;
+      font-weight: 600;
+      color: #ffffff;
+      background: #059669;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover { background: #047857; }
   </style>
   <script>
+    function fallbackCopy(text, onSuccess) {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        if (document.execCommand("copy")) {
+          onSuccess();
+        }
+      } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    function copyMac() {
+      var macElem = document.getElementById("mac_value");
+      var btn = document.getElementById("copy_mac_btn");
+      if (!macElem || !btn) return;
+      var text = macElem.innerText || macElem.textContent || "";
+      var showCopied = function() {
+        btn.textContent = "Copied!";
+        setTimeout(function() { btn.textContent = "Copy"; }, 1800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showCopied).catch(function() {
+          fallbackCopy(text, showCopied);
+        });
+      } else {
+        fallbackCopy(text, showCopied);
+      }
+    }
     function togglePass() {
       var x = document.getElementById("pass");
       x.type = x.type === "password" ? "text" : "password";
@@ -676,7 +776,16 @@ String CaptivePortal::buildHtml() {
     <div class="header">
       <div class="logo-badge">&#x1F33F;</div>
       <h1>RoofGarden Setup</h1>
-      <p class="sub">Configure Wi-Fi credentials for node sensor</p>
+      <p class="sub">Configure Wi-Fi credentials for this sensor node</p>
+    </div>
+
+    <div class="mac-box">
+      <div class="mac-label">Sensor Node MAC Address</div>
+      <div class="mac-row">
+        <code id="mac_value" class="mac-value">)rawliteral" + String(_macAddress) + R"rawliteral(</code>
+        <button type="button" id="copy_mac_btn" class="copy-btn" onclick="copyMac()">Copy</button>
+      </div>
+      <div class="hint" style="color:#047857;">Register this MAC address in the RoofGarden web app to link this sensor node.</div>
     </div>
 
     <form id="setup_form" action="/save" method="POST" onsubmit="return handleSubmit(event)">
@@ -749,7 +858,12 @@ String CaptivePortal::buildHtml() {
 #else
 
 // Non-Arduino mock fallback for native tests
-CaptivePortal::CaptivePortal() : _running(false), _configSaved(false), _startedMillis(0) {}
+CaptivePortal::CaptivePortal() : _running(false), _configSaved(false), _startedMillis(0) {
+    memset(&_config, 0, sizeof(DeviceConfig));
+    memset(&_savedConfig, 0, sizeof(DeviceConfig));
+    memset(_apSsid, 0, sizeof(_apSsid));
+    memset(_macAddress, 0, sizeof(_macAddress));
+}
 CaptivePortal::~CaptivePortal() {}
 bool CaptivePortal::begin(const DeviceConfig& initialConfig, const char* apPrefix) { _config = initialConfig; _running = true; return true; }
 void CaptivePortal::update() {}

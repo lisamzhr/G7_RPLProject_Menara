@@ -29,7 +29,19 @@ public:
     const char* getMacAddress() const;
     bool isHttps() const;
 
+    int getLastHttpCode() const;
+    const char* getLastError() const;
+
+    static bool shouldRetryStatus(int httpCode);
+    static bool extractErrorDetail(const char* responseBody, char* outBuf, size_t outBufSize);
+    static void formatHttpError(int httpCode, const char* responseBody, char* outBuf, size_t outBufSize);
+
 private:
     char _baseUrl[128];
     char _macAddress[24];
+    int _lastHttpCode;
+    char _lastError[256];
+
+    void setLastError(int httpCode, const char* message);
+    void clearLastError(int httpCode);
 };
