@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 # Copy only dependency manifests first so code changes do not bust third-party dependency layers
 COPY ai/pyproject.toml ai/README.md /ai/
-COPY backend/pyproject.toml backend/uv.lock /app/
+COPY backend/pyproject.toml backend/uv.loc[k] /app/
 
 # Install all third-party dependencies for both roofgarden-ai and roofgarden-backend
 RUN --mount=type=cache,target=/root/.cache/uv \
