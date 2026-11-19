@@ -3,6 +3,18 @@
 from roofgarden_ai.contracts import ProposedAction, ZoneContext
 
 ALLOWED_AUTONOMOUS_CATEGORIES = {"leafy", "herbs"}
+RAIN_BLOCK_PCT = 50.0
+MAX_READING_AGE_SECONDS = 600.0  # 2 interval x 300s
+
+
+def sensor_issues(ctx: ZoneContext) -> list[str]:
+    """Daftar masalah data sensor (kosong = data sehat). Dipakai orchestrator & gate."""
+    issues = []
+    if not ctx.is_reading_valid:
+        issues.append("Sensor telemetry is flagged invalid")
+    if ctx.reading_age_seconds > MAX_READING_AGE_SECONDS:
+        issues.append(f"Sensor telemetry is stale ({ctx.reading_age_seconds:.0f}s old)")
+    return issues
 
 
 def evaluate_action_autonomy(
@@ -10,54 +22,48 @@ def evaluate_action_autonomy(
     candidate_action: str,
     duration_seconds: int = 30,
 ) -> ProposedAction:
-    """Evaluate candidate action through the strict deterministic autonomy safety gate.
+    """Auto-act ONLY IF: category in {leafy, herbs}, action is 'water', rain chance < 50%,
+    no severe weather alert, cooldown passed, daily cap not exceeded, sensor data fresh and valid.
+    Otherwise the action REQUIRES human confirmation."""
 
-    Auto-act ONLY IF all conditions are met:
-    1. Category is low-risk: in {leafy, herbs}
-    2. Action is 'water'
-    3. No rain chance >= 50% in next 3h
-    4. Last watering is older than min_interval_minutes (or never watered yet)
-    5. Today's total watering is below daily cap
-    6. Node data is fresh (< 2 * 300s old) and is_valid is True
+    # Tidak ada aktuasi -> tidak perlu dievaluasi
+    if candidate_action == "wait":
+        return ProposedAction(action_type="wait", reason="No actuation required.")
 
-    Otherwise, the action REQUIRES human confirmation.
-    """
+    # Masalah perangkat -> beri tahu user, bukan minta konfirmasi aktuasi
+    if candidate_action == "check_device":
+        return ProposedAction(
+            action_type="check_device",
+            reason=" | ".join(sensor_issues(ctx)) or "Device check requested.",
+        )
+
     reasons = []
 
-    # Condition 1: Category
     if ctx.category_key not in ALLOWED_AUTONOMOUS_CATEGORIES:
         reasons.append(f"Category '{ctx.category_key}' requires human supervision for actuation")
 
-    # Condition 2: Action type
     if candidate_action != "water":
         reasons.append(f"Action '{candidate_action}' cannot be triggered autonomously")
 
-    # Condition 3: Rain probability forecast
-    if ctx.rain_chance_next_3h >= 50.0:
+    if ctx.rain_chance_next_3h >= RAIN_BLOCK_PCT:
         reasons.append(f"Forecast rain chance is high ({ctx.rain_chance_next_3h:.0f}% in next 3h)")
 
-    # Condition 4: Cooldown interval
+    if ctx.has_severe_weather_alert:
+        reasons.append("Severe weather alert active")
+
     if ctx.last_watered_minutes_ago is not None and ctx.last_watered_minutes_ago < ctx.min_interval_minutes:
         reasons.append(
             f"Cooldown active: last watered {ctx.last_watered_minutes_ago:.0f}m ago (minimum: {ctx.min_interval_minutes}m)"
         )
 
-    # Condition 5: Daily cap
-    projected_today = ctx.today_water_seconds + duration_seconds
-    if projected_today > ctx.daily_water_cap_seconds:
+    if ctx.today_water_seconds + duration_seconds > ctx.daily_water_cap_seconds:
         reasons.append(
             f"Daily watering cap reached: {ctx.today_water_seconds}s used (cap: {ctx.daily_water_cap_seconds}s)"
         )
 
-    # Condition 6: Data freshness and validity
-    max_reading_age_seconds = 600.0 # 2 intervals of 300s
-    if not ctx.is_reading_valid:
-        reasons.append("Sensor telemetry is flagged invalid")
-    if ctx.reading_age_seconds > max_reading_age_seconds:
-        reasons.append(f"Sensor telemetry is stale ({ctx.reading_age_seconds:.0f}s old)")
+    reasons.extend(sensor_issues(ctx))
 
-    # Decision outcome
-    if not reasons and candidate_action == "water":
+    if not reasons:  # candidate_action pasti "water" di sini
         return ProposedAction(
             action_type="water",
             duration_seconds=duration_seconds,
@@ -66,14 +72,10 @@ def evaluate_action_autonomy(
             reason="Automated watering approved: all botanical and meteorological conditions verified safe.",
         )
 
-    # If any condition failed or candidate action is not water:
-    requires_human = candidate_action in ["water", "shade", "add_light"]
-    reason_str = " | ".join(reasons) if reasons else "No actuation required."
-
     return ProposedAction(
         action_type=candidate_action,  # type: ignore
         duration_seconds=duration_seconds if candidate_action == "water" else 0,
-        requires_confirmation=requires_human,
+        requires_confirmation=True,
         auto_approved=False,
-        reason=reason_str,
+        reason=" | ".join(reasons),
     )

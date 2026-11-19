@@ -7,8 +7,7 @@ from roofgarden_ai.guardrails.fallback_templates import generate_fallback_recomm
 from roofgarden_ai.guardrails.validator import validate_and_filter_llm_response
 from roofgarden_ai.llm.base import LLMClient, MockLLMClient
 from roofgarden_ai.llm.prompts import build_evaluation_prompt
-from roofgarden_ai.rule_engine.autonomy import evaluate_action_autonomy
-from roofgarden_ai.rule_engine.predictor import LinearSlopePredictor, MoisturePredictor
+from roofgarden_ai.rule_engine.autonomy import evaluate_action_autonomy, sensor_issues
 from roofgarden_ai.rule_engine.status import determine_zone_level, evaluate_parameters
 from roofgarden_ai.rule_engine.predictor import MoisturePredictor, get_default_predictor
 
@@ -35,7 +34,9 @@ def evaluate(
 
     # 3. Determine Candidate Action
     candidate_action = "wait"
-    if ctx.current_moisture < ctx.thresholds.moisture_min:
+    if sensor_issues(ctx):
+        candidate_action = "check_device"
+    elif ctx.current_moisture < ctx.thresholds.moisture_min:
         candidate_action = "water"
     elif ctx.current_temp > ctx.thresholds.temp_max:
         candidate_action = "shade"
