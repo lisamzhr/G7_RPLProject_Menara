@@ -145,6 +145,124 @@ void test_api_client_https_detection(void) {
     TEST_ASSERT_TRUE(clientEmpty.isHttps());
 }
 
+void test_api_client_error_formatting_http_status_and_detail(void) {
+    char buf[256];
+
+    // 401 with unregistered MAC backend JSON detail
+    ApiClient::formatHttpError(
+        401,
+        "{\"detail\":\"Sensor node with MAC '24:6F:28:01:00:01' is not registered\"}",
+        buf,
+        sizeof(buf)
+    );
+    TEST_ASSERT_EQUAL_STRING(
+        "HTTP 401 Unauthorized: Sensor node with MAC '24:6F:28:01:00:01' is not registered",
+        buf
+    );
+
+    // 401 with empty / null body falls back to specific default description
+    ApiClient::formatHttpError(401, nullptr, buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_STRING(
+        "HTTP 401 Unauthorized: Node MAC address is not registered or authentication failed",
+        buf
+    );
+    ApiClient::formatHttpError(401, "", buf, sizeof(buf));
+    TEST_ASSERT_EQUAL_STRING(
+        "HTTP 401 Unauthorized: Node MAC address is not registered or authentication failed",
+        buf
+    );
+
+    // 400 Bad Request with backend detail
+    ApiClient::formatHttpError(400, "{\"detail\":\"Malformed MAC address: BAD\"}", buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "HTTP 400 Bad Request"));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "Malformed MAC address: BAD"));
+
+    // 404 Not Found with backend detail
+    ApiClient::formatHttpError(404, "{\"detail\":\"Node not found\"}", buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "HTTP 404 Not Found"));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "Node not found"));
+
+    // 422 Unprocessable Entity with FastAPI/Pydantic validation error array
+    ApiClient::formatHttpError(
+        422,
+        "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"lux\"],\"msg\":\"Field required\"}]}",
+        buf,
+        sizeof(buf)
+    );
+    TEST_ASSERT_NOT_NULL(strstr(buf, "HTTP 422 Unprocessable Entity"));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "Field required"));
+
+    // 500 Internal Server Error with empty body
+    ApiClient::formatHttpError(500, "", buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "HTTP 500 Internal Server Error"));
+
+    // 502 Bad Gateway with HTML body should ignore raw HTML and use default message
+    ApiClient::formatHttpError(502, "<html><body>502 Bad Gateway</body></html>", buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "HTTP 502 Bad Gateway"));
+    TEST_ASSERT_NULL(strstr(buf, "<html>"));
+
+    // 301 Redirect
+    ApiClient::formatHttpError(301, "", buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "HTTP 301 Redirect"));
+}
+
+void test_api_client_error_formatting_transport_errors(void) {
+    char buf[256];
+
+    ApiClient::formatHttpError(-1, nullptr, buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "Connection refused"));
+
+    ApiClient::formatHttpError(-7, nullptr, buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "DNS"));
+
+    ApiClient::formatHttpError(-11, nullptr, buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "timed out"));
+
+    ApiClient::formatHttpError(0, nullptr, buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "could not be started"));
+
+    ApiClient::formatHttpError(-99, nullptr, buf, sizeof(buf));
+    TEST_ASSERT_NOT_NULL(strstr(buf, "-99"));
+}
+
+void test_api_client_retry_policy_includes_4xx(void) {
+    // 4xx, 5xx, 3xx, and transport errors must all be retried (e.g. while MAC is not registered yet)
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(400));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(401));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(403));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(404));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(422));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(429));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(500));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(503));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(-1));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(-11));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(0));
+    TEST_ASSERT_TRUE(ApiClient::shouldRetryStatus(302));
+
+    // Only successful HTTP status codes are non-retryable
+    TEST_ASSERT_FALSE(ApiClient::shouldRetryStatus(200));
+    TEST_ASSERT_FALSE(ApiClient::shouldRetryStatus(201));
+    TEST_ASSERT_FALSE(ApiClient::shouldRetryStatus(204));
+}
+
+void test_api_client_last_error_state(void) {
+    ApiClient client("http://localhost:8000/api/v1", "24:6F:28:01:00:01");
+    TEST_ASSERT_EQUAL_INT(0, client.getLastHttpCode());
+    TEST_ASSERT_EQUAL_STRING("", client.getLastError());
+
+    SensorReading r{};
+    r.soil_moisture_pct = 65.0f;
+    r.temperature_c = 27.5f;
+    r.humidity_pct = 72.0f;
+    r.lux = 12000.0f;
+    r.is_valid = true;
+
+    TEST_ASSERT_TRUE(client.postReading(r));
+    TEST_ASSERT_EQUAL_INT(201, client.getLastHttpCode());
+    TEST_ASSERT_EQUAL_STRING("", client.getLastError());
+}
+
 // ==============================================================================
 // 4. TimeSync Unit Tests
 // ==============================================================================
@@ -292,6 +410,23 @@ void test_captive_portal_hex_to_bytes(void) {
     TEST_ASSERT_FALSE(CaptivePortal::hexToBytes(hexStr, nullptr, sizeof(outBytes)));
 }
 
+void test_captive_portal_mac_formatting_and_accessors(void) {
+    uint8_t rawMac[6] = {0x24, 0x6F, 0x28, 0x01, 0x0A, 0xFF};
+    char macStr[18];
+    CaptivePortal::formatMacAddress(rawMac, macStr, sizeof(macStr));
+    TEST_ASSERT_EQUAL_STRING("24:6F:28:01:0A:FF", macStr);
+
+    // Undersized buffer must safely write empty string without overflowing
+    char smallBuf[10] = {'X', 'X', 'X'};
+    CaptivePortal::formatMacAddress(rawMac, smallBuf, sizeof(smallBuf));
+    TEST_ASSERT_EQUAL_STRING("", smallBuf);
+
+    CaptivePortal portal;
+    TEST_ASSERT_EQUAL_STRING("", portal.getMacAddress());
+    portal.setMacAddress("24:6F:28:01:0A:FF");
+    TEST_ASSERT_EQUAL_STRING("24:6F:28:01:0A:FF", portal.getMacAddress());
+}
+
 // ==============================================================================
 // Test Runner
 // ==============================================================================
@@ -314,6 +449,10 @@ int run_networking_tests() {
     RUN_TEST(test_api_client_config_getters);
     RUN_TEST(test_api_client_command_struct_layout);
     RUN_TEST(test_api_client_https_detection);
+    RUN_TEST(test_api_client_error_formatting_http_status_and_detail);
+    RUN_TEST(test_api_client_error_formatting_transport_errors);
+    RUN_TEST(test_api_client_retry_policy_includes_4xx);
+    RUN_TEST(test_api_client_last_error_state);
 
     // 4. TimeSync
     RUN_TEST(test_time_sync_begin_and_sync_state);
@@ -325,6 +464,7 @@ int run_networking_tests() {
     RUN_TEST(test_captive_portal_lifecycle);
     RUN_TEST(test_captive_portal_hex256_validation);
     RUN_TEST(test_captive_portal_hex_to_bytes);
+    RUN_TEST(test_captive_portal_mac_formatting_and_accessors);
 
     return UNITY_END();
 }

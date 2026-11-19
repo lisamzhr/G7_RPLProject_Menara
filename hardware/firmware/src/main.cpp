@@ -48,6 +48,7 @@ void printMenu() {
     Serial.println("\n------------------------------------------------------------");
     Serial.println("[RoofGarden Controller] Interactive Serial Shortcuts:");
     Serial.println("  'c' or 'p' -> Launch Wi-Fi Captive Portal for phone setup");
+    Serial.println("  'm'        -> Display this sensor node's hardware MAC address");
     Serial.println("  'F'        -> Factory reset (Clear saved Wi-Fi in NVS)");
 #if MOCK_ENVIRONMENT
     Serial.println("  '1' or 'n' -> Switch to NORMAL scenario (Healthy garden)");
@@ -153,6 +154,14 @@ void handleSerialInput() {
             case 'P':
                 Serial.println("[Controller] Manual request to launch Captive Portal.");
                 wifiManager.startPortal(currentConfig, PORTAL_AP_SSID_PREFIX);
+                break;
+
+            case 'm':
+            case 'M':
+                Serial.println("\n--- [Sensor Node MAC Address] ---");
+                Serial.printf("MAC Address: %s\n", apiClient.getMacAddress());
+                Serial.println("Register this MAC address in the RoofGarden web app.");
+                Serial.println("---------------------------------\n");
                 break;
 
             case 'F':
@@ -341,38 +350,40 @@ void loop() {
 
         // Send or Buffer
         if (wifiManager.isConnected()) {
-            // Flush any buffered readings first
+            // Flush any buffered readings first (always retry, including 4xx e.g. unregistered MAC)
+            bool flushFailed = false;
             while (!readingBuffer.isEmpty()) {
                 SensorReading buffered;
                 if (readingBuffer.peek(buffered)) {
-                    bool retryable = true;
-                    if (apiClient.postReading(buffered, &retryable)) {
+                    if (apiClient.postReading(buffered)) {
                         readingBuffer.pop(buffered);
-                        Serial.println("[Buffer] Successfully flushed buffered reading to backend.");
-                    } else if (!retryable) {
-                        readingBuffer.pop(buffered);
-                        Serial.println("[Buffer] Dropped unprocessable buffered reading (4xx non-retryable error).");
+                        Serial.printf("[Buffer] Flushed 1 buffered reading to backend (%u remaining).\n",
+                                      (unsigned int)readingBuffer.size());
                     } else {
-                        break; // Failed to send due to network/server, keep remaining in buffer
+                        Serial.printf("[Buffer] Failed to flush buffered reading (%s). Keeping %u reading(s) in buffer to retry next cycle.\n",
+                                      apiClient.getLastError(), (unsigned int)readingBuffer.size());
+                        flushFailed = true;
+                        break;
                     }
                 }
             }
 
-            // Send current reading
-            bool currRetryable = true;
-            if (!apiClient.postReading(reading, &currRetryable)) {
-                if (currRetryable) {
-                    Serial.println("[API] Failed to POST reading. Buffering to RAM.");
-                    readingBuffer.push(reading);
-                } else {
-                    Serial.println("[API] Reading rejected with non-retryable error (4xx). Not buffering.");
-                }
+            // Send current reading (or buffer directly if queue flush failed to preserve order)
+            if (flushFailed) {
+                readingBuffer.push(reading);
+                Serial.printf("[API] Buffered current reading for retry (%u/%u in buffer).\n",
+                              (unsigned int)readingBuffer.size(), (unsigned int)BUFFER_MAX_READINGS);
+            } else if (!apiClient.postReading(reading)) {
+                readingBuffer.push(reading);
+                Serial.printf("[API] Failed to send reading (%s). Buffered for retry (%u/%u in buffer).\n",
+                              apiClient.getLastError(), (unsigned int)readingBuffer.size(), (unsigned int)BUFFER_MAX_READINGS);
             } else {
                 Serial.println("[API] Sensor telemetry successfully sent to web app.");
             }
         } else {
-            Serial.println("[WiFi] Offline. Buffering reading to RAM.");
             readingBuffer.push(reading);
+            Serial.printf("[WiFi] Offline. Buffered reading to RAM (%u/%u in buffer).\n",
+                          (unsigned int)readingBuffer.size(), (unsigned int)BUFFER_MAX_READINGS);
         }
     }
 
@@ -383,7 +394,9 @@ void loop() {
         if (wifiManager.isConnected()) {
             ActuatorCommand cmd;
             bool hasCommand = false;
-            if (apiClient.pollPendingCommands(cmd, hasCommand) && hasCommand) {
+            if (!apiClient.pollPendingCommands(cmd, hasCommand)) {
+                Serial.printf("[Command] Failed to poll commands (%s).\n", apiClient.getLastError());
+            } else if (hasCommand) {
                 Serial.printf("[Command] Received from web app: %s (Duration: %us)\n", cmd.command, cmd.duration_seconds);
                 char execTs[32] = {0};
                 timeSync.getISO8601Timestamp(execTs, sizeof(execTs));
@@ -396,16 +409,28 @@ void loop() {
                         Serial.printf("[Mock] Irrigation active! Soil moisture replenished by ~%.1f%%.\n",
                                       (float)cmd.duration_seconds * 0.45f);
 #endif
-                        apiClient.ackCommand(cmd.command_id, "acked", "Valve opened successfully", execTs);
+                        if (!apiClient.ackCommand(cmd.command_id, "acked", "Valve opened successfully", execTs)) {
+                            Serial.printf("[Command] Failed to acknowledge command %s (%s).\n",
+                                          cmd.command_id, apiClient.getLastError());
+                        }
                     } else {
-                        apiClient.ackCommand(cmd.command_id, "failed", "Invalid duration or relay turnOn failed", execTs);
+                        if (!apiClient.ackCommand(cmd.command_id, "failed", "Invalid duration or relay turnOn failed", execTs)) {
+                            Serial.printf("[Command] Failed to acknowledge command %s (%s).\n",
+                                          cmd.command_id, apiClient.getLastError());
+                        }
                     }
                 } else if (strcmp(cmd.command, "turn_off") == 0) {
                     sprinklerRelay.turnOff();
-                    apiClient.ackCommand(cmd.command_id, "acked", "Valve closed successfully", execTs);
+                    if (!apiClient.ackCommand(cmd.command_id, "acked", "Valve closed successfully", execTs)) {
+                        Serial.printf("[Command] Failed to acknowledge command %s (%s).\n",
+                                      cmd.command_id, apiClient.getLastError());
+                    }
                 } else {
                     Serial.printf("[Command] Unknown command '%s'. Acknowledging as failed to unblock queue.\n", cmd.command);
-                    apiClient.ackCommand(cmd.command_id, "failed", "Unsupported command", execTs);
+                    if (!apiClient.ackCommand(cmd.command_id, "failed", "Unsupported command", execTs)) {
+                        Serial.printf("[Command] Failed to acknowledge command %s (%s).\n",
+                                      cmd.command_id, apiClient.getLastError());
+                    }
                 }
             }
         }
