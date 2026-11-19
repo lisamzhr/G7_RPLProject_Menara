@@ -6,7 +6,6 @@ from app.models.alert import Alert
 from app.models.control_action import ControlAction
 from app.models.feedback import Feedback
 from app.models.garden import Garden
-from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.plant_category import PlantCategory
 from app.models.plant_zone import PlantZone
 from app.models.recommendation import Recommendation
@@ -16,6 +15,7 @@ from app.models.threshold_profile import ThresholdProfile
 from app.models.user import User
 from app.models.weather_cache import WeatherCache
 from app.models.garden_member import GardenMember
+from app.models.weather_cache import WeatherCache
 
 __all__ = [
     "Actuator",
@@ -24,7 +24,6 @@ __all__ = [
     "ControlAction",
     "Feedback",
     "Garden",
-    "KnowledgeChunk",
     "PlantCategory",
     "PlantZone",
     "Recommendation",
