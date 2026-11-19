@@ -31,8 +31,7 @@
 static const std::string DEFAULT_API_HOST = "localhost";
 static const int DEFAULT_API_PORT = 8000;
 static const std::string DEFAULT_API_PATH = "/api/v1";
-static const std::string DEFAULT_NODE_ID = "esp32-node-01";
-static const std::string DEFAULT_API_KEY = "dev-node-api-key-secret-12345";
+static const std::string DEFAULT_MAC_ADDRESS = "24:6F:28:01:00:01";
 static const int DEFAULT_SEND_INTERVAL_S = 10;
 static const int DEFAULT_POLL_INTERVAL_S = 10;
 static const uint32_t HARD_MAX_RELAY_SECONDS = 60;
@@ -53,13 +52,13 @@ public:
         if (_hInternet) InternetCloseHandle(_hInternet);
     }
 
-    bool post(const std::string& path, const std::string& jsonBody, const std::string& apiKey, std::string& responseBody) {
+    bool post(const std::string& path, const std::string& jsonBody, const std::string& macAddress, std::string& responseBody) {
         if (!_hConnect) return false;
 
         HINTERNET hRequest = HttpOpenRequestA(_hConnect, "POST", path.c_str(), NULL, NULL, NULL, INTERNET_FLAG_RELOAD, 0);
         if (!hRequest) return false;
 
-        std::string headers = "Content-Type: application/json\r\nX-Node-Key: " + apiKey + "\r\n";
+        std::string headers = "Content-Type: application/json\r\nX-Node-MAC: " + macAddress + "\r\n";
         BOOL sent = HttpSendRequestA(hRequest, headers.c_str(), (DWORD)headers.length(),
                                      (LPVOID)jsonBody.c_str(), (DWORD)jsonBody.length());
 
@@ -82,13 +81,13 @@ public:
         return success;
     }
 
-    bool get(const std::string& path, const std::string& apiKey, std::string& responseBody) {
+    bool get(const std::string& path, const std::string& macAddress, std::string& responseBody) {
         if (!_hConnect) return false;
 
         HINTERNET hRequest = HttpOpenRequestA(_hConnect, "GET", path.c_str(), NULL, NULL, NULL, INTERNET_FLAG_RELOAD, 0);
         if (!hRequest) return false;
 
-        std::string headers = "X-Node-Key: " + apiKey + "\r\n";
+        std::string headers = "X-Node-MAC: " + macAddress + "\r\n";
         BOOL sent = HttpSendRequestA(hRequest, headers.c_str(), (DWORD)headers.length(), NULL, 0);
 
         bool success = false;
@@ -188,9 +187,9 @@ static std::vector<NativeCommand> parseCommandsJson(const std::string& json) {
     return list;
 }
 
-static std::string formatTelemetryJson(const std::string& nodeId, const SensorReading& r) {
+static std::string formatTelemetryJson(const std::string& macAddress, const SensorReading& r) {
     std::ostringstream json;
-    json << "{\"node_id\":\"" << nodeId << "\"";
+    json << "{\"mac_address\":\"" << macAddress << "\"";
     if (std::strlen(r.timestamp) > 0) {
         json << ",\"ts\":\"" << r.timestamp << "\"";
     }
@@ -206,18 +205,15 @@ static std::string formatTelemetryJson(const std::string& nodeId, const SensorRe
 }
 
 int main(int argc, char* argv[]) {
-    (void)argc;
-    (void)argv;
     std::string host = DEFAULT_API_HOST;
     int port = DEFAULT_API_PORT;
-    std::string nodeId = DEFAULT_NODE_ID;
-    std::string apiKey = DEFAULT_API_KEY;
+    std::string macAddress = (argc > 1 && argv[1] && std::strlen(argv[1]) > 0) ? argv[1] : DEFAULT_MAC_ADDRESS;
     int sendIntervalS = DEFAULT_SEND_INTERVAL_S;
 
     std::cout << "============================================================\n";
     std::cout << "  ROOFGARDEN NATIVE MOCK FIRMWARE RUNNER\n";
     std::cout << "  Target:        http://" << host << ":" << port << DEFAULT_API_PATH << "\n";
-    std::cout << "  Node ID:       " << nodeId << "\n";
+    std::cout << "  MAC Address:   " << macAddress << "\n";
     std::cout << "  Send Interval: " << sendIntervalS << "s\n";
     std::cout << "============================================================\n";
     std::cout << "Shortcuts: [1] Normal  [2] Dry  [3] Heatwave  [4] Water  [5] Anomaly  [q] Quit\n\n";
@@ -295,9 +291,9 @@ int main(int argc, char* argv[]) {
             while (!buffer.isEmpty()) {
                 SensorReading buffered{};
                 if (buffer.peek(buffered)) {
-                    std::string bufJson = formatTelemetryJson(nodeId, buffered);
+                    std::string bufJson = formatTelemetryJson(macAddress, buffered);
                     std::string resp;
-                    if (http.post(DEFAULT_API_PATH + "/ingest/readings", bufJson, apiKey, resp)) {
+                    if (http.post(DEFAULT_API_PATH + "/ingest/readings", bufJson, macAddress, resp)) {
                         buffer.pop(buffered);
                         std::cout << "  [Buffer] Flushed 1 buffered reading to web app ("
                                   << buffer.size() << " remaining).\n";
@@ -311,9 +307,9 @@ int main(int argc, char* argv[]) {
                       << "C | Hum: " << reading.humidity_pct << "% | Lux: " << reading.lux
                       << " lx | Valid: " << (reading.is_valid ? "true" : "false") << "\n";
 
-            std::string currentJson = formatTelemetryJson(nodeId, reading);
+            std::string currentJson = formatTelemetryJson(macAddress, reading);
             std::string response;
-            bool ok = http.post(DEFAULT_API_PATH + "/ingest/readings", currentJson, apiKey, response);
+            bool ok = http.post(DEFAULT_API_PATH + "/ingest/readings", currentJson, macAddress, response);
             if (ok) {
                 std::cout << "  -> Ingested successfully into web app.\n";
             } else {
@@ -326,7 +322,7 @@ int main(int argc, char* argv[]) {
         if (std::chrono::duration_cast<std::chrono::seconds>(now - lastPollTime).count() >= DEFAULT_POLL_INTERVAL_S) {
             lastPollTime = now;
             std::string response;
-            if (http.get(DEFAULT_API_PATH + "/nodes/" + nodeId + "/commands", apiKey, response)) {
+            if (http.get(DEFAULT_API_PATH + "/nodes/" + macAddress + "/commands", macAddress, response)) {
                 auto commands = parseCommandsJson(response);
                 for (const auto& cmd : commands) {
                     std::cout << "[Command] Received pending command from web app: " << cmd.command
@@ -356,8 +352,8 @@ int main(int argc, char* argv[]) {
                     ackBody << "{\"status\":\"" << (cmd.command == "turn_on" || cmd.command == "turn_off" ? "acked" : "failed")
                             << "\",\"executed_at\":\"" << execTs << "\",\"result\":\"" << ackResult << "\"}";
                     std::string ackResp;
-                    bool ackOk = http.post(DEFAULT_API_PATH + "/nodes/" + nodeId + "/commands/" + cmd.command_id + "/ack",
-                                           ackBody.str(), apiKey, ackResp);
+                    bool ackOk = http.post(DEFAULT_API_PATH + "/nodes/" + macAddress + "/commands/" + cmd.command_id + "/ack",
+                                           ackBody.str(), macAddress, ackResp);
                     if (ackOk) {
                         std::cout << "  -> Acknowledged command " << cmd.command_id << " to backend.\n";
                     } else {

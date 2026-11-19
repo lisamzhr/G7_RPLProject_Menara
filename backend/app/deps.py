@@ -37,18 +37,6 @@ def get_current_user(
     return user
 
 
-def verify_node_key(
-    x_node_key: str | None = Header(None, alias="X-Node-Key"),
-) -> str:
-    """Ensure X-Node-Key header is present."""
-    if not x_node_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing required X-Node-Key header for sensor node authentication",
-        )
-    return x_node_key
-
-
 def verify_internal_token(
     x_internal_token: str | None = Header(None, alias="X-Internal-Token"),
 ) -> None:

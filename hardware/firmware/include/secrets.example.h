@@ -10,9 +10,8 @@
 #define WIFI_PASS       "Your_WiFi_Password"
 
 #define API_BASE_URL    "http://192.168.1.100:8000/api/v1"
-// Optional: Node ID and API key. If omitted, nodes dynamically authenticate via hardware MAC address (WiFi.macAddress())
-#define NODE_ID         "esp32-node-01"
-#define NODE_API_KEY    "dev-node-api-key-secret-12345"
+// Sensor nodes authenticate exclusively via their hardware MAC address (WiFi.macAddress()),
+// registered per plant zone in the web dashboard.
 
 // NTP Server Configuration (UTC time with 'Z' suffix for API telemetry)
 #define NTP_SERVER      "pool.ntp.org"

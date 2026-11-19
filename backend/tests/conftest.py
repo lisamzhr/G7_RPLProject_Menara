@@ -12,7 +12,7 @@ from sqlalchemy.pool import StaticPool
 import app.core.database as core_db
 import app.core.config as core_config
 from app.core.database import Base, get_db
-from app.core.security import hash_api_key, create_access_token
+from app.core.security import create_access_token
 from app.main import app
 from app.models.garden import Garden
 from app.models.garden_member import GardenMember
@@ -104,9 +104,10 @@ def db_session():
     session.commit()
 
     node = SensorNode(
-        id="esp32-node-test",
+        id="esp32-246f28aabbcc",
+        mac_address="24:6F:28:AA:BB:CC",
+        name="Test Garden Sensor Node",
         zone_id=zone.id,
-        api_key_hash=hash_api_key("valid-secret-key-123"),
         last_seen_at=datetime.now(UTC),
         status="active",
     )

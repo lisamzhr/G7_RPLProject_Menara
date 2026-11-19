@@ -30,16 +30,16 @@ def test_check_node_health_flags_offline_and_creates_alert(db_session):
     # Create one healthy node (seen 2 mins ago) and one stale node (seen 30 mins ago)
     now = datetime.now(UTC)
     active_node = SensorNode(
-        id="healthy-esp32-node",
+        id="esp32-112233445501",
+        mac_address="11:22:33:44:55:01",
         zone_id=zone.id,
-        api_key_hash="hash1",
         status="active",
         last_seen_at=now - timedelta(minutes=2),
     )
     stale_node = SensorNode(
-        id="stale-esp32-node",
+        id="esp32-112233445502",
+        mac_address="11:22:33:44:55:02",
         zone_id=zone.id,
-        api_key_hash="hash2",
         status="active",
         last_seen_at=now - timedelta(minutes=30),
     )
@@ -63,7 +63,7 @@ def test_check_node_health_flags_offline_and_creates_alert(db_session):
         .first()
     )
     assert alert is not None
-    assert "stale-esp32-node" in alert.message
+    assert "esp32-112233445502" in alert.message
 
 
 def test_verify_actions_detects_blockage_when_moisture_does_not_rise(db_session):

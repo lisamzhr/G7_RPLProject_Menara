@@ -13,7 +13,7 @@ sys.path.append(str(backend_dir))
 sys.path.append(str(ai_dir))
 
 from app.core.database import Base, SessionLocal, engine
-from app.core.security import hash_api_key, get_password_hash
+from app.core.security import get_password_hash
 from app.models.actuator import Actuator
 from app.models.garden import Garden
 from app.models.garden_member import GardenMember
@@ -192,12 +192,10 @@ def seed_database():
                 "plants": ["Pak Choy", "Caisim", "Bok Choy"],
                 "nodes": [
                     {
-                        "node_id": "esp32-node-01",
                         "mac": "24:6F:28:01:00:01",
                         "name": "Zone A Greens Node (Main)",
                     },
                     {
-                        "node_id": "esp32-node-05",
                         "mac": "24:6F:28:01:00:05",
                         "name": "Zone A Hydroponic Node (North Bed)",
                     },
@@ -209,7 +207,6 @@ def seed_database():
                 "plants": ["Cabai Rawit", "Cherry Tomato"],
                 "nodes": [
                     {
-                        "node_id": "esp32-node-02",
                         "mac": "24:6F:28:01:00:02",
                         "name": "Zone B Solanaceae Node",
                     },
@@ -221,7 +218,6 @@ def seed_database():
                 "plants": ["Kemangi", "Peppermint", "Lemongrass"],
                 "nodes": [
                     {
-                        "node_id": "esp32-node-03",
                         "mac": "24:6F:28:01:00:03",
                         "name": "Zone C Herbs Node",
                     },
@@ -233,16 +229,12 @@ def seed_database():
                 "plants": ["Jeruk Limau", "Jambu Kristal"],
                 "nodes": [
                     {
-                        "node_id": "esp32-node-04",
                         "mac": "24:6F:28:01:00:04",
                         "name": "Zone D Citrus Node",
                     },
                 ],
             },
         ]
-
-        default_api_key = "dev-node-api-key-secret-12345"
-        key_hash = hash_api_key(default_api_key)
 
         for zdata in zones_data:
             zone = db.query(PlantZone).filter(PlantZone.label == zdata["label"]).first()
@@ -280,14 +272,14 @@ def seed_database():
 
             # Ensure all sensor nodes for this zone exist
             for ndata in zdata["nodes"]:
-                node = db.query(SensorNode).filter(SensorNode.id == ndata["node_id"]).first()
+                node_id = f"esp32-{ndata['mac'].replace(':', '').lower()}"
+                node = db.query(SensorNode).filter(SensorNode.mac_address == ndata["mac"]).first()
                 if not node:
                     node = SensorNode(
-                        id=ndata["node_id"],
+                        id=node_id,
                         mac_address=ndata["mac"],
                         name=ndata["name"],
                         zone_id=zone.id,
-                        api_key_hash=key_hash,
                         last_seen_at=datetime.now(UTC),
                         status="active",
                     )
@@ -304,7 +296,7 @@ def seed_database():
                             base_m = 75.0
 
                         r = SensorReading(
-                            node_id=ndata["node_id"],
+                            node_id=node_id,
                             ts=reading_time,
                             soil_moisture_pct=round(base_m + random.uniform(-3.0, 3.0), 1),
                             temperature_c=round(26.0 + random.uniform(-2.0, 4.0), 1),
@@ -318,7 +310,6 @@ def seed_database():
                     db.commit()
 
         print("[Seed] Successfully seeded all zones, nodes, actuators, and past 24h readings.")
-        print(f"[Seed] Sensor Node Default API Key: '{default_api_key}'")
 
     finally:
         db.close()

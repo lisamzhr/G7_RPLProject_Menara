@@ -174,7 +174,7 @@ flowchart TD
 | **REQ-ACTU-01** | Hardware / Safety | Manual actuator command queuing (`turn_on`, `turn_off`) | `test_commands.py`, `test_actuators_and_commands.py` | PASS |
 | **REQ-ACTU-02** | Hardware / Safety | Hard cap duration to maximum 60 seconds | `test_actuators_and_commands.py`, `test_commands.py` | PASS |
 | **REQ-ACTU-03** | Hardware / Safety | Enforce 5-minute cooldown between manual actuator activations | `test_actuators_and_commands.py`, `scripts/test_endpoints.py` | PASS |
-| **REQ-INGE-01** | Hardware / Ingest | Sensor reading ingestion authenticated via `X-Node-Key` | `test_ingestion.py`, `scripts/simulate_node.py` | PASS |
+| **REQ-INGE-01** | Hardware / Ingest | Sensor reading ingestion authenticated via `X-Node-MAC` | `test_ingestion.py`, `scripts/simulate_node.py` | PASS |
 | **REQ-INGE-02** | Hardware / Ingest | Boundary validation and `is_valid=false` anomaly flagging | `test_ingestion.py` | PASS |
 | **REQ-METE-01** | External API | BMKG multi-day forecast time-series slot alignment to UTC now | `test_bmkg_client.py`, `ai/tests/test_bmkg_client.py` | PASS |
 | **REQ-METE-02** | External API | Derivation of rain chance percentage via precipitation heuristics | `test_bmkg_client.py`, `ai/tests/test_bmkg_client.py` | PASS |

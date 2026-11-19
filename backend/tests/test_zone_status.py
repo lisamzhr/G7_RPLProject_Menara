@@ -8,14 +8,13 @@ def test_zone_status_ok(client, db_session):
 
     # Post an ideal reading for the node in this zone (leafy: moisture 76-98, temp 22-27)
     payload = {
-        "node_id": "esp32-node-test",
         "soil_moisture_pct": 85.0,
         "temperature_c": 24.5,
         "humidity_pct": 70.0,
         "lux": 15000.0,
     }
     client.post(
-        "/api/v1/ingest/readings", json=payload, headers={"X-Node-Key": "valid-secret-key-123"}
+        "/api/v1/ingest/readings", json=payload, headers={"X-Node-MAC": "24:6F:28:AA:BB:CC"}
     )
 
     res = client.get(f"/api/v1/zones/{zone.id}/status")
@@ -32,14 +31,13 @@ def test_zone_status_low_moisture_warning(client, db_session):
 
     # Post a low moisture reading (65% < 76% min)
     payload = {
-        "node_id": "esp32-node-test",
         "soil_moisture_pct": 65.0,
         "temperature_c": 25.0,
         "humidity_pct": 70.0,
         "lux": 15000.0,
     }
     client.post(
-        "/api/v1/ingest/readings", json=payload, headers={"X-Node-Key": "valid-secret-key-123"}
+        "/api/v1/ingest/readings", json=payload, headers={"X-Node-MAC": "24:6F:28:AA:BB:CC"}
     )
 
     res = client.get(f"/api/v1/zones/{zone.id}/status")

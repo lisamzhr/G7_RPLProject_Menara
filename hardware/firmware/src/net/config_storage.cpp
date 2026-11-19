@@ -37,16 +37,12 @@ bool ConfigStorage::load(DeviceConfig& outConfig) {
         String ssid = prefs.getString("ssid", "");
         String pass = prefs.getString("pass", "");
         String url  = prefs.getString("api_url", "");
-        String nid  = prefs.getString("node_id", "");
-        String key  = prefs.getString("node_key", "");
         prefs.end();
 
         if (ssid.length() > 0) {
             strncpy(outConfig.wifi_ssid, ssid.c_str(), sizeof(outConfig.wifi_ssid) - 1);
             strncpy(outConfig.wifi_pass, pass.c_str(), sizeof(outConfig.wifi_pass) - 1);
             strncpy(outConfig.api_base_url, url.c_str(), sizeof(outConfig.api_base_url) - 1);
-            strncpy(outConfig.node_id, nid.c_str(), sizeof(outConfig.node_id) - 1);
-            strncpy(outConfig.node_api_key, key.c_str(), sizeof(outConfig.node_api_key) - 1);
             return isValid(outConfig);
         }
     }
@@ -62,12 +58,6 @@ bool ConfigStorage::load(DeviceConfig& outConfig) {
 #ifdef API_BASE_URL
     strncpy(outConfig.api_base_url, API_BASE_URL, sizeof(outConfig.api_base_url) - 1);
 #endif
-#ifdef NODE_ID
-    strncpy(outConfig.node_id, NODE_ID, sizeof(outConfig.node_id) - 1);
-#endif
-#ifdef NODE_API_KEY
-    strncpy(outConfig.node_api_key, NODE_API_KEY, sizeof(outConfig.node_api_key) - 1);
-#endif
 
     return isValid(outConfig);
 }
@@ -82,8 +72,6 @@ bool ConfigStorage::save(const DeviceConfig& config) {
     prefs.putString("ssid", config.wifi_ssid);
     prefs.putString("pass", config.wifi_pass);
     prefs.putString("api_url", config.api_base_url);
-    prefs.putString("node_id", config.node_id);
-    prefs.putString("node_key", config.node_api_key);
     prefs.end();
     return true;
 #else

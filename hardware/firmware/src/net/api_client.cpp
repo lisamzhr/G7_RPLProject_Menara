@@ -17,20 +17,19 @@ static bool beginHttpClient(HTTPClient& http, WiFiClient& plainClient, WiFiClien
 }
 #endif
 
-ApiClient::ApiClient(const char* baseUrl, const char* nodeId, const char* apiKey, const char* macAddress) {
-    setConfig(baseUrl, nodeId, apiKey, macAddress);
+ApiClient::ApiClient(const char* baseUrl, const char* macAddress) {
+    memset(_baseUrl, 0, sizeof(_baseUrl));
+    memset(_macAddress, 0, sizeof(_macAddress));
+    setConfig(baseUrl, macAddress);
 }
 
-void ApiClient::setConfig(const char* baseUrl, const char* nodeId, const char* apiKey, const char* macAddress) {
+void ApiClient::setConfig(const char* baseUrl, const char* macAddress) {
     memset(_baseUrl, 0, sizeof(_baseUrl));
-    memset(_nodeId, 0, sizeof(_nodeId));
-    memset(_apiKey, 0, sizeof(_apiKey));
-    memset(_macAddress, 0, sizeof(_macAddress));
-
     if (baseUrl) strncpy(_baseUrl, baseUrl, sizeof(_baseUrl) - 1);
-    if (nodeId)  strncpy(_nodeId, nodeId, sizeof(_nodeId) - 1);
-    if (apiKey)  strncpy(_apiKey, apiKey, sizeof(_apiKey) - 1);
-    if (macAddress) strncpy(_macAddress, macAddress, sizeof(_macAddress) - 1);
+
+    if (macAddress != nullptr) {
+        setMacAddress(macAddress);
+    }
 }
 
 void ApiClient::setMacAddress(const char* macAddress) {
@@ -40,10 +39,6 @@ void ApiClient::setMacAddress(const char* macAddress) {
 
 const char* ApiClient::getBaseUrl() const {
     return _baseUrl;
-}
-
-const char* ApiClient::getNodeId() const {
-    return _nodeId;
 }
 
 const char* ApiClient::getMacAddress() const {
@@ -57,7 +52,7 @@ bool ApiClient::isHttps() const {
 bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
     if (isRetryable) *isRetryable = true;
 #if defined(ARDUINO)
-    if (strlen(_baseUrl) == 0 || (strlen(_apiKey) == 0 && strlen(_macAddress) == 0)) {
+    if (strlen(_baseUrl) == 0 || strlen(_macAddress) == 0) {
         if (isRetryable) *isRetryable = false;
         return false;
     }
@@ -72,21 +67,11 @@ bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
         return false;
     }
     http.addHeader("Content-Type", "application/json");
-    if (strlen(_macAddress) > 0) {
-        http.addHeader("X-Node-MAC", _macAddress);
-    }
-    if (strlen(_apiKey) > 0) {
-        http.addHeader("X-Node-Key", _apiKey);
-    }
+    http.addHeader("X-Node-MAC", _macAddress);
     http.setTimeout(8000);
 
     JsonDocument doc;
-    if (strlen(_nodeId) > 0) {
-        doc["node_id"] = _nodeId;
-    }
-    if (strlen(_macAddress) > 0) {
-        doc["mac_address"] = _macAddress;
-    }
+    doc["mac_address"] = _macAddress;
     if (strlen(reading.timestamp) > 0 && strncmp(reading.timestamp, "1970-01-01", 10) != 0) {
         doc["ts"] = reading.timestamp;
     }
@@ -129,26 +114,20 @@ bool ApiClient::postReading(const SensorReading& reading, bool* isRetryable) {
 bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasCommand) {
     hasCommand = false;
 #if defined(ARDUINO)
-    if (strlen(_baseUrl) == 0 || (strlen(_apiKey) == 0 && strlen(_macAddress) == 0)) {
+    if (strlen(_baseUrl) == 0 || strlen(_macAddress) == 0) {
         return false;
     }
 
-    const char* targetId = (strlen(_nodeId) > 0) ? _nodeId : _macAddress;
     HTTPClient http;
     WiFiClient plainClient;
     WiFiClientSecure secureClient;
-    String url = String(_baseUrl) + "/nodes/" + targetId + "/commands";
+    String url = String(_baseUrl) + "/nodes/" + _macAddress + "/commands";
 
     if (!beginHttpClient(http, plainClient, secureClient, isHttps(), url)) {
         return false;
     }
     http.addHeader("Accept", "application/json");
-    if (strlen(_macAddress) > 0) {
-        http.addHeader("X-Node-MAC", _macAddress);
-    }
-    if (strlen(_apiKey) > 0) {
-        http.addHeader("X-Node-Key", _apiKey);
-    }
+    http.addHeader("X-Node-MAC", _macAddress);
     http.setTimeout(8000);
 
     int httpCode = http.GET();
@@ -193,26 +172,20 @@ bool ApiClient::pollPendingCommands(ActuatorCommand& outCommand, bool& hasComman
 
 bool ApiClient::ackCommand(const char* commandId, const char* status, const char* result, const char* executedAt) {
 #if defined(ARDUINO)
-    if (strlen(_baseUrl) == 0 || (strlen(_apiKey) == 0 && strlen(_macAddress) == 0) || !commandId) {
+    if (strlen(_baseUrl) == 0 || strlen(_macAddress) == 0 || !commandId) {
         return false;
     }
 
-    const char* targetId = (strlen(_nodeId) > 0) ? _nodeId : _macAddress;
     HTTPClient http;
     WiFiClient plainClient;
     WiFiClientSecure secureClient;
-    String url = String(_baseUrl) + "/nodes/" + targetId + "/commands/" + commandId + "/ack";
+    String url = String(_baseUrl) + "/nodes/" + _macAddress + "/commands/" + commandId + "/ack";
 
     if (!beginHttpClient(http, plainClient, secureClient, isHttps(), url)) {
         return false;
     }
     http.addHeader("Content-Type", "application/json");
-    if (strlen(_macAddress) > 0) {
-        http.addHeader("X-Node-MAC", _macAddress);
-    }
-    if (strlen(_apiKey) > 0) {
-        http.addHeader("X-Node-Key", _apiKey);
-    }
+    http.addHeader("X-Node-MAC", _macAddress);
     http.setTimeout(8000);
 
     JsonDocument doc;
