@@ -3,6 +3,7 @@
 from typing import Literal
 
 from roofgarden_ai.contracts import ParameterReading, ZoneContext
+from roofgarden_ai.rule_engine.autonomy import sensor_issues
 
 
 def classify_parameter(
@@ -63,22 +64,19 @@ def evaluate_parameters(ctx: ZoneContext) -> dict[str, ParameterReading]:
     }
 
 
-def determine_zone_level(
-    parameters: dict[str, ParameterReading],
-    ctx: ZoneContext,
-) -> Literal["normal", "advisory", "warning"]:
+def determine_zone_level(parameters, ctx):
     """Determine composite zone status level."""
-    # Data anomaly or severe weather forces warning/advisory
     if not ctx.is_reading_valid:
         return "warning"
     if ctx.has_severe_weather_alert:
         return "warning"
 
     statuses = [p.status for p in parameters.values()]
-
     if "out_of_range" in statuses:
         return "warning"
-    if "near_limit" in statuses:
+
+    # Data stale (valid tapi terlambat) -> minimal advisory
+    if "near_limit" in statuses or sensor_issues(ctx):
         return "advisory"
 
     return "normal"

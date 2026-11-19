@@ -47,3 +47,18 @@ def test_linear_predictor_returns_none_when_moisture_rising(predictor_ctx):
     ctx = predictor_ctx.model_copy(update={"recent_moisture_history": [75.0, 78.0, 80.0, 82.0]})
     hours = predictor.predict_hours_to_minimum(ctx)
     assert hours is None
+
+def test_linear_predictor_prefers_10min_series(predictor_ctx):
+    # 0.5% per 10 menit = 3%/jam, margin 6% -> 2 jam
+    series = [56.0 + 0.5 * i for i in range(18, -1, -1)]   # 19 titik, 65 -> 56
+    # history sengaja naik: kalau yang dipakai history, hasilnya None
+    ctx = predictor_ctx.model_copy(update={
+        "moisture_series_10min": series,
+        "recent_moisture_history": [75.0, 78.0, 80.0, 82.0],
+    })
+    assert LinearSlopePredictor().predict_hours_to_minimum(ctx) == 2.0
+
+
+def test_linear_predictor_zero_when_below_minimum_without_history(predictor_ctx):
+    ctx = predictor_ctx.model_copy(update={"current_moisture": 48.0, "recent_moisture_history": []})
+    assert LinearSlopePredictor().predict_hours_to_minimum(ctx) == 0.0

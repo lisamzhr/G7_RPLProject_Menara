@@ -14,6 +14,11 @@ from roofgarden_ai.contracts import ZoneContext
 
 logger = logging.getLogger("roofgarden_ai.predictor")
 
+STEPS_1H, STEPS_3H = 6, 18          # sampel 10 menit (sama dengan training)
+MIN_POINTS = STEPS_3H + 1
+STEP_HOURS_10MIN = 10 / 60
+LEGACY_STEP_HOURS = 1.0             # asumsi lama untuk recent_moisture_history
+MIN_DEPLETION_RATE = 0.05           # %/jam, di bawah ini dianggap stabil
 
 class MoisturePredictor(ABC):
     """Abstract interface allowing trained ML models (e.g. LSTM/XGBoost) to replace baseline."""
@@ -24,43 +29,36 @@ class MoisturePredictor(ABC):
 
 
 class LinearSlopePredictor(MoisturePredictor):
-    """Deterministic linear slope predictor evaluating historical readings over the past ~6 hours."""
+    """Linear slope predictor. Prefers the 10-minute series (exact step),
+    falls back to recent_moisture_history (assumed hourly)."""
+
+    @staticmethod
+    def _pick_series(ctx: ZoneContext) -> tuple[list[float] | None, float]:
+        s10 = ctx.moisture_series_10min
+        if len(s10) >= 2:
+            return s10[-MIN_POINTS:], STEP_HOURS_10MIN
+        hist = ctx.recent_moisture_history
+        if len(hist) >= 2:
+            return hist, LEGACY_STEP_HOURS
+        return None, LEGACY_STEP_HOURS
 
     def predict_hours_to_minimum(self, ctx: ZoneContext) -> float | None:
-        history = ctx.recent_moisture_history
-        # Need at least two historical data points to calculate slope
-        if not history or len(history) < 2:
-            return None
-
-        current_moisture = ctx.current_moisture
-        min_moisture = ctx.thresholds.moisture_min
-
-        # If already below minimum, 0 hours remaining
-        if current_moisture <= min_moisture:
+        # Sudah di bawah minimum -> 0 jam, tidak butuh history
+        if ctx.current_moisture <= ctx.thresholds.moisture_min:
             return 0.0
 
-        # Calculate slope: points represent consecutive readings (e.g. hourly or 30-min intervals)
-        # We assume history spans N intervals.
-        # Average change per interval
-        n = len(history)
-        first_val = history[0]
-        last_val = history[-1]
-
-        # Total change over (n - 1) intervals
-        total_delta = last_val - first_val
-        time_span_hours = max((n - 1) * 1.0, 1.0)  # Assume 1h per step if hourly
-        hourly_rate = total_delta / time_span_hours
-
-        # Depletion means negative rate (moisture decreasing)
-        if hourly_rate >= -0.05:
-            # Soil is stable or increasing (e.g. rain/irrigation)
+        series, step_h = self._pick_series(ctx)
+        if series is None:
             return None
 
-        depletion_rate_abs = abs(hourly_rate)
-        moisture_deficit_to_min = current_moisture - min_moisture
-        hours_remaining = moisture_deficit_to_min / depletion_rate_abs
+        x = np.arange(len(series)) * step_h              # jam
+        slope = float(np.polyfit(x, series, 1)[0])       # %/jam
 
-        return round(max(hours_remaining, 0.0), 1)
+        if slope >= -MIN_DEPLETION_RATE:
+            return None                                  # stabil / naik (hujan, siram)
+
+        margin = ctx.current_moisture - ctx.thresholds.moisture_min
+        return round(max(margin / -slope, 0.0), 1)
 
 
 # ---------------------------------------------------------------------------
@@ -70,8 +68,6 @@ MODEL_PATH = Path(os.getenv(
     "MOISTURE_MODEL_PATH",
     Path(__file__).resolve().parents[2] / "models" / "moisture_model.pkl",   # -> ai/models/
 ))
-STEPS_1H, STEPS_3H = 6, 18          # sampel 10 menit (sama dengan training)
-MIN_POINTS = STEPS_3H + 1
 
 
 class MLMoisturePredictor(MoisturePredictor):

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from roofgarden_ai.contracts import Recommendation, ZoneContext
 from roofgarden_ai.guardrails.sanity_checks import (
+    verify_action_consistency,
     verify_no_contradiction_with_forecast,
     verify_quoted_numbers,
     verify_severity,
@@ -25,6 +26,7 @@ def validate_and_filter_llm_response(
     raw_text: str,
     ctx: ZoneContext,
     expected_rule_level: str,
+    action_type: str | None = None,
 ) -> tuple[Recommendation | None, str | None]:
     """Parse raw LLM output, validate JSON schema, and run deterministic sanity checks.
 
@@ -63,6 +65,13 @@ def validate_and_filter_llm_response(
     if not ok_cast:
         logger.warning(f"Guardrail failed: {err_cast}")
         return None, err_cast
+
+    # 5. Check Action Consistency
+    if action_type is not None:
+        ok_act, err_act = verify_action_consistency(combined_text, action_type)
+        if not ok_act:
+            logger.warning(f"Guardrail failed: {err_act}")
+            return None, err_act
 
     recommendation = Recommendation(
         status_level=parsed.severity,  # type: ignore
