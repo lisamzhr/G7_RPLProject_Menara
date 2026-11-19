@@ -7,11 +7,13 @@ from roofgarden_ai.guardrails.fallback_templates import generate_fallback_recomm
 from roofgarden_ai.guardrails.validator import validate_and_filter_llm_response
 from roofgarden_ai.llm.base import LLMClient, MockLLMClient
 from roofgarden_ai.llm.prompts import build_evaluation_prompt
-from roofgarden_ai.rule_engine.autonomy import evaluate_action_autonomy, sensor_issues
+from roofgarden_ai.rule_engine.autonomy import RAIN_BLOCK_PCT, evaluate_action_autonomy, sensor_issues
 from roofgarden_ai.rule_engine.status import determine_zone_level, evaluate_parameters
 from roofgarden_ai.rule_engine.predictor import MoisturePredictor, get_default_predictor
 
 logger = logging.getLogger("roofgarden_ai.orchestrator")
+
+CRITICAL_MOISTURE_FRACTION = 0.8  # < 80% dari moisture_min dianggap kritis (silakan di-tuning)
 
 
 def evaluate(
@@ -33,10 +35,14 @@ def evaluate(
     est_hours = predictor.predict_hours_to_minimum(ctx)
 
     # 3. Determine Candidate Action
+    rain_soon = ctx.rain_chance_next_3h >= RAIN_BLOCK_PCT
+    moisture_critical = ctx.current_moisture < ctx.thresholds.moisture_min * CRITICAL_MOISTURE_FRACTION
+    defer_for_rain = rain_soon and not moisture_critical
+
     candidate_action = "wait"
     if sensor_issues(ctx):
         candidate_action = "check_device"
-    elif ctx.current_moisture < ctx.thresholds.moisture_min:
+    elif ctx.current_moisture < ctx.thresholds.moisture_min and not defer_for_rain:
         candidate_action = "water"
     elif ctx.current_temp > ctx.thresholds.temp_max:
         candidate_action = "shade"
@@ -65,7 +71,9 @@ def evaluate(
         raw_llm_output = llm_client.generate(prompt)
 
         # 6. Guardrail Verification
-        rec, err = validate_and_filter_llm_response(raw_llm_output, ctx, rule_level)
+        rec, err = validate_and_filter_llm_response(
+            raw_llm_output, ctx, rule_level, action.action_type
+        )
         if rec is not None:
             recommendation = rec
         else:

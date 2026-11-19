@@ -69,3 +69,37 @@ def test_orchestrator_activates_fallback_on_corrupt_llm(test_ctx):
     assert decision.overall_level == "warning"
     assert decision.recommendation.status_level == "warning"
     assert "45.0%" in decision.recommendation.message
+
+def test_guardrail_rejects_action_mismatch(test_ctx):
+    raw = json.dumps({"message": "Moisture is 45.0%. Please water the plants soon.",
+                      "severity": "warning", "reasons": ["Drying out"]})
+    rec, err = validate_and_filter_llm_response(raw, test_ctx, "warning", action_type="wait")
+    assert rec is None
+    assert "Action mismatch" in err
+
+
+def test_guardrail_allows_negated_action(test_ctx):
+    raw = json.dumps({"message": "Moisture is 45.0%. No need to water, rain is likely soon.",
+                      "severity": "warning", "reasons": ["Rain expected"]})
+    rec, err = validate_and_filter_llm_response(raw, test_ctx, "warning", action_type="wait")
+    assert rec is not None
+
+
+def test_guardrail_handles_thousands_separator(test_ctx):
+    raw = json.dumps({"message": "Light is 15,000 lux.", "severity": "warning", "reasons": []})
+    rec, err = validate_and_filter_llm_response(raw, test_ctx, "warning", action_type="wait")
+    assert rec is not None
+
+
+def test_orchestrator_defers_watering_when_rain_likely(test_ctx):
+    # 45% belum kritis (batas 0.8 * 50 = 40) dan hujan 60% -> tunda
+    decision = evaluate(test_ctx, llm_client=MockLLMClient())
+    assert decision.action.action_type == "wait"
+
+
+def test_orchestrator_critical_dryness_overrides_rain(test_ctx):
+    ctx = test_ctx.model_copy(update={"current_moisture": 30.0})   # < 40
+    decision = evaluate(ctx, llm_client=MockLLMClient())
+    assert decision.action.action_type == "water"
+    assert decision.action.requires_confirmation is True
+    assert decision.action.auto_approved is False

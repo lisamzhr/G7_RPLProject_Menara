@@ -2,6 +2,7 @@
 
 
 from roofgarden_ai.contracts import ZoneContext
+from roofgarden_ai.rule_engine.autonomy import sensor_issues
 from roofgarden_ai.rule_engine.status import ParameterReading
 
 
@@ -14,15 +15,22 @@ def build_evaluation_prompt(
     """Build structured prompt for LLM explanation.
 
     Strict rules:
-    - Never invent numbers.
-    - Always output valid JSON with schema: {"message": str, "severity": str, "reasons": list[str]}
-    - The severity MUST exactly equal rule_level.
+- Never invent numbers.
+- Always output valid JSON with schema: {"message": str, "severity": str, "reasons": list[str]}
+- The severity MUST exactly equal rule_level.
     """
     param_summary = "\n".join(
         [
             f"- {p.name}: {p.value}{p.unit} (Ideal range: {p.ideal_min} - {p.ideal_max}{p.unit}, Status: {p.status})"
             for p in params.values()
         ]
+    )
+
+    data_note = (
+        "\n- Data Quality: sensor data is invalid or outdated, so readings may be unreliable. "
+        "Advise the user to check the device."
+        if sensor_issues(ctx)
+        else ""
     )
 
     return f"""You are an expert botanical assistant for an urban rooftop garden in Jakarta.
@@ -40,13 +48,13 @@ ENVIRONMENTAL & WEATHER CONTEXT:
 
 DETERMINISTIC EVALUATION OUTCOME:
 - Rule Engine Severity Level: {rule_level}
-- Recommended Action: {action_type}
+- Recommended Action: {action_type}{data_note}
 
 CRITICAL RULES:
 1. You MUST match the severity: set "severity" to exactly "{rule_level}".
 2. You MUST only cite real sensor numbers provided above (within +-1). Never invent values.
-3. You MUST NOT advise actions that contradict the weather forecast (e.g. do not say "water now" if rain probability >= 50%).
-4. Only mention allowed action concepts: 'water', 'wait', 'shade', 'add_light', 'check_device'.
+3. You MUST NOT advise actions that contradict the weather forecast (e.g. do not say "water now" if rain is likely).
+4. Only recommend the action listed under "Recommended Action". Do not suggest any other action.
 5. Keep explanations warm, concise, and understandable for a beginner.
 
 OUTPUT FORMAT:

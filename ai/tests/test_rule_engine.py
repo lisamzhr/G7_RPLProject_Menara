@@ -47,3 +47,14 @@ def test_leafy_out_of_range_warning():
     assert params["moisture"].status == "out_of_range"
     assert params["temperature"].status == "out_of_range"
     assert determine_zone_level(params, ctx) == "warning"
+
+def test_stale_reading_is_advisory():
+    profile = load_category_profile("leafy")
+    ctx = ZoneContext(
+        zone_id="zone-1", zone_label="Leafy Zone", category_key="leafy", thresholds=profile,
+        current_moisture=60.0, current_temp=25.0, current_humidity=70.0, current_lux=15000.0,
+        reading_age_seconds=1200.0,   # valid tapi basi (> 600s)
+    )
+    params = evaluate_parameters(ctx)
+    assert all(p.status == "ok" for p in params.values())   # pastikan penyebabnya murni data basi
+    assert determine_zone_level(params, ctx) == "advisory"
