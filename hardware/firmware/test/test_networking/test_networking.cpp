@@ -58,7 +58,6 @@ void test_config_storage_load_fallback_secrets(void) {
     bool loaded = storage.load(cfg);
     TEST_ASSERT_TRUE(loaded || !loaded); // Valid operation regardless of fallback presence
     TEST_ASSERT_TRUE(strlen(cfg.api_base_url) > 0);
-    TEST_ASSERT_TRUE(strlen(cfg.node_id) > 0);
 }
 
 // ==============================================================================
@@ -97,10 +96,15 @@ void test_wifi_manager_portal_lifecycle(void) {
 
 void test_api_client_config_getters(void) {
     ApiClient client;
-    client.setConfig("http://192.168.1.100:8000/api/v1", "node-esp32-alpha", "my-secret-key-123");
+    client.setConfig("http://192.168.1.100:8000/api/v1", "24:6F:28:01:00:01");
 
     TEST_ASSERT_EQUAL_STRING("http://192.168.1.100:8000/api/v1", client.getBaseUrl());
-    TEST_ASSERT_EQUAL_STRING("node-esp32-alpha", client.getNodeId());
+    TEST_ASSERT_EQUAL_STRING("24:6F:28:01:00:01", client.getMacAddress());
+
+    // Updating base URL without passing MAC preserves the existing MAC address
+    client.setConfig("https://api.menara.example.com/api/v1");
+    TEST_ASSERT_EQUAL_STRING("https://api.menara.example.com/api/v1", client.getBaseUrl());
+    TEST_ASSERT_EQUAL_STRING("24:6F:28:01:00:01", client.getMacAddress());
 }
 
 void test_api_client_command_struct_layout(void) {
@@ -114,7 +118,7 @@ void test_api_client_command_struct_layout(void) {
     TEST_ASSERT_EQUAL_STRING("turn_on", cmd.command);
     TEST_ASSERT_EQUAL_UINT32(45, cmd.duration_seconds);
 
-    ApiClient client("http://localhost:8000/api/v1", "esp32-node-01", "secret");
+    ApiClient client("http://localhost:8000/api/v1", "24:6F:28:01:00:01");
     SensorReading r{};
     r.soil_moisture_pct = 75.0f;
     r.temperature_c = 26.0f;
@@ -128,16 +132,16 @@ void test_api_client_command_struct_layout(void) {
 }
 
 void test_api_client_https_detection(void) {
-    ApiClient clientHttp("http://192.168.1.100:8000/api/v1", "node-1", "key1");
+    ApiClient clientHttp("http://192.168.1.100:8000/api/v1", "24:6F:28:01:00:01");
     TEST_ASSERT_FALSE(clientHttp.isHttps());
 
-    ApiClient clientHttps("https://api.menara.example.com", "node-2", "key2");
+    ApiClient clientHttps("https://api.menara.example.com", "24:6F:28:01:00:02");
     TEST_ASSERT_TRUE(clientHttps.isHttps());
 
-    ApiClient clientEmpty("", "", "");
+    ApiClient clientEmpty("", "");
     TEST_ASSERT_FALSE(clientEmpty.isHttps());
 
-    clientEmpty.setConfig("https://10.0.0.5/iot", "node-3", "key3");
+    clientEmpty.setConfig("https://10.0.0.5/iot", "24:6F:28:01:00:03");
     TEST_ASSERT_TRUE(clientEmpty.isHttps());
 }
 

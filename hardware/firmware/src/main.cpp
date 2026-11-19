@@ -83,7 +83,7 @@ void setup() {
     // 2. Load Configuration from Flash NVS (with secrets.h fallback)
     bool hasValidCreds = configStorage.load(currentConfig);
     wifiManager.setCredentials(currentConfig.wifi_ssid, currentConfig.wifi_pass);
-    apiClient.setConfig(currentConfig.api_base_url, currentConfig.node_id, currentConfig.node_api_key);
+    apiClient.setConfig(currentConfig.api_base_url);
 
 #if defined(ARDUINO)
     WiFi.mode(WIFI_STA);
@@ -94,14 +94,14 @@ void setup() {
 #if MOCK_ENVIRONMENT
     Serial.println("\n============================================================");
     Serial.println("  ROOFGARDEN ESP32 FIRMWARE - MOCK ENVIRONMENT ACTIVE");
-    Serial.printf("  Node ID:          %s\n", currentConfig.node_id);
+    Serial.printf("  MAC Address:      %s\n", apiClient.getMacAddress());
     Serial.printf("  Target API:       %s\n", currentConfig.api_base_url);
     Serial.printf("  Send Interval:    %u seconds (Fast Mock Telemetry)\n", EFFECTIVE_SEND_INTERVAL_S);
     Serial.printf("  Command Poll:     %u seconds\n", COMMAND_POLL_INTERVAL_S);
     Serial.println("============================================================");
 #else
     Serial.println("\n[RoofGarden] Booting ESP32 Sensor Node (Physical Hardware)...");
-    Serial.printf("  Node ID:          %s\n", currentConfig.node_id);
+    Serial.printf("  MAC Address:      %s\n", apiClient.getMacAddress());
     Serial.printf("  Target API:       %s\n", currentConfig.api_base_url);
 #endif
 
@@ -205,7 +205,7 @@ void handleSerialInput() {
             case 's':
             case 'S': {
                 Serial.println("\n--- [Device Diagnostics] ---");
-                Serial.printf("Node ID:          %s\n", apiClient.getNodeId());
+                Serial.printf("MAC Address:      %s\n", apiClient.getMacAddress());
                 Serial.printf("API Base URL:     %s\n", apiClient.getBaseUrl());
                 Serial.printf("Wi-Fi SSID:       %s\n", wifiManager.getSSID());
                 Serial.printf("Wi-Fi Status:     %s (RSSI: %d dBm)\n",
@@ -252,7 +252,7 @@ void loop() {
 
             wifiManager.stopPortal();
             wifiManager.setCredentials(currentConfig.wifi_ssid, currentConfig.wifi_pass);
-            apiClient.setConfig(currentConfig.api_base_url, currentConfig.node_id, currentConfig.node_api_key);
+            apiClient.setConfig(currentConfig.api_base_url);
 
             Serial.print("[WiFi] Connecting to newly configured Wi-Fi: ");
             Serial.println(currentConfig.wifi_ssid);

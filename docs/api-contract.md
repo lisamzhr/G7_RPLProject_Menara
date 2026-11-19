@@ -2,7 +2,7 @@
 
 Base URL: `/api/v1`
 
-All authenticated endpoints require an `Authorization: Bearer <jwt_token>` header unless explicitly noted. Hardware ingestion and polling endpoints authenticate using either the `X-Node-MAC: <mac_address>` header (recommended, dynamically registered per plant zone via the web dashboard) or legacy `X-Node-Key: <node_api_key>`. Unregistered MAC addresses are strictly rejected with `401 Unauthorized` (auto-discovery is disabled).
+All authenticated endpoints require an `Authorization: Bearer <jwt_token>` header unless explicitly noted. Hardware ingestion and polling endpoints authenticate exclusively using the `X-Node-MAC: <mac_address>` header (for nodes dynamically registered per plant zone via the web dashboard; ingestion also accepts `mac_address` in the JSON body). Unregistered MAC addresses are strictly rejected with `401 Unauthorized` (auto-discovery is disabled).
 
 ---
 
@@ -128,11 +128,10 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 - **Method / Path**: `POST /api/v1/ingest/readings`
 - **Headers**:
   - `Content-Type: application/json`
-  - `X-Node-MAC: <mac_address>` (recommended for registered ESP32 nodes) OR `X-Node-Key: <node_api_key>`
+  - `X-Node-MAC: <mac_address>` (required unless `mac_address` is supplied in the body)
 - **Request Body**:
 ```json
 {
-  "node_id": "esp32-node-01",
   "mac_address": "24:6F:28:01:00:01",
   "ts": "2026-11-06T15:30:00Z",
   "soil_moisture_pct": 68.5,
@@ -143,27 +142,27 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
   "is_valid": true
 }
 ```
-*Note: `mac_address` can be provided in header (`X-Node-MAC`) or body. When `X-Node-MAC` or `mac_address` is provided, `node_id` is optional. `ts` is optional (defaults to server UTC time if omitted or unsynced < year 2000). Out-of-bounds metrics are flagged `is_valid: false`.*
+*Note: `mac_address` can be provided in header (`X-Node-MAC`) or body. `ts` is optional (defaults to server UTC time if omitted or unsynced < year 2000). Out-of-bounds metrics are flagged `is_valid: false`.*
 - **Response `201 Created`**:
 ```json
 {
   "status": "success",
   "reading_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-  "node_id": "esp32-node-01",
+  "node_id": "esp32-246f28010001",
   "is_valid": true,
   "recorded_at": "2026-11-06T15:30:00Z"
 }
 ```
 - **Error Responses**:
-  - `401 Unauthorized`: Missing authentication, invalid API key, or unregistered MAC address (auto-discovery disabled).
+  - `401 Unauthorized`: Missing `X-Node-MAC` / `mac_address` or unregistered MAC address (auto-discovery disabled).
 
 ---
 
 ### 2.2 Poll Pending Actuator Commands (Node Polling)
 - **Method / Path**: `GET /api/v1/nodes/{id}/commands`
-- **Path Parameter**: `{id}` can be either the sensor node UUID/identifier or its hardware MAC address.
+- **Path Parameter**: `{id}` can be either the sensor node identifier (`esp32-<mac>`) or its hardware MAC address.
 - **Headers**:
-  - `X-Node-MAC: <mac_address>` OR `X-Node-Key: <node_api_key>`
+  - `X-Node-MAC: <mac_address>`
 - **Response `200 OK`**:
 ```json
 [
@@ -181,9 +180,9 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 
 ### 2.3 Acknowledge Command Execution
 - **Method / Path**: `POST /api/v1/nodes/{id}/commands/{cid}/ack`
-- **Path Parameter**: `{id}` can be either the sensor node UUID/identifier or its hardware MAC address.
+- **Path Parameter**: `{id}` can be either the sensor node identifier (`esp32-<mac>`) or its hardware MAC address.
 - **Headers**:
-  - `X-Node-MAC: <mac_address>` OR `X-Node-Key: <node_api_key>`
+  - `X-Node-MAC: <mac_address>`
 - **Request Body**:
 ```json
 {
@@ -483,13 +482,12 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 ```json
 [
   {
-    "id": "esp32-node-01",
+    "id": "esp32-246f28010001",
     "mac_address": "24:6F:28:01:00:01",
     "name": "Zone A ESP32 Node",
     "zone_id": "e2f89c4d-6b5e-4c7b-9f21-728b9c1d3e4f",
-    "status": "online",
+    "status": "active",
     "last_seen_at": "2026-11-06T15:30:00Z",
-    "battery_v": 3.95,
     "created_at": "2026-11-06T10:00:00Z"
   }
 ]
@@ -571,12 +569,12 @@ All authenticated endpoints require an `Authorization: Bearer <jwt_token>` heade
 [
   {
     "id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
-    "node_id": "esp32-node-01",
     "zone_id": "e2f89c4d-6b5e-4c7b-9f21-728b9c1d3e4f",
-    "name": "Zone A Solenoid Valve",
-    "type": "solenoid_valve",
-    "state": "off",
-    "last_triggered_at": "2026-11-06T14:00:00Z"
+    "type": "sprinkler",
+    "driver": "relay",
+    "max_on_seconds": 60,
+    "min_interval_minutes": 120,
+    "last_action": null
   }
 ]
 ```

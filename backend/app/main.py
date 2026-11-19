@@ -27,7 +27,7 @@ async def lifespan(app: FastAPI):
             try:
                 conn.exec_driver_sql("ALTER TABLE sensor_nodes ADD COLUMN IF NOT EXISTS mac_address VARCHAR(17) UNIQUE;")
                 conn.exec_driver_sql("ALTER TABLE sensor_nodes ADD COLUMN IF NOT EXISTS name VARCHAR(100);")
-                conn.exec_driver_sql("ALTER TABLE sensor_nodes ALTER COLUMN api_key_hash DROP NOT NULL;")
+                conn.exec_driver_sql("ALTER TABLE sensor_nodes DROP COLUMN IF EXISTS api_key_hash;")
             except Exception as exc:
                 logger.warning("Could not execute automated column migration: %s", exc)
     if active_engine.dialect.name == "sqlite":

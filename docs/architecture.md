@@ -28,7 +28,7 @@ The architecture enforces a strict separation between **deterministic engineerin
 
 ### 2.2 Backend & Ingestion Engine (FastAPI)
 - **Ingestion Pipeline**:
-  - Authenticates node via `X-Node-Key` header against `api_key_hash`.
+  - Authenticates node exclusively via `X-Node-MAC` header (or `mac_address` in payload) against registered `sensor_nodes.mac_address`.
   - Boundary validation:
     - Soil Moisture: `0.0% - 100.0%`
     - Temperature: `-10.0°C - 70.0°C`

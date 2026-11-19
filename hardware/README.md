@@ -148,9 +148,7 @@ The firmware eliminates hardcoded Wi-Fi credentials through an integrated **Soft
    - **Wi-Fi Scanner**: Automatically displays a dropdown of all discovered 2.4 GHz SSIDs with signal strength (dBm), plus an option to manually enter hidden networks.
    - **Password Field**: Enter the Wi-Fi password (includes a "Show password" toggle).
    - **Advanced Server Settings (Optional)**:
-     - `API Base URL`: Point to local LAN (`http://192.168.1.100:8000/api/v1`) or cloud backend.
-     - `Node ID`: Hardware identifier (e.g. `esp32-node-01`).
-     - `Node API Secret Key`: Pre-shared key for `X-Node-Key` authentication.
+     - `API Base URL`: Point to local LAN (`http://192.168.1.100:8000/api/v1`) or cloud backend. (The node authenticates automatically via its hardware MAC address registered in the web dashboard.)
    - Tap **"Save & Connect"**.
 
 4. **Flash Persistence (NVS)**:

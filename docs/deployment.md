@@ -101,7 +101,7 @@ The frontend is packaged as a lightweight multi-stage Docker container (`node:20
 1. **Compile and Flash Firmware**:
    - Open `hardware/firmware` in VS Code PlatformIO.
    - Copy `include/secrets.example.h` to `include/secrets.h`.
-   - Update `WIFI_SSID`, `WIFI_PASS`, `API_BASE_URL` (points to your Render URL: `https://your-render-app.onrender.com/api/v1`), and `NODE_API_KEY`.
+   - Update `WIFI_SSID`, `WIFI_PASS`, and `API_BASE_URL` (points to your Render URL: `https://your-render-app.onrender.com/api/v1`). Nodes authenticate via their hardware MAC address (`WiFi.macAddress()`), which must be registered to a plant zone in the web dashboard.
    - Connect ESP32 via Micro-USB and upload:
      ```bash
      pio run -t upload

@@ -7,11 +7,10 @@ def test_zone_readings_query(client, db_session):
     zone = db_session.query(PlantZone).first()
 
     # Ingest 2 readings
-    headers = {"X-Node-Key": "valid-secret-key-123"}
+    headers = {"X-Node-MAC": "24:6F:28:AA:BB:CC"}
     client.post(
         "/api/v1/ingest/readings",
         json={
-            "node_id": "esp32-node-test",
             "soil_moisture_pct": 82.0,
             "temperature_c": 25.0,
             "humidity_pct": 70.0,
@@ -23,7 +22,6 @@ def test_zone_readings_query(client, db_session):
     client.post(
         "/api/v1/ingest/readings",
         json={
-            "node_id": "esp32-node-test",
             "soil_moisture_pct": 83.0,
             "temperature_c": 25.2,
             "humidity_pct": 71.0,
@@ -41,13 +39,12 @@ def test_zone_readings_query(client, db_session):
 
 def test_zone_readings_hourly_aggregation(client, db_session):
     zone = db_session.query(PlantZone).first()
-    headers = {"X-Node-Key": "valid-secret-key-123"}
+    headers = {"X-Node-MAC": "24:6F:28:AA:BB:CC"}
 
     # Ingest 2 readings in the same current hour
     client.post(
         "/api/v1/ingest/readings",
         json={
-            "node_id": "esp32-node-test",
             "soil_moisture_pct": 80.0,
             "temperature_c": 24.0,
             "humidity_pct": 70.0,
@@ -59,7 +56,6 @@ def test_zone_readings_hourly_aggregation(client, db_session):
     client.post(
         "/api/v1/ingest/readings",
         json={
-            "node_id": "esp32-node-test",
             "soil_moisture_pct": 90.0,
             "temperature_c": 26.0,
             "humidity_pct": 80.0,

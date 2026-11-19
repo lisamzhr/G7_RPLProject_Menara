@@ -1,6 +1,5 @@
-"""Security functions: API key hashing, password hashing, and JWT tokens."""
+"""Security functions: password hashing and JWT tokens."""
 
-import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -11,16 +10,6 @@ from app.core.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
-
-
-def hash_api_key(api_key: str) -> str:
-    """Generate SHA-256 hash of ESP32 node API key."""
-    return hashlib.sha256(api_key.strip().encode("utf-8")).hexdigest()
-
-
-def verify_api_key(plain_api_key: str, hashed_api_key: str) -> bool:
-    """Verify raw API key matches stored hash."""
-    return hash_api_key(plain_api_key) == hashed_api_key
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

@@ -19,13 +19,12 @@ router = APIRouter()
 def post_sensor_reading(
     reading_in: ReadingIngestRequest,
     x_node_mac: str | None = Header(None, alias="X-Node-MAC"),
-    x_node_key: str | None = Header(None, alias="X-Node-Key"),
     db: Session = Depends(get_db),
 ):
     """Receive and validate sensor readings. Out-of-bounds readings are tagged is_valid=False.
 
     Duplicate (node_id, ts) readings are deduplicated safely.
     Node last_seen_at timestamp is refreshed.
-    Authenticates via X-Node-MAC header, payload mac_address, or legacy X-Node-Key.
+    Authenticates via X-Node-MAC header or payload mac_address.
     """
-    return ingest_reading(db, reading_in, x_node_key=x_node_key, x_node_mac=x_node_mac)
+    return ingest_reading(db, reading_in, x_node_mac=x_node_mac)

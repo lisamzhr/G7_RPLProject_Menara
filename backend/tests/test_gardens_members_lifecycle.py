@@ -139,7 +139,7 @@ def test_delete_garden_cascades_complete_hierarchy(client, db_session):
     db_session.add(zone)
     db_session.commit()
 
-    node = SensorNode(id="node-cascade-test", zone_id=zone.id, api_key_hash="hash123")
+    node = SensorNode(id="esp32-aabbccddeeff", mac_address="AA:BB:CC:DD:EE:FF", zone_id=zone.id)
     actuator = Actuator(zone_id=zone.id, type="mister", driver="relay")
     db_session.add_all([node, actuator])
     db_session.commit()
@@ -151,6 +151,6 @@ def test_delete_garden_cascades_complete_hierarchy(client, db_session):
     # Verify everything cascaded cleanly
     assert db_session.query(Garden).filter(Garden.id == new_garden.id).first() is None
     assert db_session.query(PlantZone).filter(PlantZone.garden_id == new_garden.id).first() is None
-    assert db_session.query(SensorNode).filter(SensorNode.id == "node-cascade-test").first() is None
+    assert db_session.query(SensorNode).filter(SensorNode.id == "esp32-aabbccddeeff").first() is None
     assert db_session.query(Actuator).filter(Actuator.zone_id == zone.id).first() is None
     assert db_session.query(GardenMember).filter(GardenMember.garden_id == new_garden.id).first() is None

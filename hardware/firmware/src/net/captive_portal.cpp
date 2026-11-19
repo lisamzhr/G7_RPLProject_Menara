@@ -426,11 +426,9 @@ void CaptivePortal::handleSave() {
     String customSsid = _server->arg("custom_ssid");
     String pass = _server->arg("pass");
     String apiUrl = _server->arg("api_url");
-    String nodeId = _server->arg("node_id");
-    String nodeKey = _server->arg("node_key");
     String enc = _server->arg("enc");
 
-    // Decrypt credentials if submitted as ciphertext
+    // Decrypt Wi-Fi password if submitted as ciphertext
     if (enc == "1" || isHex256(pass.c_str())) {
         String decryptedPass;
         if (decryptField(pass, decryptedPass)) {
@@ -438,20 +436,11 @@ void CaptivePortal::handleSave() {
             Serial.println("[Portal] Wi-Fi password decrypted successfully.");
         }
     }
-    if (enc == "1" || isHex256(nodeKey.c_str())) {
-        String decryptedKey;
-        if (decryptField(nodeKey, decryptedKey)) {
-            nodeKey = decryptedKey;
-            Serial.println("[Portal] Node API key decrypted successfully.");
-        }
-    }
 
     String finalSsid = (chosenSsid == "__custom__" || chosenSsid.length() == 0) ? customSsid : chosenSsid;
     finalSsid.trim();
     pass.trim();
     apiUrl.trim();
-    nodeId.trim();
-    nodeKey.trim();
 
     if (finalSsid.length() == 0) {
         _server->send(400, "text/html", "<html><body><h3>Error: Wi-Fi SSID cannot be empty.</h3><a href='/'>Go Back</a></body></html>");
@@ -462,8 +451,6 @@ void CaptivePortal::handleSave() {
     strncpy(_savedConfig.wifi_ssid, finalSsid.c_str(), sizeof(_savedConfig.wifi_ssid) - 1);
     strncpy(_savedConfig.wifi_pass, pass.c_str(), sizeof(_savedConfig.wifi_pass) - 1);
     strncpy(_savedConfig.api_base_url, apiUrl.length() > 0 ? apiUrl.c_str() : _config.api_base_url, sizeof(_savedConfig.api_base_url) - 1);
-    strncpy(_savedConfig.node_id, nodeId.length() > 0 ? nodeId.c_str() : _config.node_id, sizeof(_savedConfig.node_id) - 1);
-    strncpy(_savedConfig.node_api_key, nodeKey.length() > 0 ? nodeKey.c_str() : _config.node_api_key, sizeof(_savedConfig.node_api_key) - 1);
 
     _configSaved = true;
 
@@ -663,7 +650,6 @@ String CaptivePortal::buildHtml() {
         if (pkElem && pkElem.value && pkElem.value.length === 256) {
           const pk = pkElem.value;
           const passElem = document.getElementById("pass");
-          const keyElem = document.getElementById("node_key");
           const form = document.getElementById("setup_form") || (e && e.target);
 
           if (passElem && passElem.value.length > 0) {
@@ -674,15 +660,6 @@ String CaptivePortal::buildHtml() {
             hiddenPass.value = encPass;
             form.appendChild(hiddenPass);
             passElem.name = "";
-          }
-          if (keyElem && keyElem.value.length > 0) {
-            const encKey = encryptRsa(keyElem.value, pk, "010001");
-            const hiddenKey = document.createElement("input");
-            hiddenKey.type = "hidden";
-            hiddenKey.name = "node_key";
-            hiddenKey.value = encKey;
-            form.appendChild(hiddenKey);
-            keyElem.name = "";
           }
           const encElem = document.getElementById("enc");
           if (encElem) encElem.value = "1";
@@ -754,14 +731,7 @@ String CaptivePortal::buildHtml() {
           <div class="form-group">
             <label for="api_url">API Base URL</label>
             <input type="text" id="api_url" name="api_url" value=")rawliteral" + String(_config.api_base_url) + R"rawliteral(">
-          </div>
-          <div class="form-group">
-            <label for="node_id">Node ID</label>
-            <input type="text" id="node_id" name="node_id" value=")rawliteral" + String(_config.node_id) + R"rawliteral(">
-          </div>
-          <div class="form-group">
-            <label for="node_key">Node API Secret Key</label>
-            <input type="password" id="node_key" name="node_key" value=")rawliteral" + String(_config.node_api_key) + R"rawliteral(">
+            <div class="hint">This node authenticates automatically using its hardware MAC address.</div>
           </div>
         </div>
       </details>

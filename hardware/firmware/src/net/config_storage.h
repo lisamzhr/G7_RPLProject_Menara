@@ -7,8 +7,6 @@ struct DeviceConfig {
     char wifi_ssid[64];
     char wifi_pass[64];
     char api_base_url[128];
-    char node_id[64];
-    char node_api_key[128];
 };
 
 class ConfigStorage {

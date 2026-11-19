@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.security import verify_api_key
 from app.models.base import ensure_utc
 from app.models.sensor_node import SensorNode
 from app.models.sensor_reading import SensorReading
@@ -33,50 +32,30 @@ def validate_reading_ranges(req: ReadingIngestRequest) -> bool:
 def ingest_reading(
     db: Session,
     req: ReadingIngestRequest,
-    x_node_key: str | None = None,
     x_node_mac: str | None = None,
 ) -> ReadingIngestResponse:
-    """Process incoming sensor reading from ESP32 node authenticated by MAC or API Key."""
-    # 1. Authenticate Node
-    node = None
+    """Process incoming sensor reading from ESP32 node authenticated by MAC address."""
+    # 1. Authenticate Node via MAC Address
     mac_candidate = x_node_mac or req.mac_address
-
-    if mac_candidate:
-        try:
-            clean_mac = normalize_mac(mac_candidate)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Malformed MAC address: {mac_candidate}",
-            )
-        node = db.query(SensorNode).filter(SensorNode.mac_address == clean_mac).first()
-        if not node:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Sensor node with MAC '{clean_mac}' is not registered",
-            )
-    elif req.node_id:
-        node = db.query(SensorNode).filter(SensorNode.id == req.node_id).first()
-        if not node:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Sensor node '{req.node_id}' is not registered",
-            )
-        if node.api_key_hash:
-            if not x_node_key or not verify_api_key(x_node_key, node.api_key_hash):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid node API key credentials",
-                )
-        elif node.mac_address:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing required X-Node-MAC header for this sensor node",
-            )
-    else:
+    if not mac_candidate:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing node credentials. Provide X-Node-MAC header, mac_address, or node_id with X-Node-Key.",
+            detail="Missing node MAC credentials. Provide X-Node-MAC header or mac_address.",
+        )
+
+    try:
+        clean_mac = normalize_mac(mac_candidate)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Malformed MAC address: {mac_candidate}",
+        )
+
+    node = db.query(SensorNode).filter(SensorNode.mac_address == clean_mac).first()
+    if not node:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Sensor node with MAC '{clean_mac}' is not registered",
         )
 
     node_id = node.id

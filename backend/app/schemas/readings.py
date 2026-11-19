@@ -6,8 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReadingIngestRequest(BaseModel):
-    node_id: str | None = Field(None, description="ESP32 hardware node identifier (optional if mac_address is provided)")
-    mac_address: str | None = Field(None, description="ESP32 hardwired MAC address (e.g. '24:6F:28:1A:2B:3C')")
+    mac_address: str | None = Field(
+        None, description="ESP32 hardwired MAC address (optional if X-Node-MAC header is provided)"
+    )
     ts: datetime | None = Field(
         None, description="ISO8601 reading timestamp (defaults to current time if omitted)"
     )
