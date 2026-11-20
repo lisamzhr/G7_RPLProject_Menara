@@ -74,7 +74,7 @@ The frontend is packaged as a lightweight multi-stage Docker container (`node:20
    ```bash
    docker compose up -d --build
    ```
-   The frontend will be available at `http://localhost:5173` (or configured host port), routing API requests directly to the backend service.
+   The frontend will be available at `http://localhost:8123` (or configured host port), routing API requests directly to the backend service.
 
 2. **Standalone Docker Build**:
    ```bash
