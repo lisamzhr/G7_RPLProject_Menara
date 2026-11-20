@@ -4,6 +4,8 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
   CloudSun,
   Leaf,
   Menu,
@@ -178,6 +180,7 @@ export default function LandingPage() {
         </a>
 
         <button
+          type="button"
           className="mobile-menu-button"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label={menuOpen ? "Close navigation" : "Open navigation"}
@@ -226,19 +229,21 @@ export default function LandingPage() {
         <div className="hero-overlay" />
 
         <button
+          type="button"
           className="hero-arrow hero-arrow-left"
           onClick={previousImage}
           aria-label="Previous hero image"
         >
-          ‹
+          <ChevronLeft size={20} aria-hidden="true" />
         </button>
 
         <button
+          type="button"
           className="hero-arrow hero-arrow-right"
           onClick={nextImage}
           aria-label="Next hero image"
         >
-          ›
+          <ChevronRight size={20} aria-hidden="true" />
         </button>
 
         <div className="hero-content">
@@ -264,6 +269,7 @@ export default function LandingPage() {
           {heroImages.map((image, index) => (
             <button
               key={image.src}
+              type="button"
               className={`pagination-dot ${
                 index === activeImage ? "active" : ""
               }`}

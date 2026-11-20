@@ -6,6 +6,7 @@
 .login-page {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
   display: flex;
@@ -313,6 +314,22 @@
   color: #a3ada2;
 }
 
+.login-input-wrapper input:-webkit-autofill,
+.login-input-wrapper input:-webkit-autofill:hover,
+.login-input-wrapper input:-webkit-autofill:focus,
+.login-input-wrapper input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: #26352b;
+  caret-color: #26352b;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.login-input-wrapper input:autofill {
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  color: #26352b;
+}
+
 .login-password-toggle {
   padding: 3px;
   display: flex;
@@ -528,5 +545,16 @@
 
   .login-form-section {
     padding: 30px 18px;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .login-input-wrapper {
+    min-height: 44px;
+    height: auto;
+  }
+
+  .login-input-wrapper input {
+    font-size: 16px;
   }
 }

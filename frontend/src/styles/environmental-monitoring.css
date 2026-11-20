@@ -132,7 +132,7 @@
 }
 
 .monitoring-reading-val strong {
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, -apple-system, sans-serif;
   font-size: 32px;
   font-weight: 800;
   color: #1e3926;

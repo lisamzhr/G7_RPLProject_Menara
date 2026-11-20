@@ -11,7 +11,7 @@
 
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
   gap: 20px;
 }
 
@@ -92,6 +92,26 @@
   color: #1e293b;
   background: #ffffff;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-input-wrapper .settings-input {
+  padding-right: 44px;
+}
+
+.settings-input:-webkit-autofill,
+.settings-input:-webkit-autofill:hover,
+.settings-input:-webkit-autofill:focus,
+.settings-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: #1e293b;
+  caret-color: #1e293b;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.settings-input:autofill {
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  color: #1e293b;
 }
 
 .settings-input:focus {
@@ -205,4 +225,10 @@
 
 .settings-add-member-form input {
   flex: 1;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .settings-input {
+    font-size: 16px;
+  }
 }
