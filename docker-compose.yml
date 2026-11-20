@@ -26,7 +26,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/roofgarden
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-roofgarden}
       SECRET_KEY: ${SECRET_KEY:-change-this-to-a-super-secret-random-jwt-key-min-32-chars}
       INTERNAL_TOKEN: ${INTERNAL_TOKEN:-internal-cron-service-token-secret-xyz123}
       ENVIRONMENT: ${ENVIRONMENT:-development}
