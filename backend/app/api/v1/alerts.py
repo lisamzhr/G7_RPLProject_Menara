@@ -124,3 +124,35 @@ def override_alert(
     db.commit()
 
     return {"status": "overridden", "alert_id": id}
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a resolved alert")
+def delete_alert(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    alert = _get_member_alert(db, id, current_user)
+    if alert.resolved_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only resolved alerts can be deleted",
+        )
+    db.delete(alert)
+    db.commit()
+
+
+@router.delete("", summary="Delete all resolved alerts")
+def delete_resolved_alerts(
+    zone_id: str | None = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Alert).filter(
+        Alert.zone_id.in_(member_zone_ids(current_user)),
+        Alert.resolved_at.is_not(None),
+    )
+    if zone_id:
+        query = query.filter(Alert.zone_id == zone_id)
+    deleted = query.delete(synchronize_session=False)
+    db.commit()
+    return {"deleted": deleted}
