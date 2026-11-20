@@ -102,7 +102,7 @@ Run the entire production-grade stack (PostgreSQL + TimescaleDB, Backend API, Fr
 docker compose up -d --build
 ```
 Access points:
-- **Frontend SPA**: `http://localhost:5173`
+- **Frontend SPA**: `http://localhost:8123`
 - **Backend API & Docs**: `http://localhost:8000/docs`
 - **PostgreSQL**: `localhost:5432` (credentials from `.env`)
 
@@ -132,7 +132,7 @@ cd frontend
 npm install
 npm run dev
 ```
-Navigate to `http://localhost:5173`.
+Navigate to `http://localhost:8123`.
 
 ### 4. Hardware Simulation (No Physical ESP32 Required)
 Test real-time telemetry ingestion and command polling using the simulator script:
