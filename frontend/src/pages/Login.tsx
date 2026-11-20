@@ -87,13 +87,7 @@ export const Login: React.FC = () => {
       <header className="login-header">
         <Link to="/" className="login-brand">
           <div className="login-brand-logo">
-            <img
-              src="/LogoMenara.webp"
-              alt="MENARA Logo"
-              width={256}
-              height={128}
-              decoding="async"
-            />
+            <img src="/LogoMenara.png" alt="MENARA Logo" />
           </div>
 
           <div className="login-brand-text">
@@ -133,13 +127,7 @@ export const Login: React.FC = () => {
             {/* WELCOME */}
             <div className="login-welcome">
               <div className="login-welcome-logo">
-                <img
-                  src="/LogoMenara.webp"
-                  alt="MENARA"
-                  width={256}
-                  height={128}
-                  decoding="async"
-                />
+                <img src="/LogoMenara.png" alt="MENARA" />
               </div>
 
               <span>WELCOME TO MENARA</span>

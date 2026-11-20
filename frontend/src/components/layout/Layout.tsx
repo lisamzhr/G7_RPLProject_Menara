@@ -48,13 +48,7 @@ export const Layout: React.FC = () => {
       <aside className="app-sidebar">
         <Link to="/dashboard" className="app-brand">
           <div className="app-brand-logo">
-            <img
-              src="/LogoMenara.webp"
-              alt="MENARA Logo"
-              width={256}
-              height={128}
-              decoding="async"
-            />
+            <img src="/LogoMenara.png" alt="MENARA Logo" />
           </div>
           <div className="app-brand-text">
             <strong>

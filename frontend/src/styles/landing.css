@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
 :root {
   --forest: #244b32;
   --ivory: #f5f3e9;
@@ -7,7 +9,7 @@
   --gold: #d9a441;
   --white: #ffffff;
   --text: #26352b;
-  --muted: #546354;
+  --muted: #687768;
   --line: rgba(36, 75, 50, 0.12);
 }
 
@@ -21,7 +23,7 @@
   overflow: hidden;
   background: var(--ivory);
   color: var(--text);
-  font-family: "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 15px;
   line-height: 1.65;
 }
@@ -31,7 +33,7 @@
 .landing-page h3,
 .landing-page h4,
 .landing-page .brand-copy {
-  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
 }
 
 .landing-page h1,
@@ -116,7 +118,7 @@
 .brand-copy small {
   max-width: 245px;
   color: rgba(255, 255, 255, 0.7);
-  font-family: "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 9px;
   line-height: 1.4;
 }
@@ -383,7 +385,7 @@
   align-items: center;
   gap: 7px;
   margin-top: 7px;
-  color: #3b6541 !important;
+  color: var(--leaf) !important;
   font-size: 13px;
   font-weight: 700;
 }
@@ -449,7 +451,7 @@
 }
 
 .photo-caption strong {
-  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 16px;
 }
 
@@ -632,7 +634,7 @@
 
 .audience-number {
   padding: 5px 9px;
-  color: #3b6541;
+  color: var(--leaf);
   background: #edf4e9;
   border-radius: 99px;
   font-size: 10px;

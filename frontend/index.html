@@ -2,53 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="MENARA — Monitoring Environment for AI Rooftop Agriculture. IoT environmental monitoring, BMKG weather insights, AI plant care recommendations, and automated actuator control."
-    />
     <title>RoofGarden - Urban Rooftop Garden Monitor</title>
-    <script>
-      (function () {
-        var p = location.pathname;
-        if (p === "/" || p === "/index.html") {
-          var l = document.createElement("link");
-          l.rel = "preload";
-          l.as = "image";
-          l.href = "/Garden4.avif";
-          l.setAttribute("imagesrcset", "/Garden4-800.avif 800w, /Garden4.avif 1428w");
-          l.setAttribute("imagesizes", "100vw");
-          l.setAttribute("fetchpriority", "high");
-          document.head.appendChild(l);
-        } else if (p === "/register") {
-          var r = document.createElement("link");
-          r.rel = "preload";
-          r.as = "image";
-          r.href = "/Garden4.avif";
-          document.head.appendChild(r);
-        }
-      })();
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
-    />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
-      />
-    </noscript>
   </head>
   <body class="bg-slate-50 text-slate-900 antialiased font-sans">
     <div id="root"></div>

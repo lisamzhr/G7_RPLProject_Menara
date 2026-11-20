@@ -90,13 +90,7 @@ export const Register = () => {
       <header className="register-header">
         <Link to="/" className="register-brand">
           <div className="register-brand-logo">
-            <img
-              src="/LogoMenara.webp"
-              alt="MENARA Logo"
-              width={256}
-              height={128}
-              decoding="async"
-            />
+            <img src="/LogoMenara.png" alt="MENARA Logo" />
           </div>
 
           <div className="register-brand-text">
@@ -136,13 +130,7 @@ export const Register = () => {
             <div className="register-top-row">
               <div className="register-welcome">
                 <div className="register-welcome-logo">
-                  <img
-                    src="/LogoMenara.webp"
-                    alt="MENARA"
-                    width={256}
-                    height={128}
-                    decoding="async"
-                  />
+                  <img src="/LogoMenara.png" alt="MENARA" />
                 </div>
 
                 <span>WELCOME TO MENARA</span>

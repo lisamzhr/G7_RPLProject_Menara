@@ -16,46 +16,25 @@ import {
 } from "lucide-react";
 import "../styles/landing.css";
 
-interface HeroImage {
-  src: string;
-  srcSet?: string;
-  width: number;
-  height: number;
-  alt: string;
-}
-
-const heroImages: HeroImage[] = [
-  {
+const heroImages = [
+{
     src: "/Garden4.avif",
-    srcSet: "/Garden4-800.avif 800w, /Garden4.avif 1428w",
-    width: 1428,
-    height: 1000,
     alt: "MENARA rooftop garden",
   },
   {
-    src: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=1400&q=75",
-    srcSet:
-      "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=800&q=75 800w, https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=1400&q=75 1400w",
-    width: 1400,
-    height: 933,
+    src: "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?auto=format&fit=crop&w=2000&q=85",
     alt: "Green plants growing in a garden",
   },
   {
-    src: "/Garden1.avif",
-    width: 1280,
-    height: 720,
+    src: "/Garden1.png",
     alt: "MENARA rooftop garden",
   },
   {
-    src: "/garden2.avif",
-    width: 800,
-    height: 600,
+    src: "/garden2.jpg",
     alt: "MENARA rooftop garden",
   },
   {
-    src: "/Garden3.avif",
-    width: 1400,
-    height: 1050,
+    src: "/Garden3.webp",
     alt: "MENARA rooftop garden",
   },
 ];
@@ -163,13 +142,7 @@ export default function LandingPage() {
       <header className="landing-navbar">
         <a className="brand" href="#home" aria-label="MENARA home">
           <span className="brand-mark">
-            <img
-              src="/LogoMenara.webp"
-              alt="MENARA Logo"
-              width={256}
-              height={128}
-              decoding="async"
-            />
+            <img src="/LogoMenara.png" alt="MENARA Logo" />
           </span>
           <span className="brand-copy">
             <strong>MENARA</strong>
@@ -215,12 +188,6 @@ export default function LandingPage() {
           key={heroImages[activeImage].src}
           className="hero-image"
           src={heroImages[activeImage].src}
-          srcSet={heroImages[activeImage].srcSet}
-          sizes="100vw"
-          width={heroImages[activeImage].width}
-          height={heroImages[activeImage].height}
-          decoding="sync"
-          {...({ fetchpriority: "high" } as Record<string, string>)}
           alt={heroImages[activeImage].alt}
         />
         <div className="hero-overlay" />
@@ -242,8 +209,8 @@ export default function LandingPage() {
         </button>
 
         <div className="hero-content">
-          <h1>Smarter Gardens, Greener Cities.</h1>
-          <p>
+          <h1 className="reveal-on-scroll">Smarter Gardens, Greener Cities.</h1>
+          <p className="reveal-on-scroll">
             Meet MENARA, a smarter way to monitor rooftop gardens,
             understand environmental conditions, and make informed
             plant-care decisions with AI and IoT.
@@ -304,13 +271,7 @@ export default function LandingPage() {
         <div className="about-visual">
           <div className="about-photo-wrap">
             <img
-              src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=75"
-              srcSet="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=600&q=75 600w, https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=75 900w, https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=1100&q=75 1100w"
-              sizes="(max-width: 760px) 92vw, 560px"
-              width={800}
-              height={533}
-              loading="lazy"
-              decoding="async"
+              src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=1100&q=85"
               alt="Green plants growing in an urban garden"
               className="about-photo"
             />
@@ -425,14 +386,7 @@ export default function LandingPage() {
           <div className="footer-brand-block">
             <a className="brand footer-brand" href="#home">
               <span className="brand-mark">
-                <img
-                  src="/LogoMenara.webp"
-                  alt="MENARA Logo"
-                  width={256}
-                  height={128}
-                  loading="lazy"
-                  decoding="async"
-                />
+                <img src="/LogoMenara.png" alt="MENARA Logo" />
               </span>
               <span className="brand-copy">
                 <strong>MENARA</strong>

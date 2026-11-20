@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap");
+
 :root {
   --shell-forest: #244b32;
   --shell-forest-deep: #26352b;
@@ -41,7 +43,7 @@ body,
 body {
   background: var(--shell-bg-ivory);
   color: var(--shell-text-main);
-  font-family: "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -81,7 +83,7 @@ textarea:focus-visible {
   min-height: 100vh;
   background: var(--shell-bg-ivory);
   color: var(--shell-text-main);
-  font-family: "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", sans-serif;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -150,7 +152,7 @@ textarea:focus-visible {
 
 .app-brand-text strong {
   color: #ffffff;
-  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.4px;
@@ -582,7 +584,7 @@ textarea:focus-visible {
   margin: 0 0 4px;
 
   color: var(--shell-text-main);
-  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.6px;
@@ -672,7 +674,7 @@ button.app-btn-danger-solid,
   padding: 8px 16px !important;
 
   border-radius: 9px !important;
-  font-family: "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif !important;
+  font-family: "Inter", sans-serif !important;
   font-size: 12.5px !important;
   font-weight: 600 !important;
   line-height: 1.4 !important;
@@ -843,7 +845,7 @@ button.app-btn-danger-solid:hover:not(:disabled),
   margin: 0 0 12px;
 
   color: #26352b;
-  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, -apple-system, sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 18px;
   font-weight: 700;
 }
