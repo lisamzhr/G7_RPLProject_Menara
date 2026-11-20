@@ -13,7 +13,7 @@
   box-sizing: border-box;
   background: #1f201f;
   color: #263b2c;
-  font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", "Inter", "Inter Fallback", system-ui, -apple-system, sans-serif;
 }
 
 /* HEADER */
@@ -126,7 +126,7 @@
       rgba(27, 65, 36, 0.73),
       rgba(27, 65, 36, 0.73)
     ),
-    url("/garden2.jpg");
+    url("/garden2.avif");
 
   background-position: center;
   background-size: cover;
