@@ -533,7 +533,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {error && (
-        <div style={{ padding: "12px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", borderRadius: "10px", marginBottom: "20px" }}>
+        <div className="dashboard-error-banner">
           {error}
         </div>
       )}
@@ -603,7 +603,7 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* 4 LIVE SENSOR CARDS */}
-      <div style={{ marginBottom: "8px", fontSize: "12px", color: "#64748b" }}>
+      <div className="dashboard-sensor-caption">
         Live Sensor Readings for <strong>{displayZoneLabel}</strong>:
       </div>
       <section className="sensor-grid" style={{ marginBottom: "28px" }}>

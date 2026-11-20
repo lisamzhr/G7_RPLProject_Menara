@@ -1,6 +1,7 @@
 .register-page {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   padding: 0;
   display: flex;
@@ -312,6 +313,22 @@
   color: #a3ada2;
 }
 
+.register-input-wrapper input:-webkit-autofill,
+.register-input-wrapper input:-webkit-autofill:hover,
+.register-input-wrapper input:-webkit-autofill:focus,
+.register-input-wrapper input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: #26352b;
+  caret-color: #26352b;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.register-input-wrapper input:autofill {
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  color: #26352b;
+}
+
 .register-password-toggle {
   padding: 3px;
   display: flex;
@@ -534,4 +551,15 @@
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .register-input-wrapper {
+    min-height: 44px;
+    height: auto;
+  }
+
+  .register-input-wrapper input {
+    font-size: 16px;
+  }
 }

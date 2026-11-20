@@ -43,7 +43,7 @@
 
 .ai-alerts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 16px;
 }
 
@@ -133,10 +133,6 @@
   color: #1a3321;
 }
 
-.ai-btn-override:hover {
-  background: #f1f5f9;
-}
-
 /* Recommendations Grid */
 .ai-rec-section {
   display: flex;
@@ -159,7 +155,7 @@
 
 .ai-rec-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
   gap: 18px;
 }
 

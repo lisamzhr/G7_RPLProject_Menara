@@ -2,9 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+}
+
 @font-face {
   font-family: "Inter Fallback";
-  src: local("Arial");
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans");
   ascent-override: 90.2%;
   descent-override: 22.48%;
   line-gap-override: 0%;
@@ -13,11 +17,16 @@
 
 @font-face {
   font-family: "Plus Jakarta Sans Fallback";
-  src: local("Arial");
+  src: local("Arial"), local("Helvetica Neue"), local("Helvetica"), local("Liberation Sans");
   ascent-override: 97.69%;
   descent-override: 24.42%;
   line-gap-override: 0%;
   size-adjust: 100.41%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -42,4 +51,10 @@ body,
 
 body {
   overflow-x: hidden;
+  overflow-x: clip;
+}
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
 }

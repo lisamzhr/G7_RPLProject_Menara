@@ -260,7 +260,7 @@ export const Actuators: React.FC = () => {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: "16px" }}>
           {nodes.map((node) => {
             const isOnline = node.status === "active";
             const zoneLabel = node.zone_label || zoneMap.get(node.zone_id) || node.zone_id.slice(0, 8);
@@ -351,7 +351,7 @@ export const Actuators: React.FC = () => {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "18px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(360px, 100%), 1fr))", gap: "18px" }}>
           {actuators.map((actuator) => {
             const isSprinkler = actuator.type === "sprinkler";
             const isShade = actuator.type === "shade_net";
@@ -456,13 +456,13 @@ export const Actuators: React.FC = () => {
                   </div>
                   <input
                     type="range"
+                    className="app-range"
                     min="5"
                     max={actuator.max_on_seconds}
                     step="5"
                     value={duration}
                     onChange={(e) => setCardDuration(actuator.id, Number(e.target.value))}
                     disabled={isBusy}
-                    style={{ width: "100%", accentColor: "#203c28", cursor: "pointer" }}
                   />
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#94a3b8" }}>
                     <span>5s</span>
