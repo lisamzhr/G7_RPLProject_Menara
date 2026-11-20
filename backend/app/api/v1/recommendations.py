@@ -1,6 +1,6 @@
 """Horticultural recommendations router (scoped to the user's gardens)."""
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -37,3 +37,19 @@ def list_recommendations(
         )
         for r in recs
     ]
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, summary="Delete a recommendation")
+def delete_recommendation(
+    id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rec = (
+        db.query(Recommendation)
+        .filter(Recommendation.id == id, Recommendation.zone_id.in_(member_zone_ids(current_user)))
+        .first()
+    )
+    if not rec:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Recommendation not found")
+    db.delete(rec)
+    db.commit()
