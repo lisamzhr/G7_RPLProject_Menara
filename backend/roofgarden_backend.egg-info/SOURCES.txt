@@ -28,7 +28,6 @@ app/models/control_action.py
 app/models/feedback.py
 app/models/garden.py
 app/models/garden_member.py
-app/models/knowledge_chunk.py
 app/models/plant_category.py
 app/models/plant_zone.py
 app/models/recommendation.py

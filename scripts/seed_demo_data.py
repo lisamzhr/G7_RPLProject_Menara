@@ -17,7 +17,6 @@ from app.core.security import get_password_hash
 from app.models.actuator import Actuator
 from app.models.garden import Garden
 from app.models.garden_member import GardenMember
-from app.models.knowledge_chunk import KnowledgeChunk
 from app.models.plant_category import PlantCategory
 from app.models.plant_zone import PlantZone
 from app.models.recommendation import Recommendation
@@ -140,26 +139,6 @@ def seed_database():
             cat_map[cdata["key"]] = cat
 
         print(f"[Seed] Verified {len(cat_map)} categories and threshold profiles.")
-
-        # Seed Knowledge Chunks with Vector Embeddings
-        from roofgarden_ai.knowledge_base.embedder import BaseEmbedder
-        from roofgarden_ai.knowledge_base.loader import load_profile_chunks
-
-        embedder = BaseEmbedder()
-        chunks = load_profile_chunks()
-        for ch in chunks:
-            existing_ch = db.query(KnowledgeChunk).filter(KnowledgeChunk.category_key == ch["category_key"]).first()
-            if not existing_ch:
-                vec = embedder.embed_text(ch["content"])
-                kc = KnowledgeChunk(
-                    category_key=ch["category_key"],
-                    content=ch["content"],
-                    source=ch["source"],
-                    embedding=vec,
-                )
-                db.add(kc)
-        db.commit()
-        print(f"[Seed] Seeded {len(chunks)} agronomic knowledge chunks into knowledge_chunks.")
 
         # 3. Demo Garden
         garden = db.query(Garden).first()

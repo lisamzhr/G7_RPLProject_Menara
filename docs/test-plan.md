@@ -202,7 +202,7 @@ flowchart TD
 |    - Speed: ~10 seconds for full 91-test pytest suite                            |
 |                                                                                  |
 | 2. Containerized Integration Environment (Docker Compose)                        |
-|    - Database: PostgreSQL 16 + TimescaleDB + pgvector extension                  |
+|    - Database: PostgreSQL 16 + TimescaleDB                                       |
 |    - Backend: FastAPI (uvicorn inside roofgarden_backend container)              |
 |    - Frontend: Vite SPA served via Nginx reverse proxy                           |
 |    - External APIs: BMKG live sandbox / Open-Elevation sandbox                   |

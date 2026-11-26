@@ -15,7 +15,6 @@ Requires-Dist: python-jose[cryptography]>=3.3.0
 Requires-Dist: passlib[bcrypt]>=1.7.4
 Requires-Dist: bcrypt<5.0,>=4.0
 Requires-Dist: psycopg[binary]>=3.1
-Requires-Dist: pgvector>=0.2.5
 Requires-Dist: roofgarden-ai
 Requires-Dist: passlib[bcrypt]>=1.7.4
 Requires-Dist: bcrypt<4.1,>=4.0.1

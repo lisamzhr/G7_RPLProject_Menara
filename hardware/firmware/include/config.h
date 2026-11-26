@@ -19,7 +19,7 @@
 #define DHT_PIN                 4    // GPIO4: DHT22 Data line
 #define DHT_TYPE                DHT22
 
-#define SOIL_PIN                34   // GPIO34: Capacitive Soil Moisture Analog (ADC1_CH6)
+#define SOIL_PIN                32   // GPIO34: Capacitive Soil Moisture Analog (ADC1_CH6)
 
 #define I2C_SDA_PIN             21   // GPIO21: BH1750 I2C Data
 #define I2C_SCL_PIN             22   // GPIO22: BH1750 I2C Clock

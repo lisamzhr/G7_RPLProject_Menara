@@ -11,9 +11,6 @@ roofgarden_ai.egg-info/top_level.txt
 roofgarden_ai/guardrails/fallback_templates.py
 roofgarden_ai/guardrails/sanity_checks.py
 roofgarden_ai/guardrails/validator.py
-roofgarden_ai/knowledge_base/embedder.py
-roofgarden_ai/knowledge_base/loader.py
-roofgarden_ai/knowledge_base/retriever.py
 roofgarden_ai/llm/__init__.py
 roofgarden_ai/llm/base.py
 roofgarden_ai/llm/groq_client.py

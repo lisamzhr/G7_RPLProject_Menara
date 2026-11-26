@@ -4,7 +4,7 @@ This guide covers deployment instructions for the **RoofGarden Monitoring System
 - **Full Stack / Containers**: [Docker Compose](https://docs.docker.com/compose/)
 - **Frontend SPA**: [Vercel](https://vercel.com) / [Cloudflare Pages](https://pages.cloudflare.com)
 - **Backend API & Scheduled Jobs**: [Render](https://render.com)
-- **Database & Authentication**: [Supabase](https://supabase.com) (PostgreSQL 16 with pgvector)
+- **Database & Authentication**: [Supabase](https://supabase.com) (PostgreSQL 16)
 
 ---
 
@@ -12,9 +12,8 @@ This guide covers deployment instructions for the **RoofGarden Monitoring System
 
 1. **Create Supabase Project**:
    - Create a new project in the Southeast Asia (Singapore) region for lowest latency to Jakarta.
-2. **Enable pgvector & TimescaleDB Extensions**:
+2. **Enable TimescaleDB Extension (Optional)**:
    - In Supabase Dashboard &rarr; **Database** &rarr; **Extensions**:
-     - Enable `vector` (pgvector).
      - (Optional) Enable `timescaledb` if supported on your Supabase compute tier.
 3. **Run Alembic Migrations**:
    - Obtain the connection URI from **Project Settings &rarr; Database &rarr; Connection string (URI)** (use Session/Transaction pooler or Direct connection).
