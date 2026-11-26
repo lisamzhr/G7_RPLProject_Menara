@@ -46,27 +46,3 @@ class JSONType(TypeDecorator):
             return json.loads(value)
         return None
 
-
-class VectorType(TypeDecorator):
-    """Vector type that stores as JSON/TEXT on SQLite and Vector(dim) on Postgres."""
-
-    impl = TEXT
-    cache_ok = True
-
-    def __init__(self, dim=1536, **kwargs):
-        super().__init__(**kwargs)
-        self.dim = dim
-
-    def process_bind_param(self, value, dialect):
-        if dialect.name == "postgresql":
-            return value
-        if value is not None:
-            return json.dumps(value)
-        return None
-
-    def process_result_value(self, value, dialect):
-        if dialect.name == "postgresql":
-            return value
-        if value is not None:
-            return json.loads(value)
-        return None

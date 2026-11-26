@@ -26,8 +26,8 @@ flowchart TD
         Scheduler["APScheduler<br/>(evaluate_zones, check_node_health, verify_actions)"]
     end
 
-    subgraph Storage ["PostgreSQL 16 + pgvector"]
-        DB[("PostgreSQL Database<br/>users, gardens, members<br/>plant_zones, threshold_profiles<br/>sensor_readings, nodes, actuators<br/>control_actions, alerts, feedback<br/>knowledge_chunks (embeddings)")]
+    subgraph Storage ["PostgreSQL 16"]
+        DB[("PostgreSQL Database<br/>users, gardens, members<br/>plant_zones, threshold_profiles<br/>sensor_readings, nodes, actuators<br/>control_actions, alerts, feedback")]
     end
 
     subgraph AI ["roofgarden_ai Module"]

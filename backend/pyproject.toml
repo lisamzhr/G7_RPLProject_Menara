@@ -20,7 +20,6 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0,<5.0",
     "psycopg[binary]>=3.1",
-    "pgvector>=0.2.5",
     "roofgarden-ai",
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.1,<4.1",

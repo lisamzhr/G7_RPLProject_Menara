@@ -81,12 +81,11 @@ The architecture enforces a strict separation between **deterministic engineerin
 
 ---
 
-### 2.4 Storage Layer (PostgreSQL + pgvector)
+### 2.4 Storage Layer (PostgreSQL)
 - **Core Entities**: Users, Gardens, Garden Memberships, Plant Categories, Threshold Profiles, Plant Zones, Sensor Nodes, Actuators, Control Actions, Alerts, Feedback.
 - **Time-Series Telemetry**: `sensor_readings` indexed by `(node_id, ts DESC)`.
   - Optional TimescaleDB hypertable support enabled dynamically if extension is detected.
   - Aggregation SQL views: `readings_hourly` and `readings_daily`.
-- **Knowledge Base**: `knowledge_chunks` storing agronomic journal abstracts with 1536-dimensional embeddings for retrieval.
 
 ---
 
