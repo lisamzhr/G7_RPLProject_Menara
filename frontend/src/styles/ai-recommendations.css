@@ -1195,3 +1195,442 @@
     font-size: 10px;
   }
 }
+
+/* ==========================================================================
+   RECOMMENDATION HISTORY
+   ========================================================================== */
+
+.ai-history-section {
+  margin-top: 28px;
+  width: 100%;
+}
+
+/* HISTORY HEADER */
+
+.ai-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ai-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ai-history-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-history-title h2 {
+  margin: 0;
+}
+
+.ai-history-title p {
+  margin: 4px 0 0;
+}
+
+.ai-history-toggle-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.ai-history-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 20px;
+  background: rgba(82, 122, 77, 0.12);
+  color: #527a4d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* HISTORY GRID */
+
+.ai-history-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(280px, 1fr)
+  );
+  gap: 20px;
+  margin-top: 18px;
+}
+
+/* HISTORY CARD */
+
+.ai-history-card {
+  position: relative;
+}
+
+/* CARD ACTIONS */
+
+.ai-history-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(82, 122, 77, 0.15);
+}
+
+.ai-history-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid rgba(180, 70, 70, 0.25);
+  border-radius: 8px;
+  background: rgba(180, 70, 70, 0.06);
+  color: #a04444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ai-history-delete-button:hover:not(:disabled) {
+  background: rgba(180, 70, 70, 0.12);
+  border-color: rgba(180, 70, 70, 0.4);
+  transform: translateY(-1px);
+}
+
+.ai-history-delete-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* DELETE ALL */
+
+.ai-history-delete-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid rgba(180, 70, 70, 0.25);
+  border-radius: 9px;
+  background: rgba(180, 70, 70, 0.06);
+  color: #a04444;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.ai-history-delete-all:hover:not(:disabled) {
+  background: rgba(180, 70, 70, 0.12);
+  border-color: rgba(180, 70, 70, 0.4);
+}
+
+.ai-history-delete-all:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 600px) {
+  .ai-history-header {
+    align-items: flex-start;
+  }
+
+  .ai-history-toggle {
+    width: 100%;
+  }
+
+  .ai-history-delete-all {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ai-history-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   RECOMMENDATION HISTORY - BOXED HEADER
+   ========================================================================== */
+
+.ai-history-section {
+  margin-top: 28px;
+  width: 100%;
+}
+
+/* HISTORY CONTAINER */
+
+.ai-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  padding: 20px 24px;
+
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(168, 195, 160, 0.18);
+  border-radius: 16px;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.ai-history-header:hover {
+  background: rgba(255, 255, 255, 0.065);
+  border-color: rgba(168, 195, 160, 0.28);
+}
+
+/* TOGGLE */
+
+.ai-history-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  flex: 1;
+  min-width: 0;
+
+  padding: 0;
+  border: none;
+  background: transparent;
+
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+/* TITLE */
+
+.ai-history-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ai-history-title h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #f5f3e9;
+}
+
+.ai-history-title p {
+  margin: 5px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #a8c3a0;
+}
+
+/* HISTORY ICON */
+
+.ai-history-title .history-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: rgba(168, 195, 160, 0.12);
+  border: 1px solid rgba(168, 195, 160, 0.18);
+
+  color: #a8c3a0;
+}
+
+/* COUNT + CHEVRON */
+
+.ai-history-toggle-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+
+  color: #f5f3e9;
+}
+
+.ai-history-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 38px;
+  height: 34px;
+  padding: 0 10px;
+
+  border-radius: 10px;
+
+  background: rgba(82, 122, 77, 0.18);
+  border: 1px solid rgba(168, 195, 160, 0.16);
+
+  color: #a8c3a0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* DELETE ALL */
+
+.ai-history-delete-all {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  padding: 9px 13px;
+
+  border: 1px solid rgba(220, 120, 120, 0.24);
+  border-radius: 9px;
+
+  background: rgba(180, 70, 70, 0.08);
+  color: #e5a3a3;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.ai-history-delete-all:hover:not(:disabled) {
+  background: rgba(180, 70, 70, 0.16);
+  border-color: rgba(220, 120, 120, 0.4);
+}
+
+.ai-history-delete-all:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* EXPANDED HISTORY GRID */
+
+.ai-history-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(280px, 1fr)
+  );
+  gap: 20px;
+
+  margin-top: 18px;
+}
+
+/* HISTORY CARD */
+
+.ai-history-card {
+  position: relative;
+}
+
+/* CARD ACTIONS */
+
+.ai-history-card-actions {
+  display: flex;
+  justify-content: flex-end;
+
+  margin-top: 12px;
+  padding-top: 12px;
+
+  border-top: 1px solid rgba(82, 122, 77, 0.15);
+}
+
+.ai-history-delete-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  padding: 8px 12px;
+
+  border: 1px solid rgba(180, 70, 70, 0.25);
+  border-radius: 8px;
+
+  background: rgba(180, 70, 70, 0.06);
+  color: #a04444;
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ai-history-delete-button:hover:not(:disabled) {
+  background: rgba(180, 70, 70, 0.12);
+  border-color: rgba(180, 70, 70, 0.4);
+  transform: translateY(-1px);
+}
+
+.ai-history-delete-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 600px) {
+  .ai-history-header {
+    padding: 16px;
+    align-items: flex-start;
+  }
+
+  .ai-history-toggle {
+    width: 100%;
+  }
+
+  .ai-history-title {
+    gap: 12px;
+  }
+
+  .ai-history-title h2 {
+    font-size: 15px;
+  }
+
+  .ai-history-title p {
+    font-size: 12px;
+  }
+
+  .ai-history-delete-all {
+    width: 100%;
+  }
+
+  .ai-history-grid {
+    grid-template-columns: 1fr;
+  }
+}

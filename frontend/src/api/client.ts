@@ -244,4 +244,8 @@ export const api = {
         ? `/recommendations?zone_id=${encodeURIComponent(zoneId)}`
         : "/recommendations"
     ),
+  deleteRecommendation: (recommendationId: string) =>
+    request<void>(`/recommendations/${recommendationId}`, {
+      method: "DELETE",
+  }),
 };

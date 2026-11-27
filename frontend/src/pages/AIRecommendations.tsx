@@ -10,6 +10,9 @@ import {
   Building2,
   ChevronDown,
   Plus,
+  Trash2,
+  History,
+  ChevronUp,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useGarden } from "../context/GardenContext";
@@ -33,6 +36,12 @@ export const AIRecommendations: React.FC = () => {
 
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
+  const [showRecommendationHistory, setShowRecommendationHistory] =useState(false);
+
+  const [deletingRecommendation, setDeletingRecommendation] = useState<string | null>(null);
+
+  const [deletingAllHistory, setDeletingAllHistory] = useState(false);
+
   const [alertFilter, setAlertFilter] = useState<"active" | "all">("active");
 
   const [loading, setLoading] = useState(false);
@@ -47,6 +56,13 @@ export const AIRecommendations: React.FC = () => {
 
   const zoneMap = new Map(zones.map((z) => [z.id, z.label]));
 
+  // =========================================================
+  // RECENT & HISTORY RECOMMENDATIONS
+  // =========================================================
+
+  const recentRecommendations = recommendations.slice(0, 3);
+
+  const historyRecommendations = recommendations.slice(3);
   // =========================================================
   // LOAD ADVISORIES
   // Existing backend integration is preserved
@@ -78,6 +94,102 @@ export const AIRecommendations: React.FC = () => {
   useEffect(() => {
     loadAdvisories();
   }, [loadAdvisories]);
+
+  // =========================================================
+  // DELETE SINGLE RECOMMENDATION
+  // =========================================================
+
+  const handleDeleteRecommendation = async (recId: string) => {
+    const confirmed = window.confirm(
+      "Delete this recommendation from your history?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingRecommendation(recId);
+      setErrorMessage("");
+      setStatusNotice("");
+
+      await api.deleteRecommendation(recId);
+
+      setStatusNotice("Recommendation deleted successfully.");
+
+      await loadAdvisories();
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete recommendation."
+      );
+    } finally {
+      setDeletingRecommendation(null);
+    }
+  };
+
+  // =========================================================
+  // DELETE ALL HISTORY
+  // =========================================================
+
+  const handleDeleteAllHistory = async () => {
+    if (historyRecommendations.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Delete all ${historyRecommendations.length} recommendations from history? This action cannot be undone.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingAllHistory(true);
+      setErrorMessage("");
+      setStatusNotice("");
+
+      const historyIds = historyRecommendations.map((rec) => rec.id);
+
+      let deletedCount = 0;
+      let failedCount = 0;
+
+      // Process in batches to avoid sending too many requests at once
+      const batchSize = 10;
+
+      for (let i = 0; i < historyIds.length; i += batchSize) {
+        const batch = historyIds.slice(i, i + batchSize);
+
+        const results = await Promise.allSettled(
+          batch.map((id) => api.deleteRecommendation(id))
+        );
+
+        deletedCount += results.filter(
+          (result) => result.status === "fulfilled"
+        ).length;
+
+        failedCount += results.filter(
+          (result) => result.status === "rejected"
+        ).length;
+      }
+
+      await loadAdvisories();
+
+      if (failedCount === 0) {
+        setStatusNotice(
+          `Successfully deleted ${deletedCount} recommendations from history.`
+        );
+      } else {
+        setErrorMessage(
+          `${deletedCount} recommendations deleted, but ${failedCount} failed. Please try again.`
+        );
+      }
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete recommendation history."
+      );
+    } finally {
+      setDeletingAllHistory(false);
+    }
+  };
 
   // =========================================================
   // RUN AI EVALUATION
@@ -665,8 +777,8 @@ export const AIRecommendations: React.FC = () => {
           </div>
 
           <span className="ai-advisory-count">
-            Showing {recommendations.length}{" "}
-            {recommendations.length === 1
+            Showing {recentRecommendations.length} latest{" "}
+            {recentRecommendations.length === 1
               ? "advisory"
               : "advisories"}
           </span>
@@ -717,8 +829,7 @@ export const AIRecommendations: React.FC = () => {
         ) : (
 
           <div className="ai-rec-grid">
-
-            {recommendations.map((rec) => {
+              {recentRecommendations.map((rec) => {
 
               const zoneLabel =
                 zoneMap.get(rec.zone_id) ||
@@ -831,6 +942,232 @@ export const AIRecommendations: React.FC = () => {
           </div>
 
         )}
+        {/* ===================================================
+    RECOMMENDATION HISTORY
+    =================================================== */}
+
+{historyRecommendations.length > 0 && (
+  <section className="ai-history-section">
+
+    {/* HISTORY HEADER */}
+
+    <div className="ai-history-header">
+
+      <button
+        type="button"
+        className="ai-history-toggle"
+        onClick={() =>
+          setShowRecommendationHistory((prev) => !prev)
+        }
+        aria-expanded={showRecommendationHistory}
+      >
+
+        <div className="ai-history-title">
+
+          <div className="ai-section-icon history-icon">
+            <History size={17} />
+          </div>
+
+          <div>
+
+            <h2>Recommendation History</h2>
+
+            <p>
+              Older AI recommendations stored for reference.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="ai-history-toggle-right">
+
+          <span className="ai-history-count">
+            {historyRecommendations.length}
+          </span>
+
+          {showRecommendationHistory ? (
+            <ChevronUp size={18} />
+          ) : (
+            <ChevronDown size={18} />
+          )}
+
+        </div>
+
+      </button>
+
+      {/* DELETE ALL */}
+
+      {showRecommendationHistory && (
+        <button
+          type="button"
+          className="ai-history-delete-all"
+          onClick={handleDeleteAllHistory}
+          disabled={deletingAllHistory}
+        >
+
+          <Trash2 size={14} />
+
+          <span>
+            {deletingAllHistory
+              ? "Deleting History..."
+              : "Delete All History"}
+          </span>
+
+        </button>
+      )}
+
+    </div>
+
+    {/* HISTORY CONTENT */}
+
+    {showRecommendationHistory && (
+
+      <div className="ai-history-grid">
+
+        {historyRecommendations.map((rec) => {
+
+          const zoneLabel =
+            zoneMap.get(rec.zone_id) || "Plant Zone";
+
+          const priorityClass =
+            rec.status_level === "warning"
+              ? "warning"
+              : rec.status_level === "advisory"
+              ? "advisory"
+              : "optimal";
+
+          return (
+
+            <article
+              key={rec.id}
+              className="ai-rec-card ai-history-card"
+            >
+
+              {/* CARD TOP */}
+
+              <div className="ai-rec-card-top">
+
+                <span className="ai-rec-zone-badge">
+                  {zoneLabel}
+                </span>
+
+                <span
+                  className={`ai-priority-badge ${priorityClass}`}
+                >
+
+                  <span className="ai-priority-dot" />
+
+                  {rec.status_level}
+
+                </span>
+
+              </div>
+
+              {/* RECOMMENDATION */}
+
+              <div className="ai-rec-content">
+
+                <p className="ai-rec-message">
+
+                  {rec.message.startsWith("Warning:") ? (
+                    <>
+                      <strong>Warning:</strong>
+                      {rec.message.slice("Warning:".length)}
+                    </>
+                  ) : (
+                    rec.message
+                  )}
+
+                </p>
+
+              </div>
+
+              {/* REASONS */}
+
+              {rec.reasons &&
+                rec.reasons.length > 0 && (
+
+                <div className="ai-reasons-container">
+
+                  <div className="ai-reasons-heading">
+                    <span>OBSERVATION REASON</span>
+                  </div>
+
+                  {rec.reasons.map((reason, idx) => (
+
+                    <div
+                      key={idx}
+                      className="ai-reason-pill"
+                    >
+
+                      <Info
+                        size={13}
+                        className="ai-reason-icon"
+                      />
+
+                      <span>{reason}</span>
+
+                    </div>
+
+                  ))}
+
+                </div>
+
+              )}
+
+              {/* EVALUATION TIME */}
+
+              <div className="ai-rec-footer">
+
+                <Clock size={13} />
+
+                <span>
+                  Evaluated: {formatDateTime(rec.created_at)}
+                </span>
+
+              </div>
+
+              {/* DELETE */}
+
+              <div className="ai-history-card-actions">
+
+                <button
+                  type="button"
+                  className="ai-history-delete-button"
+                  onClick={() =>
+                    handleDeleteRecommendation(rec.id)
+                  }
+                  disabled={
+                    deletingRecommendation === rec.id ||
+                    deletingAllHistory
+                  }
+                >
+
+                  <Trash2 size={14} />
+
+                  <span>
+                    {deletingRecommendation === rec.id
+                      ? "Deleting..."
+                      : "Delete"}
+                  </span>
+
+                </button>
+
+              </div>
+
+            </article>
+
+          );
+
+        })}
+
+      </div>
+
+    )}
+
+  </section>
+)}
 
       </section>
 
