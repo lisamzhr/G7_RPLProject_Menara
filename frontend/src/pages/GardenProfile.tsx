@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Sprout,
   MapPin,
@@ -8,6 +9,8 @@ import {
   Building2,
   Leaf,
   Cpu,
+  RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 import { useGarden } from "../context/GardenContext";
 import { api } from "../api/client";
@@ -17,6 +20,7 @@ import "../styles/garden-profile.css";
 export const GardenProfile: React.FC = () => {
   const navigate = useNavigate();
   const {
+    gardens,
     selectedGarden,
     setSelectedGarden,
     zones,
@@ -26,6 +30,7 @@ export const GardenProfile: React.FC = () => {
     refreshGardens,
     error: contextError,
   } = useGarden();
+  const [showGardenMenu, setShowGardenMenu] = useState(false);
 
   // Local state for modals & forms
   const [showAddZoneModal, setShowAddZoneModal] = useState(false);
@@ -190,50 +195,144 @@ export const GardenProfile: React.FC = () => {
 
   return (
     <div className="garden-profile-container">
-      {/* PAGE HEADER */}
-      <div className="page-header">
-        <div>
-          <h1>Garden &amp; Plant Profiles</h1>
-          <p>
-            Manage rooftop garden microclimate locations, plant zones, and botanical threshold baselines for automated micro-irrigation and ventilation.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          {selectedGarden && (
-            <button
-              className="app-btn-primary"
-              onClick={() => {
-                setZoneCategory(categories[0]?.key || "");
-                setShowAddZoneModal(true);
-              }}
-              type="button"
-            >
-              <Plus size={16} />
-              <span>Add Plant Zone</span>
-            </button>
-          )}
-          <button
-            className="app-btn-secondary"
-            onClick={() => setShowNewGardenModal(true)}
-            type="button"
-          >
-            <Building2 size={16} />
-            <span>New Garden</span>
-          </button>
-        </div>
-      </div>
+    {/* PAGE HEADER */}
+<div className="page-header">
+  <div>
+    <h1>Garden &amp; Plant Profiles</h1>
+    <p>
+      Manage rooftop garden microclimate locations, plant zones, and botanical threshold baselines for automated micro-irrigation and ventilation.
+    </p>
+  </div>
 
-      {/* STATUS & ERROR ALERTS */}
-      {statusMessage && (
-        <div style={{ padding: "10px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", borderRadius: "8px", fontSize: "13px" }}>
-          {statusMessage}
-        </div>
+  <div className="gp-header-actions">
+    {/* HERO CONTROLS */}
+    <div className="dash-hero-controls">
+      <div className="dash-hero-sync">
+      <RefreshCw size={14} />
+      <span>Connected</span>
+    </div>
+
+      <div className="dash-hero-garden-selector">
+        <button
+          type="button"
+          className="dash-hero-garden-button"
+          onClick={() => setShowGardenMenu((prev) => !prev)}
+          aria-expanded={showGardenMenu}
+        >
+          <Building2 size={18} />
+          <div className="dash-hero-garden-info">
+            <strong>{selectedGarden?.name || "Select Garden"}</strong>
+            <small>{selectedGarden?.location_name || "Garden location"}</small>
+          </div>
+          <ChevronDown
+            size={16}
+            className={showGardenMenu ? "rotated" : ""}
+          />
+        </button>
+
+        {showGardenMenu && (
+          <div className="dash-hero-garden-dropdown">
+            <div className="dash-hero-dropdown-label">
+              SWITCH GARDEN FACILITY
+            </div>
+
+            {gardens.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                className={`dash-hero-garden-option ${
+                  g.id === selectedGarden?.id ? "selected" : ""
+                }`}
+                onClick={() => {
+                  setSelectedGarden(g);
+                  setShowGardenMenu(false);
+                }}
+              >
+                <strong>{g.name}</strong>
+                <small>
+                  {g.location_name} • {g.elevation_m}m
+                </small>
+              </button>
+            ))}
+
+            {gardens.length === 0 && (
+              <div className="dash-hero-garden-empty">
+                No gardens found.
+              </div>
+            )}
+
+            <div className="dash-hero-dropdown-bottom">
+              <Link
+                to="/garden-profile"
+                onClick={() => setShowGardenMenu(false)}
+              >
+                <Plus size={15} />
+                Add New Garden Facility
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* EXISTING BUTTONS */}
+    <div className="gp-header-buttons">
+      {selectedGarden && (
+        <button
+          className="app-btn-primary"
+          onClick={() => {
+            setZoneCategory(categories[0]?.key || "");
+            setShowAddZoneModal(true);
+          }}
+          type="button"
+        >
+          <Plus size={16} />
+          <span>Add Plant Zone</span>
+        </button>
       )}
-      {contextError && (
-        <div style={{ padding: "10px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: "8px", fontSize: "13px" }}>
-          {contextError}
-        </div>
-      )}
+
+      <button
+        className="app-btn-secondary"
+        onClick={() => setShowNewGardenModal(true)}
+        type="button"
+      >
+        <Building2 size={16} />
+        <span>New Garden</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+{/* STATUS & ERROR ALERTS */}
+{statusMessage && (
+  <div
+    style={{
+      padding: "10px 16px",
+      background: "#f0fdf4",
+      border: "1px solid #bbf7d0",
+      color: "#166534",
+      borderRadius: "8px",
+      fontSize: "13px",
+    }}
+  >
+    {statusMessage}
+  </div>
+)}
+
+{contextError && (
+  <div
+    style={{
+      padding: "10px 16px",
+      background: "#fef2f2",
+      border: "1px solid #fecaca",
+      color: "#991b1b",
+      borderRadius: "8px",
+      fontSize: "13px",
+    }}
+  >
+    {contextError}
+  </div>
+)}
 
       {/* GARDEN OVERVIEW CARD */}
       {selectedGarden ? (
@@ -795,6 +894,13 @@ export const GardenProfile: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* FOOTER */}
+      <footer className="app-footer">
+        <span>
+          &copy; 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
+        </span>
+      </footer>
     </div>
   );
 };

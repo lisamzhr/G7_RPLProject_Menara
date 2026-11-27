@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Thermometer,
   Droplet,
@@ -7,6 +8,10 @@ import {
   ShieldCheck,
   AlertTriangle,
   Clock3,
+  RefreshCw,
+  Building2,
+  ChevronDown,
+  Plus,
 } from "lucide-react";
 import {
   Area,
@@ -31,10 +36,16 @@ type MetricTab = "all" | "moisture" | "climate" | "lux";
 
 export const EnvironmentalMonitoring: React.FC = () => {
   const {
+    gardens,
+    selectedGarden,
+    setSelectedGarden,
+    loading,
     zones,
     selectedZone,
     setSelectedZone,
   } = useGarden();
+
+  const [showGardenMenu, setShowGardenMenu] = useState(false);
 
   const [timeRange, setTimeRange] = useState<TimeRange>("24 Hours");
   const [activeMetricTab, setActiveMetricTab] = useState<MetricTab>("all");
@@ -42,6 +53,7 @@ export const EnvironmentalMonitoring: React.FC = () => {
   const [readings, setReadings] = useState<Reading[]>([]);
   const [readingsLoading, setReadingsLoading] = useState(false);
   const [error, setError] = useState("");
+
 
   // Load zone status when selectedZone changes
   useEffect(() => {
@@ -197,31 +209,55 @@ export const EnvironmentalMonitoring: React.FC = () => {
 
   return (
     <div className="monitoring-container">
-      {/* PAGE HEADER */}
-      <div className="page-header">
-        <div>
-          <h1>Environmental Monitoring</h1>
-          <p>
-            Real-time telemetry and diurnal environmental tracking across rooftop canopy microclimates and planting beds.
-          </p>
-        </div>
-      </div>
 
-      {error && (
-        <div style={{ padding: "10px 16px", background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: "8px", fontSize: "13px" }}>
-          {error}
-        </div>
-      )}
+ {/* PAGE HEADER */}
+<div className="monitoring-hero">
+  <div className="monitoring-hero-main">
 
-      {/* ZONE CHIPS SELECTOR STRIP */}
+    {/* LEFT SIDE: TITLE + DESCRIPTION + VIEWING + ZONE CHIPS */}
+    <div className="monitoring-hero-title">
+      <h1>
+        Environmental Monitoring
+        <span className="monitoring-telemetry-badge">
+          ACTIVE TELEMETRY
+        </span>
+      </h1>
+
+      <p>
+        Real-time telemetry and diurnal environmental tracking across
+        rooftop canopy microclimates and planting beds.
+      </p>
+
+      {/* VIEWING INFO + ZONE CHIPS */}
       {zones.length > 0 && (
-        <div className="monitoring-zone-strip">
-          <div className="zone-chips" style={{ margin: 0 }}>
+        <div className="monitoring-selected-zone-info">
+
+          {/* VIEWING */}
+          <div className="monitoring-viewing-info">
+            <span className="monitoring-viewing-label">
+              VIEWING
+            </span>
+
+            <strong>
+              {selectedZone?.label || "Zone"}
+            </strong>
+
+            {selectedZone && (
+              <span className="monitoring-zone-category">
+                {selectedZone.category.name}
+              </span>
+            )}
+          </div>
+
+          {/* ZONE CHIPS */}
+          <div className="monitoring-zone-chips">
             {zones.map((zone) => (
               <button
                 key={zone.id}
                 type="button"
-                className={`zone-chip ${selectedZone?.id === zone.id ? "active" : ""}`}
+                className={`zone-chip ${
+                  selectedZone?.id === zone.id ? "active" : ""
+                }`}
                 onClick={() => setSelectedZone(zone)}
               >
                 {zone.label}
@@ -229,16 +265,101 @@ export const EnvironmentalMonitoring: React.FC = () => {
             ))}
           </div>
 
-          <div style={{ fontSize: "12px", color: "#64748b" }}>
-            Viewing: <strong style={{ color: "#1e3926" }}>{selectedZone?.label || "Zone"}</strong>
-            {selectedZone && (
-              <span style={{ marginLeft: "6px", color: "#2b4f35" }}>
-                ({selectedZone.category.name})
-              </span>
-            )}
-          </div>
         </div>
       )}
+    </div>
+
+    {/* RIGHT SIDE: CONNECTION + GARDEN SELECTOR */}
+    <div className="monitoring-hero-controls">
+
+      {/* CONNECTION STATUS */}
+      <div className={`monitoring-hero-sync ${loading ? "loading" : ""}`}>
+        <RefreshCw
+          size={14}
+          className={loading ? "animate-spin" : ""}
+        />
+        <span>{loading ? "Syncing..." : "Connected"}</span>
+      </div>
+
+      {/* GARDEN SELECTOR */}
+      <div className="monitoring-hero-garden-selector">
+        <button
+          type="button"
+          className="monitoring-hero-garden-button"
+          onClick={() => setShowGardenMenu((prev) => !prev)}
+          aria-expanded={showGardenMenu}
+        >
+          <Building2 size={18} />
+
+          <div className="monitoring-hero-garden-info">
+            <strong>
+              {selectedGarden?.name || "Select Garden"}
+            </strong>
+
+            <small>
+              {selectedGarden?.location_name || "Garden location"}
+            </small>
+          </div>
+
+          <ChevronDown
+            size={16}
+            className={showGardenMenu ? "rotated" : ""}
+          />
+        </button>
+
+        {showGardenMenu && (
+          <div className="monitoring-hero-garden-dropdown">
+            <div className="monitoring-hero-dropdown-label">
+              SWITCH GARDEN FACILITY
+            </div>
+
+            {gardens.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                className={`monitoring-hero-garden-option ${
+                  g.id === selectedGarden?.id ? "selected" : ""
+                }`}
+                onClick={() => {
+                  setSelectedGarden(g);
+                  setShowGardenMenu(false);
+                }}
+              >
+                <strong>{g.name}</strong>
+
+                <small>
+                  {g.location_name} • {g.elevation_m}m
+                </small>
+              </button>
+            ))}
+
+            {gardens.length === 0 && (
+              <div className="monitoring-hero-garden-empty">
+                No gardens found.
+              </div>
+            )}
+
+            <div className="monitoring-hero-dropdown-bottom">
+              <Link
+                to="/garden-profile"
+                onClick={() => setShowGardenMenu(false)}
+              >
+                <Plus size={15} />
+                Add New Garden Facility
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
+
+    {error && (
+      <div className="monitoring-error">
+        {error}
+      </div>
+    )}
 
       {/* 4 LIVE SENSOR CARDS */}
       <section className="monitoring-sensor-grid">
@@ -461,6 +582,12 @@ export const EnvironmentalMonitoring: React.FC = () => {
           </div>
         </div>
       </section>
+      {/* PAGE FOOTER */}
+      <footer className="monitoring-page-footer">
+        <span>
+          © 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
+        </span>
+      </footer>
     </div>
   );
 };

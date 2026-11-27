@@ -1,85 +1,462 @@
 /* ==========================================================================
-   Environmental Monitoring Page Styles
-   Warm ivory canvas with white cards and dark forest green accents
+   MENARA - Environmental Monitoring
+   Warm Ivory Canvas / Forest Green / Clean Telemetry Dashboard
    ========================================================================== */
 
 .monitoring-container {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
+  color: #26352b;
+  box-sizing: border-box;
 }
 
-/* Zone Picker Strip */
-.monitoring-zone-strip {
+/* =========================
+   HERO HEADER
+   ========================= */
+
+.monitoring-hero {
+  width: 100%;
+  min-width: 0;
+}
+
+.monitoring-hero-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
-/* Live Sensor Cards Grid */
+.monitoring-hero-title {
+  flex: 1;
+  min-width: 260px;
+}
+
+.monitoring-hero-title h1 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 8px;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(24px, 2.3vw, 32px);
+  font-weight: 800;
+  line-height: 1.25;
+  color: #1e3926;
+  letter-spacing: -0.7px;
+}
+
+.monitoring-hero-title p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #647565;
+}
+
+.monitoring-telemetry-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #d8edcc;
+  color: #244b32;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  white-space: nowrap;
+}
+
+/* =========================
+   VIEWING INFO + ZONE CHIPS
+   ========================= */
+
+.monitoring-selected-zone-info {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  max-width: 100%;
+}
+
+/* Viewing information */
+
+.monitoring-viewing-info {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 9px 13px;
+  background: #ffffff;
+  border: 1px solid #e4e9df;
+  border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(31, 55, 36, 0.04);
+}
+
+.monitoring-viewing-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: #829181;
+  letter-spacing: 0.8px;
+}
+
+.monitoring-viewing-info strong {
+  font-size: 12px;
+  color: #1e3926;
+}
+
+.monitoring-zone-category {
+  font-size: 10px;
+  color: #7b897b;
+}
+
+/* Zone chip container */
+
+.monitoring-zone-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Override existing/global zone-chip styling */
+
+.monitoring-zone-chips .zone-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 13px;
+  border: 1px solid #dce4d8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #506451;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease,
+    color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.monitoring-zone-chips .zone-chip:hover {
+  background: #edf4e9;
+  border-color: #c5d8bd;
+  color: #244b32;
+}
+
+.monitoring-zone-chips .zone-chip.active {
+  background: #244b32;
+  border-color: #244b32;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 5px rgba(36, 75, 50, 0.15);
+}
+
+.monitoring-zone-chips .zone-chip:focus-visible {
+  outline: 2px solid #78946d;
+  outline-offset: 2px;
+}
+
+/* =========================
+   HERO CONTROLS
+   Connection + Garden Selector
+   ========================= */
+
+.monitoring-hero-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* Connection status */
+
+.monitoring-hero-sync {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 13px;
+  border: 1px solid #dce8d9;
+  border-radius: 12px;
+  background: #e8f1e6;
+  color: #477a50;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.monitoring-hero-sync.loading {
+  background: #f8e4b5;
+  border-color: #ead7a8;
+  color: #765a1b;
+}
+
+.monitoring-hero-sync svg {
+  flex-shrink: 0;
+}
+
+.monitoring-hero-sync .animate-spin {
+  animation: monitoring-spin 1s linear infinite;
+}
+
+@keyframes monitoring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Garden selector wrapper */
+
+.monitoring-hero-garden-selector {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+/* Garden selector button */
+
+.monitoring-hero-garden-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 210px;
+  max-width: 280px;
+  padding: 9px 12px;
+  border: 1px solid #e4e9df;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #244b32;
+  box-shadow: 0 2px 5px rgba(31, 55, 36, 0.04);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.monitoring-hero-garden-button:hover {
+  background: #f8faf7;
+  border-color: #cbd9c7;
+  box-shadow: 0 3px 8px rgba(31, 55, 36, 0.07);
+}
+
+.monitoring-hero-garden-button > svg:first-child {
+  flex-shrink: 0;
+  color: #527a4d;
+}
+
+.monitoring-hero-garden-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.monitoring-hero-garden-info strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e3926;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitoring-hero-garden-info small {
+  font-size: 10px;
+  color: #7b897b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitoring-hero-garden-button > svg:last-child {
+  flex-shrink: 0;
+  color: #829181;
+  transition: transform 0.2s ease;
+}
+
+.monitoring-hero-garden-button > svg:last-child.rotated {
+  transform: rotate(180deg);
+}
+
+/* Garden dropdown */
+
+.monitoring-hero-garden-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  max-width: min(280px, calc(100vw - 32px));
+  background: #ffffff;
+  border: 1px solid #e4e9df;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(31, 55, 36, 0.12);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.monitoring-hero-dropdown-label {
+  padding: 12px 14px 10px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #829181;
+  border-bottom: 1px solid #edf0e9;
+}
+
+.monitoring-hero-garden-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid #f0f2ed;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.monitoring-hero-garden-option:hover {
+  background: #f5f8f3;
+}
+
+.monitoring-hero-garden-option.selected {
+  background: #edf4e9;
+}
+
+.monitoring-hero-garden-option strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #244b32;
+}
+
+.monitoring-hero-garden-option small {
+  font-size: 10px;
+  color: #7b897b;
+}
+
+.monitoring-hero-garden-empty {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: #829181;
+  text-align: center;
+}
+
+.monitoring-hero-dropdown-bottom {
+  padding: 10px;
+  border-top: 1px solid #edf0e9;
+  background: #fafbf9;
+}
+
+.monitoring-hero-dropdown-bottom a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: #527a4d;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.monitoring-hero-dropdown-bottom a:hover {
+  background: #e8f1e6;
+  color: #244b32;
+}
+
+/* =========================
+   ERROR
+   ========================= */
+
+.monitoring-error {
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+/* =========================
+   SENSOR CARDS
+   ========================= */
+
 .monitoring-sensor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
 .monitoring-sensor-card {
   background: #ffffff;
-  border: 1px solid #e2e8df;
-  border-radius: 14px;
+  border: 1px solid #e8ece5;
+  border-radius: 18px;
   padding: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 5px rgba(31, 55, 36, 0.035);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  min-width: 0;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .monitoring-sensor-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(31, 55, 36, 0.06);
 }
 
 .monitoring-sensor-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .monitoring-sensor-type {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  min-width: 0;
 }
 
 .monitoring-sensor-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 9px;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
   display: grid;
   place-items: center;
-  background: #f1f6f1;
-  color: #2e5234;
+  background: #e8f1e6;
+  color: #244b32;
 }
 
 .monitoring-sensor-type span {
   font-size: 11px;
   font-weight: 600;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: #657565;
+  line-height: 1.4;
 }
 
 .monitoring-sensor-status {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
+  padding: 5px 9px;
   border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .monitoring-sensor-status span {
@@ -91,65 +468,68 @@
 .monitoring-sensor-status.optimal,
 .monitoring-sensor-status.normal,
 .monitoring-sensor-status.adequate {
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #bbf7d0;
+  background: #e2efdf;
+  color: #477a50;
+  border: 1px solid transparent;
 }
 
 .monitoring-sensor-status.optimal span,
 .monitoring-sensor-status.normal span,
 .monitoring-sensor-status.adequate span {
-  background: #22c55e;
+  background: #57894f;
 }
 
 .monitoring-sensor-status.warning {
-  background: #fefce8;
-  color: #854d0e;
-  border: 1px solid #fef08a;
+  background: #f8e4b5;
+  color: #765a1b;
+  border: 1px solid transparent;
 }
 
 .monitoring-sensor-status.warning span {
-  background: #eab308;
+  background: #ad872f;
 }
 
 .monitoring-sensor-reading {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
 }
 
 .monitoring-sensor-reading > span {
   font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.6px;
+  font-weight: 800;
+  color: #687768;
+  letter-spacing: 0.7px;
 }
 
 .monitoring-reading-val {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 7px;
 }
 
 .monitoring-reading-val strong {
-  font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", system-ui, -apple-system, sans-serif;
-  font-size: 32px;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  font-size: clamp(27px, 2.5vw, 36px);
   font-weight: 800;
   color: #1e3926;
   line-height: 1;
+  letter-spacing: -1px;
 }
 
 .monitoring-reading-val small {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: #687768;
 }
 
 /* Progress bar */
+
 .monitoring-progress-bar {
   width: 100%;
-  height: 6px;
-  background: #eef2eb;
+  height: 7px;
+  background: #edf1e8;
   border-radius: 10px;
   overflow: hidden;
   position: relative;
@@ -162,77 +542,104 @@
 }
 
 .monitoring-progress-fill.temperature {
-  background: linear-gradient(90deg, #f59e0b, #ef4444);
+  background: linear-gradient(90deg, #244b32, #527a4d);
 }
 
 .monitoring-progress-fill.humidity {
-  background: linear-gradient(90deg, #38bdf8, #2563eb);
+  background: linear-gradient(90deg, #476cae, #6b94b1);
 }
 
 .monitoring-progress-fill.moisture {
-  background: linear-gradient(90deg, #84cc16, #16a34a);
+  background: linear-gradient(90deg, #527a4d, #78946d);
 }
 
 .monitoring-progress-fill.light {
-  background: linear-gradient(90deg, #fde047, #ca8a04);
+  background: linear-gradient(90deg, #d0a74f, #c9a04b);
 }
 
 .monitoring-sensor-scale {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: #64748b;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 10px;
+  color: #738173;
+}
+
+.monitoring-sensor-scale span {
+  min-width: 0;
 }
 
 .monitoring-sensor-scale strong {
-  color: #1e3926;
-  font-weight: 600;
+  color: #354b38;
+  font-weight: 700;
+  text-align: center;
 }
 
-/* Historical Chart Card */
+/* =========================
+   HISTORICAL CHART CARD
+   ========================= */
+
 .monitoring-history-card {
   background: #ffffff;
-  border: 1px solid #e2e8df;
-  border-radius: 14px;
+  border: 1px solid #e8ece5;
+  border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 2px 5px rgba(31, 55, 36, 0.035);
+  min-width: 0;
 }
 
 .monitoring-history-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
   margin-bottom: 20px;
+}
+
+.monitoring-history-header h2 {
+  margin: 0 0 5px !important;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #1e3926 !important;
+  letter-spacing: -0.5px;
+}
+
+.monitoring-history-header p {
+  margin: 0 !important;
+  font-size: 13px !important;
+  color: #647565 !important;
+  line-height: 1.6;
 }
 
 .monitoring-chart-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .monitoring-metric-tabs,
 .monitoring-range-selector {
   display: flex;
-  background: #e2ebe0;
+  background: #f0f3ed;
   padding: 4px;
-  border-radius: 9px;
+  border-radius: 10px;
   gap: 3px;
-  border: 1px solid #d0ded0;
+  border: 1px solid #e3e9df;
+  flex-wrap: wrap;
 }
 
 .monitoring-metric-tab,
 .monitoring-range-selector button {
-  padding: 5px 12px;
+  padding: 7px 12px;
   border: 1px solid transparent;
-  background: #eef4ed;
-  color: #334d38;
-  font-size: 11.5px;
-  font-weight: 500;
+  background: transparent;
+  color: #506451;
+  font-size: 11px;
+  font-weight: 600;
   border-radius: 7px;
   cursor: pointer;
   transition: all 0.14s ease;
@@ -241,23 +648,31 @@
 .monitoring-metric-tab:hover,
 .monitoring-range-selector button:hover {
   background: #ffffff;
-  color: #1e3926;
+  color: #244b32;
 }
 
 .monitoring-metric-tab.active,
 .monitoring-range-selector button.selected {
-  background: #203c28;
-  border-color: #203c28;
+  background: #244b32;
+  border-color: #244b32;
   color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(32, 60, 40, 0.2);
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(32, 60, 40, 0.15);
 }
+
+/* Chart */
 
 .monitoring-chart-container {
   width: 100%;
   min-height: 280px;
   margin: 16px 0;
+  padding: 12px;
+  background: #f8f8f5;
+  border-radius: 16px;
+  box-sizing: border-box;
 }
+
+/* Chart footer */
 
 .monitoring-chart-footer {
   display: flex;
@@ -265,23 +680,24 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 14px;
-  padding-top: 16px;
-  border-top: 1px solid #f1f5f9;
+  padding-top: 18px;
+  border-top: 1px solid #edf0e9;
 }
 
 .monitoring-legend {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   flex-wrap: wrap;
 }
 
 .monitoring-legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  color: #475569;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #354b38;
 }
 
 .monitoring-legend-item strong {
@@ -293,42 +709,250 @@
   width: 10px;
   height: 10px;
   border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .monitoring-legend-dot.temp {
-  background: #ea580c;
+  background: #244b32;
 }
 
 .monitoring-legend-dot.humidity {
-  background: #2563eb;
+  background: #4771b6;
 }
 
 .monitoring-legend-dot.moisture {
-  background: #16a34a;
+  background: #527a4d;
 }
 
 .monitoring-legend-dot.lux {
-  background: #ca8a04;
+  background: #c9a04b;
 }
 
 .monitoring-status-banner {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 9px 13px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .monitoring-status-banner.all-good {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  color: #166534;
+  background: #e3efe1;
+  border: 1px solid #d4e6d0;
+  color: #244b32;
 }
 
 .monitoring-status-banner.has-issues {
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #991b1b;
+}
+
+/* =========================
+   PAGE FOOTER
+   ========================= */
+
+.monitoring-page-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #dce4d8;
+  color: #647568;
+  font-size: 12px;
+  width: 100%;
+}
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+@media (max-width: 1200px) {
+  .monitoring-sensor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .monitoring-hero-main {
+    align-items: flex-start;
+  }
+
+  .monitoring-hero-controls {
+    justify-content: flex-start;
+  }
+
+  .monitoring-history-header {
+    flex-direction: column;
+  }
+
+  .monitoring-chart-controls {
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .monitoring-container {
+    gap: 18px;
+  }
+
+  .monitoring-hero-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .monitoring-hero-title {
+    min-width: 0;
+  }
+
+  .monitoring-hero-title h1 {
+    font-size: 25px;
+  }
+
+  .monitoring-hero-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .monitoring-hero-garden-button {
+    max-width: 100%;
+  }
+
+  /* Viewing and zone chips can wrap on smaller screens */
+  .monitoring-selected-zone-info {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .monitoring-viewing-info {
+    flex-wrap: wrap;
+  }
+
+  .monitoring-zone-chips {
+    flex-wrap: wrap;
+  }
+
+  .monitoring-history-card {
+    padding: 18px;
+  }
+
+  .monitoring-chart-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .monitoring-metric-tabs {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .monitoring-metric-tab {
+    flex: 1;
+  }
+
+  .monitoring-chart-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .monitoring-page-footer {
+    text-align: left;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .monitoring-sensor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .monitoring-sensor-card {
+    padding: 18px;
+  }
+
+  .monitoring-sensor-scale {
+    font-size: 10px;
+  }
+
+  .monitoring-history-header h2 {
+    font-size: 19px !important;
+  }
+
+  .monitoring-metric-tabs {
+    flex-wrap: wrap;
+  }
+
+  .monitoring-metric-tab {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .monitoring-range-selector {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .monitoring-range-selector button {
+    flex: 1;
+  }
+
+  .monitoring-chart-container {
+    padding: 6px;
+    margin: 10px 0;
+  }
+
+  .monitoring-chart-footer {
+    gap: 12px;
+  }
+
+  .monitoring-legend {
+    gap: 12px;
+  }
+
+  .monitoring-page-footer {
+    font-size: 11px;
+  }
+
+  .monitoring-hero-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .monitoring-hero-sync {
+    align-self: flex-start;
+  }
+
+  .monitoring-hero-garden-selector {
+    width: 100%;
+  }
+
+  .monitoring-hero-garden-button {
+    width: 100%;
+    max-width: none;
+  }
+
+  .monitoring-hero-garden-dropdown {
+    left: 0;
+    right: auto;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .monitoring-selected-zone-info {
+    gap: 8px;
+  }
+
+  .monitoring-viewing-info {
+    padding: 8px 10px;
+  }
+
+  .monitoring-zone-chips {
+    gap: 6px;
+  }
+
+  .monitoring-zone-chips .zone-chip {
+    padding: 7px 11px;
+    font-size: 10px;
+  }
 }

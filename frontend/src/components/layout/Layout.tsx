@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import React from "react";
+import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Sprout,
@@ -9,11 +9,8 @@ import {
   Settings,
   Radio,
   LogOut,
-  ChevronDown,
-  Building2,
-  RefreshCw,
-  Plus,
 } from "lucide-react";
+
 import { useGarden } from "../../context/GardenContext";
 import "../../styles/app-shell.css";
 
@@ -27,23 +24,30 @@ const navItems = [
 ];
 
 export const Layout: React.FC = () => {
-  const {
-    gardens,
-    selectedGarden,
-    setSelectedGarden,
-    userProfile,
-    loading,
-    logout,
-  } = useGarden();
+  const { userProfile, logout } = useGarden();
+  const location = useLocation();
 
-  const [showGardenMenu, setShowGardenMenu] = useState(false);
+  const isGardenProfile = location.pathname === "/garden-profile";
+  const isAIRecommendations = location.pathname === "/recommendations";
+  const isActuatorsPage = location.pathname === "/actuators";
+  const isSettingsPage = location.pathname === "/settings";
 
   const initials = userProfile?.name
     ? userProfile.name.slice(0, 2).toUpperCase()
     : "GA";
 
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell ${
+        isGardenProfile ? "garden-profile-shell" : ""
+      } ${
+        isAIRecommendations ? "ai-recommendations-shell" : ""
+      } ${
+        isActuatorsPage ? "actuators-shell" : ""
+      } ${
+        isSettingsPage ? "settings-shell" : ""
+      }`}
+    >
       {/* SIDEBAR */}
       <aside className="app-sidebar">
         <Link to="/dashboard" className="app-brand">
@@ -56,6 +60,7 @@ export const Layout: React.FC = () => {
               decoding="async"
             />
           </div>
+
           <div className="app-brand-text">
             <strong>
               MENARA<span className="app-brand-dot" />
@@ -64,9 +69,11 @@ export const Layout: React.FC = () => {
           </div>
         </Link>
 
+        {/* NAVIGATION */}
         <nav className="app-navigation">
           {navItems.map((item) => {
             const Icon = item.icon;
+
             return (
               <NavLink
                 key={item.path}
@@ -83,6 +90,7 @@ export const Layout: React.FC = () => {
           })}
         </nav>
 
+        {/* SIDEBAR BOTTOM */}
         <div className="app-sidebar-bottom">
           <div className="app-node-mesh-status">
             <span className="app-mesh-dot" />
@@ -90,14 +98,17 @@ export const Layout: React.FC = () => {
             <Radio size={14} />
           </div>
 
+          {/* USER PROFILE */}
           <div className="app-user-profile">
             <div className="app-user-avatar">{initials}</div>
+
             <div className="app-user-info">
               <strong title={userProfile?.name || "Gardener"}>
                 {userProfile?.name || "Gardener"}
               </strong>
               <small>{userProfile?.role || "Gardener"}</small>
             </div>
+
             <button
               className="app-logout-button"
               onClick={logout}
@@ -110,98 +121,11 @@ export const Layout: React.FC = () => {
         </div>
       </aside>
 
-      {/* MAIN CONTAINER */}
+      {/* MAIN PAGE CONTAINER */}
       <div className="app-main">
-        {/* TOPBAR */}
-        <header className="app-topbar">
-          <div className="app-topbar-left">
-            <span style={{ fontSize: "12px", color: "#64748b" }}>Rooftop Facility:</span>
-            <strong style={{ fontSize: "13px", color: "#1e293b" }}>
-              {selectedGarden?.name || "No Garden Selected"}
-            </strong>
-          </div>
-
-          <div className="app-topbar-right">
-            <div className={`app-sync-pill ${loading ? "loading" : ""}`}>
-              <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-              <span>{loading ? "Syncing..." : "Connected"}</span>
-            </div>
-
-            {/* GARDEN SELECTOR */}
-            <div className="app-garden-selector">
-              <button
-                type="button"
-                className="app-garden-button"
-                onClick={() => setShowGardenMenu(!showGardenMenu)}
-              >
-                <Building2 size={16} color="#203c28" />
-                <div>
-                  <strong>{selectedGarden?.name || "Select Garden"}</strong>
-                  <small>{selectedGarden?.location_name || "Location"}</small>
-                </div>
-                <ChevronDown size={14} color="#64748b" />
-              </button>
-
-              {showGardenMenu && (
-                <div className="app-garden-dropdown">
-                  <div style={{ padding: "6px 16px 8px", borderBottom: "1px solid #f1f5f9", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
-                    Switch Garden Facility
-                  </div>
-                  {gardens.map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      className={`app-garden-option ${g.id === selectedGarden?.id ? "selected" : ""}`}
-                      onClick={() => {
-                        setSelectedGarden(g);
-                        setShowGardenMenu(false);
-                      }}
-                    >
-                      <strong>{g.name}</strong>
-                      <small>{g.location_name} • {g.elevation_m}m</small>
-                    </button>
-                  ))}
-                  {gardens.length === 0 && (
-                    <div style={{ padding: "12px 16px", color: "#94a3b8", fontSize: "12px" }}>
-                      No gardens found.
-                    </div>
-                  )}
-                  <div style={{ padding: "8px 12px 4px", borderTop: "1px solid #f1f5f9" }}>
-                    <Link
-                      to="/garden-profile"
-                      onClick={() => setShowGardenMenu(false)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        fontSize: "12px",
-                        color: "#203c28",
-                        fontWeight: 600,
-                        textDecoration: "none",
-                        padding: "6px 8px",
-                        borderRadius: "6px",
-                        background: "#f0fdf4",
-                      }}
-                    >
-                      <Plus size={14} /> Add New Garden Facility
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* PAGE OUTLET */}
         <main className="app-content">
           <Outlet />
         </main>
-
-        {/* FOOTER */}
-        <footer className="app-footer">
-          <span>&copy; 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.</span>
-          <span>Weather data powered by BMKG Indonesia</span>
-        </footer>
       </div>
     </div>
   );
