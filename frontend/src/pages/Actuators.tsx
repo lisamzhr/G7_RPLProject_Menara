@@ -13,39 +13,64 @@ import {
   Plus,
   Trash2,
   Cpu,
+  Building2,
+  ChevronDown,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { useGarden } from "../context/GardenContext";
 import { formatDateTime } from "../lib/format";
 import type { ActuatorItem, SensorNodeItem } from "../types";
+import "../styles/actuators.css";
 
 export const Actuators: React.FC = () => {
-  const { selectedGarden, zones, selectedZone, setSelectedZone } = useGarden();
+  const {
+    selectedGarden,
+    gardens,
+    setSelectedGarden,
+    zones,
+    selectedZone,
+    setSelectedZone,
+  } = useGarden();
 
   const [nodes, setNodes] = useState<SensorNodeItem[]>([]);
   const [actuators, setActuators] = useState<ActuatorItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [cardDurations, setCardDurations] = useState<Record<string, number>>({});
-  const [notice, setNotice] = useState("Live hardware status and actuators scoped to selected garden.");
+  const [notice, setNotice] = useState(
+    "Live hardware status and actuators scoped to selected garden."
+  );
   const [errorNotice, setErrorNotice] = useState("");
 
   // Registration modal state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [registerZoneId, setRegisterZoneId] = useState<string>("");
+  const [registerZoneId, setRegisterZoneId] = useState("");
   const [registerMac, setRegisterMac] = useState("");
   const [registerName, setRegisterName] = useState("");
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState("");
 
   // Deletion modal state
-  const [nodeToDelete, setNodeToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [nodeToDelete, setNodeToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Garden selector
+  const [showGardenMenu, setShowGardenMenu] = useState(false);
+
+  // =========================================================
+  // LOAD DATA
+  // Existing backend integration preserved
+  // =========================================================
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setErrorNotice("");
+
       const zoneId = selectedZone?.id;
 
       const [nodesData, actuatorsData] = await Promise.all([
@@ -56,7 +81,11 @@ export const Actuators: React.FC = () => {
       setNodes(nodesData);
       setActuators(actuatorsData);
     } catch (err) {
-      setErrorNotice(err instanceof Error ? err.message : "Failed to load actuators or sensor nodes.");
+      setErrorNotice(
+        err instanceof Error
+          ? err.message
+          : "Failed to load actuators or sensor nodes."
+      );
     } finally {
       setLoading(false);
     }
@@ -66,6 +95,11 @@ export const Actuators: React.FC = () => {
     loadData();
   }, [loadData, selectedGarden]);
 
+  // =========================================================
+  // ACTUATOR COMMANDS
+  // Existing backend integration preserved
+  // =========================================================
+
   const handleCommand = async (
     actuatorId: string,
     command: "turn_on" | "turn_off",
@@ -74,11 +108,27 @@ export const Actuators: React.FC = () => {
     try {
       setActionLoadingId(actuatorId);
       setErrorNotice("");
-      const res = await api.commandActuator(actuatorId, command, durationSeconds);
-      setNotice(`Command '${command}' queued successfully (ID: ${res.command_id.slice(0, 8)}...). Waiting for node poll.`);
+
+      const res = await api.commandActuator(
+        actuatorId,
+        command,
+        durationSeconds
+      );
+
+      setNotice(
+        `Command '${command}' queued successfully (ID: ${res.command_id.slice(
+          0,
+          8
+        )}...). Waiting for node poll.`
+      );
+
       await loadData();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to send command to actuator.";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to send command to actuator.";
+
       setErrorNotice(msg);
       setNotice(msg);
     } finally {
@@ -87,15 +137,28 @@ export const Actuators: React.FC = () => {
   };
 
   const getCardDuration = (actuator: ActuatorItem) => {
-    return cardDurations[actuator.id] || Math.min(30, actuator.max_on_seconds);
+    return (
+      cardDurations[actuator.id] ||
+      Math.min(30, actuator.max_on_seconds)
+    );
   };
 
   const setCardDuration = (actuatorId: string, seconds: number) => {
-    setCardDurations((prev) => ({ ...prev, [actuatorId]: seconds }));
+    setCardDurations((prev) => ({
+      ...prev,
+      [actuatorId]: seconds,
+    }));
   };
 
+  // =========================================================
+  // REGISTER SENSOR NODE
+  // Existing backend integration preserved
+  // =========================================================
+
   const openRegisterModal = (zoneIdDefault?: string) => {
-    const target = zoneIdDefault || selectedZone?.id || zones[0]?.id || "";
+    const target =
+      zoneIdDefault || selectedZone?.id || zones[0]?.id || "";
+
     setRegisterZoneId(target);
     setRegisterMac("");
     setRegisterName("");
@@ -105,10 +168,12 @@ export const Actuators: React.FC = () => {
 
   const handleRegisterNode = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!registerZoneId) {
       setRegisterError("Please select a target plant zone.");
       return;
     }
+
     if (!registerMac.trim()) {
       setRegisterError("Please enter the ESP32 hardware MAC address.");
       return;
@@ -117,30 +182,55 @@ export const Actuators: React.FC = () => {
     try {
       setRegisterLoading(true);
       setRegisterError("");
+
       const res = await api.registerNode(registerZoneId, {
         mac_address: registerMac.trim(),
         name: registerName.trim() || undefined,
       });
+
       setShowRegisterModal(false);
-      setNotice(`Sensor node '${res.name || res.id}' registered successfully!`);
+
+      setNotice(
+        `Sensor node '${res.name || res.id}' registered successfully!`
+      );
+
       await loadData();
     } catch (err) {
-      setRegisterError(err instanceof Error ? err.message : "Failed to register sensor node.");
+      setRegisterError(
+        err instanceof Error
+          ? err.message
+          : "Failed to register sensor node."
+      );
     } finally {
       setRegisterLoading(false);
     }
   };
 
+  // =========================================================
+  // DELETE SENSOR NODE
+  // Existing backend integration preserved
+  // =========================================================
+
   const handleDeleteNode = async () => {
     if (!nodeToDelete) return;
+
     try {
       setDeleteLoading(true);
+
       await api.deleteNode(nodeToDelete.id);
-      setNotice(`Sensor node '${nodeToDelete.name}' unlinked successfully.`);
+
+      setNotice(
+        `Sensor node '${nodeToDelete.name}' unlinked successfully.`
+      );
+
       setNodeToDelete(null);
       await loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to unlink sensor node.");
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Failed to unlink sensor node."
+      );
     } finally {
       setDeleteLoading(false);
     }
@@ -148,468 +238,747 @@ export const Actuators: React.FC = () => {
 
   const zoneMap = new Map(zones.map((z) => [z.id, z.label]));
 
+  // =========================================================
+  // UI
+  // =========================================================
+
   return (
-    <div>
-      {/* PAGE HEADER */}
-      <div className="page-header">
-        <div>
-          <h1>Actuators &amp; Sensor Nodes</h1>
-          <p>
-            Monitor telemetry nodes and trigger automated irrigation sprinklers and climate control actuators.
-          </p>
+    <div className="actuators-container">
+
+      {/* ===================================================
+          PAGE HERO
+          =================================================== */}
+
+      <section className="actuators-hero">
+        <div className="actuators-hero-main">
+
+          {/* LEFT: TITLE + DESCRIPTION */}
+
+          <div className="actuators-hero-title">
+            <h1>
+              Actuators &amp; Sensor Nodes
+              <span className="actuators-telemetry-badge">
+                <Radio size={12} />
+                HARDWARE CONTROL
+              </span>
+            </h1>
+
+            <p>
+              Monitor connected telemetry nodes and manage
+              irrigation, lighting, and climate control
+              hardware across your rooftop garden.
+            </p>
+          </div>
+
+          {/* RIGHT: CONNECTION + GARDEN SELECTOR */}
+
+          <div className="actuators-hero-controls">
+
+            {/* CONNECTION */}
+
+            <div
+              className={`actuators-hero-sync ${
+                loading ? "loading" : ""
+              }`}
+            >
+              <RefreshCw
+                size={14}
+                className={loading ? "actuators-spin" : ""}
+              />
+
+              <span>
+                {loading ? "Syncing..." : "Connected"}
+              </span>
+            </div>
+
+            {/* GARDEN SELECTOR */}
+
+            <div className="actuators-garden-selector">
+              <button
+                type="button"
+                className="actuators-garden-button"
+                onClick={() =>
+                  setShowGardenMenu((prev) => !prev)
+                }
+                aria-expanded={showGardenMenu}
+              >
+                <Building2 size={18} />
+
+                <div className="actuators-garden-info">
+                  <strong>
+                    {selectedGarden?.name || "Select Garden"}
+                  </strong>
+
+                  <small>
+                    {selectedGarden?.location_name ||
+                      "Garden location"}
+                  </small>
+                </div>
+
+                <ChevronDown
+                  size={16}
+                  className={showGardenMenu ? "rotated" : ""}
+                />
+              </button>
+
+              {showGardenMenu && (
+                <div className="actuators-garden-dropdown">
+                  <div className="actuators-dropdown-label">
+                    SWITCH GARDEN FACILITY
+                  </div>
+
+                  {gardens.map((garden) => (
+                    <button
+                      type="button"
+                      key={garden.id}
+                      className={`actuators-garden-option ${
+                        selectedGarden?.id === garden.id
+                          ? "selected"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedGarden(garden);
+                        setShowGardenMenu(false);
+                      }}
+                    >
+                      <strong>{garden.name}</strong>
+
+                      <small>
+                        {garden.location_name}
+                        {garden.elevation_m != null
+                          ? ` • ${garden.elevation_m}m`
+                          : ""}
+                      </small>
+                    </button>
+                  ))}
+
+                  {gardens.length === 0 && (
+                    <div className="actuators-garden-empty">
+                      No gardens found.
+                    </div>
+                  )}
+
+                  <div className="actuators-dropdown-bottom">
+                    <Link
+                      to="/garden-profile"
+                      onClick={() => setShowGardenMenu(false)}
+                    >
+                      <Plus size={15} />
+                      Add New Garden Facility
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+
+        {/* HERO ACTIONS */}
+
+        <div className="actuators-hero-actions">
           <button
             type="button"
-            className="app-btn-primary"
+            className="actuators-primary-button"
             onClick={() => openRegisterModal()}
           >
-            <Plus size={14} />
-            <span>Register ESP32 Node</span>
+            <Plus size={15} />
+            Register ESP32 Node
           </button>
+
           <button
             type="button"
-            className="app-btn-secondary"
+            className="actuators-secondary-button"
             onClick={loadData}
             disabled={loading}
           >
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            <span>Refresh Status</span>
+            <RefreshCw
+              size={14}
+              className={loading ? "actuators-spin" : ""}
+            />
+            Refresh Status
           </button>
-        </div>
-      </div>
 
-      {/* ZONE CHIP SELECTOR */}
-      {zones.length > 1 && (
-        <div className="zone-chips">
-          <span style={{ fontSize: "12px", color: "#64748b", marginRight: "4px" }}>Filter Zone:</span>
-          <button
-            type="button"
-            className={`zone-chip ${selectedZone === null ? "active" : ""}`}
-            onClick={() => setSelectedZone(null)}
+          {/* INLINE FEEDBACK */}
+
+          <div
+            className={`actuators-feedback actuators-inline-info ${
+              errorNotice ? "error" : "success"
+            }`}
           >
-            All Zones
-          </button>
-          {zones.map((z) => (
-            <button
-              key={z.id}
-              type="button"
-              className={`zone-chip ${selectedZone?.id === z.id ? "active" : ""}`}
-              onClick={() => setSelectedZone(z)}
-            >
-              {z.label}
-            </button>
-          ))}
-        </div>
-      )}
+            {errorNotice ? (
+              <AlertTriangle size={17} />
+            ) : (
+              <Info size={17} />
+            )}
 
-      {/* FEEDBACK BANNER */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          padding: "12px 16px",
-          borderRadius: "10px",
-          background: errorNotice ? "#fef2f2" : "#f0fdf4",
-          border: `1px solid ${errorNotice ? "#fca5a5" : "#bbf7d0"}`,
-          color: errorNotice ? "#b91c1c" : "#166534",
-          marginBottom: "24px",
-          fontSize: "13px",
-        }}
-      >
-        {errorNotice ? <AlertTriangle size={17} /> : <Info size={17} />}
-        <span>{notice}</span>
-      </div>
-
-      {/* SECTION 1: SENSOR NODES */}
-      <section style={{ marginBottom: "32px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <Radio size={18} color="#203c28" />
-            <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#1e293b" }}>
-              Telemetry Sensor Nodes ({nodes.length})
-            </h2>
+            <span>{errorNotice || notice}</span>
           </div>
-          <button
-            type="button"
-            className="app-btn-secondary"
-            style={{ padding: "5px 12px", fontSize: "12px" }}
-            onClick={() => openRegisterModal()}
-          >
-            <Plus size={13} />
-            <span>Register Node</span>
-          </button>
-        </div>
-
-        {nodes.length === 0 && !loading && (
-          <div className="app-card" style={{ textAlign: "center", padding: "36px 20px", color: "#64748b" }}>
-            <Layers size={32} style={{ margin: "0 auto 8px", opacity: 0.5 }} />
-            <p style={{ margin: "0 0 12px" }}>
-              No sensor nodes registered {selectedZone ? `for ${selectedZone.label}` : "in this garden"}.
-            </p>
-            <button
-              type="button"
-              className="app-btn-primary"
-              style={{ fontSize: "13px" }}
-              onClick={() => openRegisterModal(selectedZone?.id)}
-            >
-              <Plus size={14} />
-              <span>Register ESP32 Node</span>
-            </button>
-          </div>
-        )}
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(320px, 100%), 1fr))", gap: "16px" }}>
-          {nodes.map((node) => {
-            const isOnline = node.status === "active";
-            const zoneLabel = node.zone_label || zoneMap.get(node.zone_id) || node.zone_id.slice(0, 8);
-
-            return (
-              <article key={node.id} className="app-card" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span
-                      style={{
-                        width: "9px",
-                        height: "9px",
-                        borderRadius: "50%",
-                        background: isOnline ? "#22c55e" : "#94a3b8",
-                        boxShadow: isOnline ? "0 0 8px #22c55e" : "none",
-                      }}
-                    />
-                    <strong style={{ fontSize: "14px", color: "#1e293b" }}>{node.name || node.id}</strong>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      padding: "2px 8px",
-                      borderRadius: "6px",
-                      background: isOnline ? "#dcfce7" : "#f1f5f9",
-                      color: isOnline ? "#15803d" : "#64748b",
-                    }}
-                  >
-                    {node.status}
-                  </span>
-                </div>
-
-                <div style={{ fontSize: "12px", color: "#64748b", display: "flex", flexDirection: "column", gap: "5px" }}>
-                  <div>Assigned Zone: <strong style={{ color: "#334155" }}>{zoneLabel}</strong></div>
-                  {node.mac_address && (
-                    <div>
-                      MAC Address:{" "}
-                      <code style={{ fontFamily: "monospace", fontSize: "12px", background: "#f1f5f9", padding: "2px 6px", borderRadius: "4px", color: "#334155" }}>
-                        {node.mac_address}
-                      </code>
-                    </div>
-                  )}
-                  <div>Hardware ID: <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#64748b" }}>{node.id}</span></div>
-                  <div>
-                    Last Heartbeat:{" "}
-                    <strong style={{ color: "#334155" }}>
-                      {node.last_seen_at ? formatDateTime(node.last_seen_at) : "Never reported"}
-                    </strong>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "4px", borderTop: "1px solid #f1f5f9", paddingTop: "8px" }}>
-                  <button
-                    type="button"
-                    className="app-btn-danger"
-                    style={{ padding: "4px 10px", fontSize: "12px" }}
-                    onClick={() => setNodeToDelete({ id: node.id, name: node.name || node.id })}
-                    title="Unlink and unregister sensor node"
-                  >
-                    <Trash2 size={13} />
-                    <span>Unlink Node</span>
-                  </button>
-                </div>
-              </article>
-            );
-          })}
         </div>
       </section>
 
-      {/* SECTION 2: ACTUATORS */}
-      <section>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px" }}>
-          <Droplet size={18} color="#203c28" />
-          <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#1e293b" }}>
-            Irrigation &amp; Climate Actuators ({actuators.length})
-          </h2>
+      {/* ===================================================
+          ZONE FILTER
+          =================================================== */}
+
+      {zones.length > 1 && (
+        <div className="actuators-zone-filter">
+          <div className="actuators-zone-filter-label">
+            MICROCLIMATE ZONES
+          </div>
+
+          <div className="zone-chips">
+            <button
+              type="button"
+              className={`zone-chip ${
+                selectedZone === null ? "active" : ""
+              }`}
+              onClick={() => setSelectedZone(null)}
+            >
+              All Zones
+            </button>
+
+            {zones.map((z) => (
+              <button
+                key={z.id}
+                type="button"
+                className={`zone-chip ${
+                  selectedZone?.id === z.id ? "active" : ""
+                }`}
+                onClick={() => setSelectedZone(z)}
+              >
+                {z.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================
+          SECTION 1: SENSOR NODES
+          =================================================== */}
+
+      <section className="actuators-section">
+        <div className="actuators-section-heading">
+          <div className="actuators-section-title">
+            <div className="actuators-section-icon">
+              <Radio size={18} />
+            </div>
+
+            <div>
+              <h2>
+                Telemetry Sensor Nodes ({nodes.length})
+              </h2>
+
+              <p>
+                Registered ESP32 hardware and connection status.
+              </p>
+            </div>
+          </div>
         </div>
 
+        {/* EMPTY STATE */}
+
+        {nodes.length === 0 && !loading && (
+          <div className="actuators-empty-state">
+            <div className="actuators-empty-icon">
+              <Layers size={30} />
+            </div>
+
+            <h3>No Sensor Nodes Registered</h3>
+
+            <p>
+              No sensor nodes registered{" "}
+              {selectedZone
+                ? `for ${selectedZone.label}`
+                : "in this garden"}.
+            </p>
+
+            <button
+              type="button"
+              className="actuators-primary-button"
+              onClick={() => openRegisterModal(selectedZone?.id)}
+            >
+              <Plus size={14} />
+              Register ESP32 Node
+            </button>
+          </div>
+        )}
+
+        {/* NODE GRID */}
+
+        {nodes.length > 0 && (
+          <div className="actuators-node-grid">
+            {nodes.map((node) => {
+              const isOnline = node.status === "active";
+
+              const zoneLabel =
+                node.zone_label ||
+                zoneMap.get(node.zone_id) ||
+                node.zone_id.slice(0, 8);
+
+              return (
+                <article
+                  key={node.id}
+                  className="actuators-node-card"
+                >
+                  {/* NODE HEADER */}
+
+                  <div className="actuators-node-top">
+                    <div className="actuators-node-identity">
+                      <div
+                        className={`actuators-node-indicator ${
+                          isOnline ? "online" : "offline"
+                        }`}
+                      />
+
+                      <strong>
+                        {node.name || node.id}
+                      </strong>
+                    </div>
+
+                    <span
+                      className={`actuators-node-status ${
+                        isOnline ? "online" : "offline"
+                      }`}
+                    >
+                      {node.status}
+                    </span>
+                  </div>
+
+                  {/* NODE DETAILS */}
+
+                  <div className="actuators-node-details">
+                    <div className="actuators-detail-row">
+                      <span>Assigned Zone</span>
+                      <strong>{zoneLabel}</strong>
+                    </div>
+
+                    {node.mac_address && (
+                      <div className="actuators-detail-row">
+                        <span>MAC Address</span>
+                        <code>{node.mac_address}</code>
+                      </div>
+                    )}
+
+                    <div className="actuators-detail-row">
+                      <span>Hardware ID</span>
+                      <code className="hardware-id">{node.id}</code>
+                    </div>
+
+                    <div className="actuators-detail-row">
+                      <span>Last Heartbeat</span>
+                      <strong>
+                        {node.last_seen_at
+                          ? formatDateTime(node.last_seen_at)
+                          : "Never reported"}
+                      </strong>
+                    </div>
+                  </div>
+                  {/* NODE FOOTER */}
+
+                  <div className="actuators-node-footer">
+                    <button
+                      type="button"
+                      className="actuators-delete-button"
+                      onClick={() =>
+                        setNodeToDelete({
+                          id: node.id,
+                          name: node.name || node.id,
+                        })
+                      }
+                      title="Unlink and unregister sensor node"
+                    >
+                      <Trash2 size={13} />
+                      Unlink Node
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ===================================================
+          SECTION 2: ACTUATORS
+          =================================================== */}
+
+      <section className="actuators-section">
+        <div className="actuators-section-heading">
+          <div className="actuators-section-title">
+            <div className="actuators-section-icon">
+              <Droplet size={18} />
+            </div>
+
+            <div>
+              <h2>
+                Irrigation &amp; Climate Actuators ({actuators.length})
+              </h2>
+
+              <p>
+                Manually control connected hardware and
+                configure activation duration.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* EMPTY STATE */}
+
         {actuators.length === 0 && !loading && (
-          <div className="app-card" style={{ textAlign: "center", padding: "36px 20px", color: "#64748b" }}>
-            <Droplet size={32} style={{ margin: "0 auto 8px", opacity: 0.5 }} />
-            <h3 style={{ fontSize: "15px", margin: "0 0 4px", color: "#1e293b" }}>No Actuators Found</h3>
-            <p style={{ margin: 0, fontSize: "13px" }}>
-              There are no actuators mapped to this garden. Seed demo data or register an actuator via the backend.
+          <div className="actuators-empty-state">
+            <div className="actuators-empty-icon">
+              <Droplet size={30} />
+            </div>
+
+            <h3>No Actuators Found</h3>
+
+            <p>
+              There are no actuators mapped to this garden.
+              Seed demo data or register an actuator via the backend.
             </p>
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(360px, 100%), 1fr))", gap: "18px" }}>
-          {actuators.map((actuator) => {
-            const isSprinkler = actuator.type === "sprinkler";
-            const isShade = actuator.type === "shade_net";
-            const ActIcon = isSprinkler ? Droplet : isShade ? Wind : SunMedium;
-            const zoneLabel = zoneMap.get(actuator.zone_id) || `Zone ${actuator.zone_id.slice(0, 8)}`;
-            const lastAction = actuator.last_action;
-            const isBusy = actionLoadingId === actuator.id;
-            const duration = getCardDuration(actuator);
+        {/* ACTUATOR GRID */}
 
-            return (
-              <article key={actuator.id} className="app-card" style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <div
-                      style={{
-                        width: "42px",
-                        height: "42px",
-                        borderRadius: "10px",
-                        background: "#f0fdf4",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <ActIcon size={22} color="#15803d" />
+        {actuators.length > 0 && (
+          <div className="actuators-control-grid">
+            {actuators.map((actuator) => {
+              const isSprinkler =
+                actuator.type === "sprinkler";
+
+              const isShade =
+                actuator.type === "shade_net";
+
+              const ActIcon = isSprinkler
+                ? Droplet
+                : isShade
+                ? Wind
+                : SunMedium;
+
+              const zoneLabel =
+                zoneMap.get(actuator.zone_id) ||
+                `Zone ${actuator.zone_id.slice(0, 8)}`;
+
+              const lastAction = actuator.last_action;
+
+              const isBusy =
+                actionLoadingId === actuator.id;
+
+              const duration =
+                getCardDuration(actuator);
+
+              return (
+                <article
+                  key={actuator.id}
+                  className="actuators-control-card"
+                >
+                  {/* ACTUATOR HEADER */}
+
+                  <div className="actuators-control-top">
+                    <div className="actuators-control-identity">
+                      <div className="actuators-control-icon">
+                        <ActIcon size={21} />
+                      </div>
+
+                      <div>
+                        <h3>
+                          {isSprinkler
+                            ? "Zone Irrigation Sprinkler"
+                            : isShade
+                            ? "Automated Shade Net"
+                            : "Supplementary Grow Light"}
+                        </h3>
+
+                        <span>
+                          Assigned to:{" "}
+                          <strong>{zoneLabel}</strong>
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
-                        {isSprinkler ? "Zone Irrigation Sprinkler" : isShade ? "Automated Shade Net" : "Supplementary Grow Light"}
-                      </h3>
-                      <span style={{ fontSize: "12px", color: "#64748b" }}>
-                        Assigned to: <strong style={{ color: "#334155" }}>{zoneLabel}</strong>
+
+                    <span className="actuators-driver-badge">
+                      Driver: {actuator.driver}
+                    </span>
+                  </div>
+
+                  {/* LAST COMMAND */}
+
+                  <div className="actuators-last-action">
+                    <div className="actuators-last-action-heading">
+                      <span>LAST CONTROL ACTION</span>
+                    </div>
+
+                    <div className="actuators-action-row">
+                      <span>Last Command</span>
+
+                      <strong>
+                        {lastAction
+                          ? `${lastAction.command} (${lastAction.source})`
+                          : "None"}
+                      </strong>
+                    </div>
+
+                    <div className="actuators-action-row">
+                      <span>Execution State</span>
+
+                      <strong
+                        className={`actuators-execution-status ${
+                          lastAction?.status || "idle"
+                        }`}
+                      >
+                        {lastAction?.status
+                          ? lastAction.status.toUpperCase()
+                          : "IDLE"}
+                      </strong>
+                    </div>
+
+                    {lastAction?.executed_at && (
+                      <div className="actuators-action-row">
+                        <span>Triggered At</span>
+
+                        <span>
+                          {formatDateTime(
+                            lastAction.executed_at
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DURATION SLIDER */}
+
+                  <div className="actuators-duration">
+                    <div className="actuators-duration-heading">
+                      <span>
+                        <Timer size={13} />
+                        Duration
+                      </span>
+
+                      <strong>{duration}s</strong>
+                    </div>
+
+                    <input
+                      type="range"
+                      className="actuators-range"
+                      min="5"
+                      max={actuator.max_on_seconds}
+                      step="5"
+                      value={duration}
+                      onChange={(e) =>
+                        setCardDuration(
+                          actuator.id,
+                          Number(e.target.value)
+                        )
+                      }
+                      disabled={isBusy}
+                    />
+
+                    <div className="actuators-range-labels">
+                      <span>5s</span>
+                      <span>
+                        Max {actuator.max_on_seconds}s
                       </span>
                     </div>
                   </div>
 
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      padding: "2px 8px",
-                      borderRadius: "6px",
-                      background: "#f1f5f9",
-                      color: "#475569",
-                    }}
-                  >
-                    Driver: {actuator.driver}
-                  </span>
-                </div>
+                  {/* MANUAL CONTROL */}
 
-                {/* LAST CONTROL ACTION */}
-                <div
-                  style={{
-                    background: "#f8fafc",
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    color: "#475569",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "4px",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>Last Command:</span>
-                    <strong style={{ color: "#1e293b" }}>
-                      {lastAction ? `${lastAction.command} (${lastAction.source})` : "None"}
-                    </strong>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>Execution State:</span>
-                    <strong
-                      style={{
-                        color:
-                          lastAction?.status === "acked"
-                            ? "#15803d"
-                            : lastAction?.status === "pending"
-                            ? "#b45309"
-                            : "#64748b",
-                      }}
+                  <div className="actuators-trigger-actions">
+                    <button
+                      type="button"
+                      className="actuators-trigger-on"
+                      onClick={() =>
+                        handleCommand(
+                          actuator.id,
+                          "turn_on",
+                          duration
+                        )
+                      }
+                      disabled={isBusy}
                     >
-                      {lastAction?.status ? lastAction.status.toUpperCase() : "IDLE"}
-                    </strong>
+                      {isBusy
+                        ? "Queuing..."
+                        : `Trigger ${duration}s ${
+                            isSprinkler
+                              ? "Watering"
+                              : "On"
+                          }`}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="actuators-trigger-off"
+                      onClick={() =>
+                        handleCommand(
+                          actuator.id,
+                          "turn_off",
+                          1
+                        )
+                      }
+                      disabled={isBusy}
+                    >
+                      Turn Off
+                    </button>
                   </div>
-                  {lastAction?.executed_at && (
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Triggered At:</span>
-                      <span>{formatDateTime(lastAction.executed_at)}</span>
-                    </div>
-                  )}
-                </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
 
-                {/* DURATION SLIDER */}
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "12px" }}>
-                    <span style={{ color: "#64748b", display: "flex", alignItems: "center", gap: "4px" }}>
-                      <Timer size={13} />
-                      Duration Seconds
-                    </span>
-                    <strong style={{ color: "#1e293b" }}>{duration}s</strong>
-                  </div>
-                  <input
-                    type="range"
-                    className="app-range"
-                    min="5"
-                    max={actuator.max_on_seconds}
-                    step="5"
-                    value={duration}
-                    onChange={(e) => setCardDuration(actuator.id, Number(e.target.value))}
-                    disabled={isBusy}
-                  />
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#94a3b8" }}>
-                    <span>5s</span>
-                    <span>Max {actuator.max_on_seconds}s</span>
-                  </div>
-                </div>
+        {/* SAFETY NOTICE */}
 
-                {/* MANUAL TRIGGER BUTTONS */}
-                <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-                  <button
-                    type="button"
-                    className="app-btn-primary"
-                    onClick={() => handleCommand(actuator.id, "turn_on", duration)}
-                    disabled={isBusy}
-                    style={{
-                      flex: 2,
-                      padding: "10px",
-                    }}
-                  >
-                    {isBusy ? "Queuing..." : `Trigger ${duration}s ${isSprinkler ? "Watering" : "On"}`}
-                  </button>
+        <div className="actuators-safety-notice">
+          <div className="actuators-safety-icon">
+            <ShieldCheck size={20} />
+          </div>
 
-                  <button
-                    type="button"
-                    className="app-btn-secondary"
-                    onClick={() => handleCommand(actuator.id, "turn_off", 1)}
-                    disabled={isBusy}
-                    style={{
-                      flex: 1,
-                      padding: "10px",
-                    }}
-                  >
-                    Turn Off
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-
-        {/* SAFETY NOTICE CARD */}
-        <div
-          className="app-card"
-          style={{
-            marginTop: "24px",
-            display: "flex",
-            alignItems: "flex-start",
-            gap: "12px",
-            background: "#fafaf9",
-            border: "1px solid #e7e5e4",
-          }}
-        >
-          <ShieldCheck size={20} color="#166534" style={{ flexShrink: 0, marginTop: "2px" }} />
-          <div style={{ fontSize: "12.5px", color: "#57534e" }}>
-            <strong style={{ color: "#292524", display: "block", marginBottom: "2px" }}>
+          <div>
+            <strong>
               Hardware Safety Interlocks Enforced
             </strong>
-            Actuator trigger durations are strictly bounded by hardware safety limits (maximum 60s hard cap) and enforced minimum cooldown intervals. Overriding commands requires confirmation to protect plants from over-watering.
+
+            <p>
+              Actuator trigger durations are strictly bounded
+              by hardware safety limits (maximum 60s hard cap)
+              and enforced minimum cooldown intervals.
+              Overriding commands requires confirmation to
+              protect plants from over-watering.
+            </p>
           </div>
         </div>
       </section>
 
-      {/* REGISTER SENSOR NODE MODAL */}
+      {/* ===================================================
+          REGISTER SENSOR NODE MODAL
+          FULL REGISTRATION FUNCTION PRESERVED
+          =================================================== */}
+
       {showRegisterModal && (
-        <div className="modal-overlay" onClick={() => setShowRegisterModal(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "460px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-              <Cpu size={20} color="#203c28" />
-              <h3 style={{ margin: 0 }}>Register ESP32 Sensor Node</h3>
+        <div
+          className="actuators-modal-overlay"
+          onClick={() => setShowRegisterModal(false)}
+        >
+          <div
+            className="actuators-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="actuators-modal-heading">
+              <div className="actuators-modal-icon">
+                <Cpu size={20} />
+              </div>
+
+              <h3>
+                Register ESP32 Sensor Node
+              </h3>
             </div>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 16px" }}>
-              Link a physical ESP32 hardware board to a plant zone based on its factory MAC address. Multiple sensor nodes can monitor the same zone.
+
+            <p className="actuators-modal-description">
+              Link a physical ESP32 hardware board to a plant
+              zone based on its factory MAC address. Multiple
+              sensor nodes can monitor the same zone.
             </p>
 
+            {/* REGISTRATION ERROR */}
+
             {registerError && (
-              <div style={{ background: "#fef2f2", border: "1px solid #fca5a5", color: "#b91c1c", padding: "10px", borderRadius: "6px", fontSize: "13px", marginBottom: "14px" }}>
-                {registerError}
+              <div className="actuators-modal-error">
+                <AlertTriangle size={15} />
+                <span>{registerError}</span>
               </div>
             )}
 
+            {/* REGISTRATION FORM */}
+
             <form onSubmit={handleRegisterNode}>
-              <div style={{ marginBottom: "14px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>
+              <div className="actuators-form-group">
+                <label>
                   Target Plant Zone *
                 </label>
+
                 <select
-                  className="app-input"
-                  style={{ width: "100%" }}
+                  className="actuators-input"
                   value={registerZoneId}
-                  onChange={(e) => setRegisterZoneId(e.target.value)}
+                  onChange={(e) =>
+                    setRegisterZoneId(e.target.value)
+                  }
                   required
                 >
                   {zones.map((z) => (
-                    <option key={z.id} value={z.id}>
+                    <option
+                      key={z.id}
+                      value={z.id}
+                    >
                       {z.label} ({z.category.name})
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div style={{ marginBottom: "14px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>
+              <div className="actuators-form-group">
+                <label>
                   ESP32 MAC Address *
                 </label>
+
                 <input
                   type="text"
-                  className="app-input"
-                  style={{ width: "100%", fontFamily: "monospace" }}
+                  className="actuators-input mac-input"
                   placeholder="24:6F:28:XX:YY:ZZ"
                   value={registerMac}
-                  onChange={(e) => setRegisterMac(e.target.value.toUpperCase())}
+                  onChange={(e) =>
+                    setRegisterMac(
+                      e.target.value.toUpperCase()
+                    )
+                  }
                   required
                 />
-                <span style={{ fontSize: "11px", color: "#64748b", marginTop: "4px", display: "block" }}>
-                  Retrieved in Arduino via <code>WiFi.macAddress()</code>.
-                </span>
+
+                <small>
+                  Retrieved in Arduino via{" "}
+                  <code>WiFi.macAddress()</code>.
+                </small>
               </div>
 
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>
+              <div className="actuators-form-group">
+                <label>
                   Node Friendly Name (Optional)
                 </label>
+
                 <input
                   type="text"
-                  className="app-input"
-                  style={{ width: "100%" }}
+                  className="actuators-input"
                   placeholder="e.g., North Bed Hydroponic Sensor"
                   value={registerName}
-                  onChange={(e) => setRegisterName(e.target.value)}
+                  onChange={(e) =>
+                    setRegisterName(e.target.value)
+                  }
                 />
               </div>
 
-              <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              {/* FORM ACTIONS */}
+
+              <div className="actuators-modal-actions">
                 <button
                   type="button"
-                  className="app-btn-secondary"
-                  onClick={() => setShowRegisterModal(false)}
+                  className="actuators-modal-cancel"
+                  onClick={() =>
+                    setShowRegisterModal(false)
+                  }
                   disabled={registerLoading}
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
-                  className="app-btn-primary"
+                  className="actuators-modal-submit"
                   disabled={registerLoading}
                 >
-                  {registerLoading ? "Registering..." : "Register Node"}
+                  {registerLoading
+                    ? "Registering..."
+                    : "Register Node"}
                 </button>
               </div>
             </form>
@@ -617,35 +986,70 @@ export const Actuators: React.FC = () => {
         </div>
       )}
 
-      {/* CONFIRM UNLINK SENSOR NODE MODAL */}
+      {/* ===================================================
+          CONFIRM UNLINK SENSOR NODE MODAL
+          =================================================== */}
+
       {nodeToDelete && (
-        <div className="modal-overlay" onClick={() => setNodeToDelete(null)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "420px" }}>
-            <h3 style={{ color: "#dc2626", margin: "0 0 8px" }}>Unlink Sensor Node?</h3>
-            <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 20px" }}>
-              Are you sure you want to unregister <strong>{nodeToDelete.name}</strong>? Telemetry sent from this ESP32 board will no longer be stored for this zone until re-registered.
+        <div
+          className="actuators-modal-overlay"
+          onClick={() => setNodeToDelete(null)}
+        >
+          <div
+            className="actuators-modal-card unlink-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="actuators-unlink-heading">
+              <div className="actuators-unlink-icon">
+                <Trash2 size={20} />
+              </div>
+
+              <h3>Unlink Sensor Node?</h3>
+            </div>
+
+            <p className="actuators-modal-description">
+              Are you sure you want to unregister{" "}
+              <strong>{nodeToDelete.name}</strong>?
+              Telemetry sent from this ESP32 board will no
+              longer be stored for this zone until
+              re-registered.
             </p>
-            <div className="modal-actions" style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+
+            <div className="actuators-modal-actions">
               <button
                 type="button"
-                className="app-btn-secondary"
+                className="actuators-modal-cancel"
                 onClick={() => setNodeToDelete(null)}
                 disabled={deleteLoading}
               >
                 Cancel
               </button>
+
               <button
                 type="button"
-                className="app-btn-danger-solid"
+                className="actuators-modal-danger"
                 onClick={handleDeleteNode}
                 disabled={deleteLoading}
               >
-                {deleteLoading ? "Unlinking..." : "Unlink Node"}
+                {deleteLoading
+                  ? "Unlinking..."
+                  : "Unlink Node"}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* ===================================================
+          PAGE FOOTER
+          =================================================== */}
+
+      <footer className="actuators-page-footer">
+        <span>
+          © 2026 MENARA. Monitoring Environment for AI
+          Rooftop Agriculture.
+        </span>
+      </footer>
     </div>
   );
 };

@@ -11,6 +11,14 @@ import {
   Sparkles,
   ArrowRight,
   Sprout,
+  Leaf,
+  MapPin,
+  Activity,
+  AlertCircle,
+  Building2,
+  ChevronDown,
+  RefreshCw,
+  Plus,
 } from "lucide-react";
 
 import { api } from "../api/client";
@@ -47,22 +55,26 @@ function SensorCard({ sensor }: { sensor: SensorCardData }) {
   const Icon = sensor.icon;
 
   return (
-    <article className="sensor-card">
-      <div className="sensor-card-heading">
-        <span>{sensor.title}</span>
-        <span className="sensor-icon">
-          <Icon size={17} />
+    <article className={`dash-sensor-card ${sensor.color}`}>
+      <div className="dash-sensor-top">
+        <div className="dash-sensor-icon">
+          <Icon size={19} />
+        </div>
+        <span className={`dash-sensor-state ${sensor.color}`}>
+          <span className="dash-status-dot" />
+          {sensor.status}
         </span>
       </div>
 
-      <p className="sensor-name">{sensor.sensor}</p>
+      <span className="dash-sensor-title">{sensor.title}</span>
+      <span className="dash-sensor-name">{sensor.sensor}</span>
 
-      <div className="sensor-value">
+      <div className="dash-sensor-value">
         {sensor.value}
         <span>{sensor.unit}</span>
       </div>
 
-      <div className={`sensor-bars ${sensor.color}`}>
+      <div className="dash-sensor-bars">
         {Array.from({ length: 7 }).map((_, index) => (
           <span
             key={index}
@@ -71,12 +83,10 @@ function SensorCard({ sensor }: { sensor: SensorCardData }) {
         ))}
       </div>
 
-      <div className="sensor-card-footer">
-        <span className={`sensor-status ${sensor.color}`}>
-          <span className="status-small-dot" />
-          {sensor.status}
+      <div className="dash-sensor-bottom">
+        <span className="dash-sensor-ideal">
+          {sensor.recommendation}
         </span>
-        <small>{sensor.recommendation}</small>
       </div>
     </article>
   );
@@ -88,66 +98,79 @@ function WeatherSection({
   weather: DashboardSummary["weather_summary"] | null;
 }) {
   const forecast = weather?.forecast || "Weather data unavailable";
+
   const isRainy =
     forecast.toLowerCase().includes("hujan") ||
     forecast.toLowerCase().includes("rain");
 
   return (
-    <section className="dashboard-panel weather-panel">
-      <div className="panel-heading">
-        <div className="panel-title">
-          <span className="panel-icon weather-icon">
-            <CloudSun size={19} />
-          </span>
-          <h2>BMKG Weather Integration</h2>
+    <section className="dash-feature-panel dash-weather-panel">
+      <div className="dash-feature-heading">
+        <div className="dash-section-icon weather">
+          <CloudSun size={20} />
         </div>
-        <span className="source-tag">{weather?.location || "BMKG"}</span>
+
+        <div>
+          <span className="dash-eyebrow">WEATHER INTELLIGENCE</span>
+          <h2>Weather Outlook</h2>
+        </div>
       </div>
 
-      <div className="weather-current">
-        <div className="weather-current-main">
+      <div className="dash-weather-main">
+        <div className="dash-weather-condition">
           {weather?.icon_url ? (
             <img
               src={weather.icon_url}
               alt={forecast}
-              className="weather-main-icon"
-              style={{ width: 36, height: 36, objectFit: "contain" }}
+              className="dash-weather-image"
             />
           ) : isRainy ? (
-            <CloudRain className="weather-main-icon" size={36} />
+            <CloudRain size={45} className="dash-weather-image" />
           ) : (
-            <CloudSun className="weather-main-icon" size={36} />
+            <CloudSun size={45} className="dash-weather-image" />
           )}
 
           <div>
-            <strong>{weather ? `${weather.temp_c}°C` : "—"}</strong>
+            <strong>{weather ? `${weather.temp_c}°` : "—"}</strong>
             <span>{forecast}</span>
           </div>
         </div>
 
-        <div className="rain-probability">
-          <small>RAIN PROBABILITY</small>
-          <strong>{weather ? `${weather.rain_probability_pct}%` : "—"}</strong>
+        <div className="dash-rain-stat">
+          <span>Rain probability</span>
+          <strong>
+            {weather ? `${weather.rain_probability_pct}%` : "—"}
+          </strong>
         </div>
       </div>
 
-      <p className="weather-alert">
-        {weather ? (
-          <>
-            Microclimate forecast for <strong>{weather.location}</strong> based on real-time BMKG meteorological radar.
-            {weather.humidity_pct !== undefined && ` Humidity: ${weather.humidity_pct}%.`}
-            {weather.wind_speed_kmh !== undefined && ` Wind: ${weather.wind_speed_kmh} km/h.`}
-          </>
-        ) : (
-          "Weather data is currently unavailable."
+      <div className="dash-weather-details">
+        {weather?.humidity_pct !== undefined && (
+          <div className="dash-weather-detail">
+            <Droplet size={15} />
+            <span>Humidity</span>
+            <strong>{weather.humidity_pct}%</strong>
+          </div>
         )}
+
+        {weather?.wind_speed_kmh !== undefined && (
+          <div className="dash-weather-detail">
+            <Activity size={15} />
+            <span>Wind</span>
+            <strong>{weather.wind_speed_kmh} km/h</strong>
+          </div>
+        )}
+      </div>
+
+      <p className="dash-weather-description">
+        {weather
+          ? `Weather conditions around ${weather.location} are integrated into MENARA's environmental insights.`
+          : "Weather data is currently unavailable."}
       </p>
 
-      <div className="weather-footer">
-        <span>
-          <span className="status-small-dot" />
-          {weather ? `Source: ${weather.attribution}` : "Weather unavailable"}
-        </span>
+      <div className="dash-weather-source">
+        <span className="dash-status-dot" />
+        {weather ? `Source: ${weather.attribution}` : "Weather unavailable"}
       </div>
     </section>
   );
@@ -169,79 +192,94 @@ function RecommendationsSection({
   const navigate = useNavigate();
 
   return (
-    <section className="dashboard-panel recommendations-panel">
-      <div className="panel-heading">
-        <div className="panel-title">
-          <span className="panel-icon ai-icon">
-            <Sparkles size={19} />
-          </span>
-          <h2>AI Recommendations</h2>
+    <section className="dash-feature-panel dash-ai-panel">
+      <div className="dash-feature-heading">
+        <div className="dash-section-icon ai">
+          <Sparkles size={20} />
         </div>
-        <span className="engine-tag">Agronomy Engine</span>
+
+        <div>
+          <span className="dash-eyebrow">SMART CARE SYSTEM</span>
+          <h2>AI Plant Insights</h2>
+        </div>
       </div>
 
-      <div className="generate-rec-container">
+      <div className="dash-ai-intro">
         <p>
-          Evaluate plant health and receive deterministic care interventions based on live telemetry and BMKG forecasts.
+          Evaluate plant conditions using live telemetry and
+          weather insights to generate care interventions.
         </p>
-
-        <button
-          type="button"
-          className="app-btn-primary"
-          onClick={onGenerate}
-          disabled={generating}
-        >
-          <Sparkles size={15} />
-          {generating ? "Evaluating Microclimates..." : "Run AI Evaluation"}
-        </button>
-
-        {generateError && <p className="generate-error">{generateError}</p>}
-        {generateMessage && <p className="generate-success">{generateMessage}</p>}
       </div>
 
-      <div className="recommendation-list">
+      <button
+        type="button"
+        className="dash-ai-generate"
+        onClick={onGenerate}
+        disabled={generating}
+      >
+        <Sparkles size={16} />
+        {generating
+          ? "Evaluating Microclimates..."
+          : "Run AI Evaluation"}
+        <ArrowRight size={16} />
+      </button>
+
+      {generateError && (
+        <p className="dash-feedback error">{generateError}</p>
+      )}
+
+      {generateMessage && (
+        <p className="dash-feedback success">{generateMessage}</p>
+      )}
+
+      <div className="dash-rec-list">
         {recommendations.length > 0 ? (
           recommendations.map((item, index) => (
-            <article className="recommendation-card" key={`${item.title}-${index}`}>
-              <div className="recommendation-top">
+            <article
+              className="dash-rec-card"
+              key={`${item.title}-${index}`}
+            >
+              <div className="dash-rec-card-top">
                 <h3>
-                  <Sparkles size={15} />
+                  <Leaf size={15} />
                   {item.title}
                 </h3>
-                <span className={`priority-tag ${item.type}`}>
+
+                <span className={`dash-priority ${item.type}`}>
                   {item.priority}
                 </span>
               </div>
 
               <p>{item.description}</p>
 
-              <div className="recommendation-bottom">
-                <small>Intervention Advisory</small>
-                <button
-                  type="button"
-                  className="app-btn-secondary"
-                  onClick={() => navigate("/recommendations")}
-                  style={{ padding: "5px 12px", fontSize: "11.5px" }}
-                >
-                  View Details
-                  <ArrowRight size={13} />
-                </button>
-              </div>
+              <button
+                type="button"
+                className="dash-rec-link"
+                onClick={() => navigate("/recommendations")}
+              >
+                View recommendation
+                <ArrowRight size={14} />
+              </button>
             </article>
           ))
         ) : (
-          <p style={{ color: "#64748b", padding: "16px 0" }}>
-            No recommendations generated yet. Click "Run AI Evaluation" above to compute suggestions.
-          </p>
+          <div className="dash-rec-empty">
+            <Sparkles size={20} />
+            <p>
+              No recommendations yet. Run an AI evaluation
+              to generate plant care insights.
+            </p>
+          </div>
         )}
       </div>
 
-      <div className="recommendation-footer">
-        <span>Based on latest zone readings</span>
-        <Link to="/recommendations" style={{ color: "#203c28", fontWeight: 600 }}>
-          Manage all recommendations &rarr;
-        </Link>
-      </div>
+      <Link
+        to="/recommendations"
+        className="dash-all-recommendations"
+      >
+        View all recommendations
+        <ArrowRight size={15} />
+      </Link>
     </section>
   );
 }
@@ -255,14 +293,24 @@ function getMetric(
   );
 
   return normalizedEntries.find(([key]) =>
-    possibleKeys.some((possibleKey) => key === possibleKey.toLowerCase()),
+    possibleKeys.some(
+      (possibleKey) => key === possibleKey.toLowerCase(),
+    ),
   )?.[1];
 }
 
-function formatSensorValue(value: number | undefined, decimals = 1): string {
-  if (value === undefined || value === null || Number.isNaN(value)) {
+function formatSensorValue(
+  value: number | undefined,
+  decimals = 1,
+): string {
+  if (
+    value === undefined ||
+    value === null ||
+    Number.isNaN(value)
+  ) {
     return "—";
   }
+
   return Number(value.toFixed(decimals)).toLocaleString("en-US");
 }
 
@@ -282,14 +330,21 @@ function getSensorColor(metric?: ParameterMetric): string {
 
 function getSensorLevel(metric?: ParameterMetric): number {
   if (!metric) return 0;
+
   const { value, ideal_min, ideal_max } = metric;
+
   if (ideal_max <= ideal_min) return 3;
+
   const ratio = (value - ideal_min) / (ideal_max - ideal_min);
+
   return Math.max(1, Math.min(7, Math.round(ratio * 6) + 1));
 }
 
-function buildSensorData(zoneStatus: ZoneStatus | null): SensorCardData[] {
+function buildSensorData(
+  zoneStatus: ZoneStatus | null,
+): SensorCardData[] {
   const reading = zoneStatus?.latest_reading;
+
   const parameters = (zoneStatus?.parameter_status || {}) as Record<
     string,
     ParameterMetric
@@ -374,7 +429,10 @@ function buildSensorData(zoneStatus: ZoneStatus | null): SensorCardData[] {
     {
       title: "LIGHT INTENSITY",
       sensor: "BH1750 Lux Sensor",
-      value: formatSensorValue(getValue(reading?.lux, lightMetric), 0),
+      value: formatSensorValue(
+        getValue(reading?.lux, lightMetric),
+        0,
+      ),
       unit: "lux",
       status: getSensorStatus(lightMetric),
       recommendation: lightMetric
@@ -414,6 +472,7 @@ function buildRecommendations(
     .filter((zone) => zone.latest_recommendation)
     .map((zone) => {
       const recommendation = zone.latest_recommendation!;
+
       const isHigh = recommendation.status_level === "warning";
       const isMedium = recommendation.status_level === "advisory";
 
@@ -432,11 +491,26 @@ function buildRecommendations(
 }
 
 export const Dashboard: React.FC = () => {
-  const { selectedGarden, zones, selectedZone, setSelectedZone } = useGarden();
+  const {
+    gardens,
+    selectedGarden,
+    setSelectedGarden,
+    zones,
+    selectedZone,
+    setSelectedZone,
+  } = useGarden();
 
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [activeZoneStatus, setActiveZoneStatus] = useState<ZoneStatus | null>(null);
-  const [zoneStatuses, setZoneStatuses] = useState<ZoneStatus[]>([]);
+  const [showGardenMenu, setShowGardenMenu] = useState(false);
+
+  const [summary, setSummary] =
+    useState<DashboardSummary | null>(null);
+
+  const [activeZoneStatus, setActiveZoneStatus] =
+    useState<ZoneStatus | null>(null);
+
+  const [zoneStatuses, setZoneStatuses] =
+    useState<ZoneStatus[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -457,24 +531,37 @@ export const Dashboard: React.FC = () => {
       setLoading(true);
       setError("");
 
-      const summaryData = await api.getDashboardSummary(selectedGarden.id);
+      const summaryData = await api.getDashboardSummary(
+        selectedGarden.id,
+      );
+
       setSummary(summaryData);
 
       if (zones.length > 0) {
         const statuses = await Promise.all(
-          zones.map((z) => api.getZoneStatus(z.id))
+          zones.map((z) => api.getZoneStatus(z.id)),
         );
+
         setZoneStatuses(statuses);
 
         const targetZone = selectedZone || zones[0];
-        const currentStatus = statuses.find((s) => s.zone_id === targetZone.id) || statuses[0];
+
+        const currentStatus =
+          statuses.find(
+            (s) => s.zone_id === targetZone.id,
+          ) || statuses[0];
+
         setActiveZoneStatus(currentStatus);
       } else {
         setActiveZoneStatus(null);
         setZoneStatuses([]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard metrics.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load dashboard metrics.",
+      );
     } finally {
       setLoading(false);
     }
@@ -486,7 +573,9 @@ export const Dashboard: React.FC = () => {
 
   const handleGenerateRecommendations = async () => {
     if (!zones.length) {
-      setGenerateError("No plant zones configured in this garden yet.");
+      setGenerateError(
+        "No plant zones configured in this garden yet.",
+      );
       return;
     }
 
@@ -495,133 +584,387 @@ export const Dashboard: React.FC = () => {
       setGenerateError("");
       setGenerateMessage("");
 
-      const results = await Promise.allSettled(zones.map((z) => api.evaluateZone(z.id)));
-      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      const results = await Promise.allSettled(
+        zones.map((z) => api.evaluateZone(z.id)),
+      );
+
+      const succeeded = results.filter(
+        (r) => r.status === "fulfilled",
+      ).length;
+
       const cooldownCount = results.filter(
-        (r) => r.status === "rejected" && r.reason?.message?.includes("429")
+        (r) =>
+          r.status === "rejected" &&
+          r.reason?.message?.includes("429"),
       ).length;
 
       if (succeeded > 0) {
-        setGenerateMessage(`AI evaluation completed for ${succeeded} zone(s).`);
+        setGenerateMessage(
+          `AI evaluation completed for ${succeeded} zone(s).`,
+        );
       } else if (cooldownCount > 0) {
-        setGenerateMessage("Zones were evaluated recently (cooldown active: 1 min between runs).");
+        setGenerateMessage(
+          "Zones were evaluated recently (cooldown active: 1 min between runs).",
+        );
       }
 
       await loadDashboardData();
     } catch (err) {
-      setGenerateError(err instanceof Error ? err.message : "Failed to run AI evaluation.");
+      setGenerateError(
+        err instanceof Error
+          ? err.message
+          : "Failed to run AI evaluation.",
+      );
     } finally {
       setGenerating(false);
     }
   };
 
   const sensorData = buildSensorData(activeZoneStatus);
-  const recommendations = buildRecommendations(summary, zoneStatuses);
 
-  const displayZoneLabel = activeZoneStatus?.zone_label || selectedZone?.label || "Primary Zone";
+  const recommendations = buildRecommendations(
+    summary,
+    zoneStatuses,
+  );
+
+  const displayZoneLabel =
+    activeZoneStatus?.zone_label ||
+    selectedZone?.label ||
+    "Primary Zone";
 
   return (
-  <div className="dashboard-page">
-      {/* PAGE HEADING */}
-      <div className="page-header">
-        <div>
-          <h1>Dashboard Overview {loading && <small style={{ fontSize: "12px", color: "#64748b", fontWeight: 400 }}>(Syncing...)</small>}</h1>
-          <p>
-            Real-time microclimate conditions and AI-synthesized botanical health for {selectedGarden?.name || "your rooftop garden"}.
-          </p>
-        </div>
+    <div className="menara-dashboard">
+{/* DASHBOARD HERO */}
+
+<section className="dash-hero">
+
+  {/* HERO TOP ROW */}
+  <div className="dash-hero-top">
+
+    <div className="dash-hero-overview-title">
+      Dashboard Overview
+    </div>
+
+    {/* HERO CONTROLS */}
+    <div className="dash-hero-controls">
+      <div className={`dash-hero-sync ${loading ? "loading" : ""}`}>
+        <RefreshCw
+          size={14}
+          className={loading ? "animate-spin" : ""}
+        />
+        <span>{loading ? "Syncing..." : "Connected"}</span>
       </div>
 
-      {error && (
-        <div className="dashboard-error-banner">
-          {error}
-        </div>
-      )}
+      <div className="dash-hero-garden-selector">
+        <button
+          type="button"
+          className="dash-hero-garden-button"
+          onClick={() => setShowGardenMenu((prev) => !prev)}
+          aria-expanded={showGardenMenu}
+        >
+          <Building2 size={18} />
 
-      {/* COMPACT HEALTH & FACILITY OVERVIEW STRIP */}
-      <section className="garden-overview" style={{ marginBottom: "24px" }}>
-        <div className="garden-overview-info">
-          <span className="overview-icon">
-            <Sprout size={20} />
-          </span>
-          <div>
-            <strong>{selectedGarden?.name || "Rooftop Garden"}</strong>
-            <small>{selectedGarden?.location_name || "Location"}</small>
+          <div className="dash-hero-garden-info">
+            <strong>
+              {selectedGarden?.name || "Select Garden"}
+            </strong>
+
+            <small>
+              {selectedGarden?.location_name || "Garden location"}
+            </small>
           </div>
-        </div>
 
-        <div className="garden-condition">
-          <span>&bull; {summary?.zones_ok ?? 0} Optimal Zones</span>
-          <span style={{ color: (summary?.zones_need_attention ?? 0) > 0 ? "#b45309" : undefined }}>
-            &bull; {summary?.zones_need_attention ?? 0} Attention Needed
-          </span>
-        </div>
+          <ChevronDown
+            size={16}
+            className={showGardenMenu ? "rotated" : ""}
+          />
+        </button>
 
-        <div className="overview-divider" />
+        {showGardenMenu && (
+          <div className="dash-hero-garden-dropdown">
+            <div className="dash-hero-dropdown-label">
+              SWITCH GARDEN FACILITY
+            </div>
 
-        <div className="sensor-connection">
-          <strong>
-            <span className="status-small-dot" />
-            {summary?.total_zones ?? zones.length} Monitored Zones
-          </strong>
-          <small>
-            {summary?.active_alerts_count ?? 0} Active Alerts
-          </small>
-        </div>
+            {gardens.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                className={`dash-hero-garden-option ${
+                  g.id === selectedGarden?.id ? "selected" : ""
+                }`}
+                onClick={() => {
+                  setSelectedGarden(g);
+                  setShowGardenMenu(false);
+                }}
+              >
+                <strong>{g.name}</strong>
 
-        <div className="hardware-status">
-          <span>
-            <BatteryFull size={15} />
-            Battery: {activeZoneStatus?.latest_reading?.battery_v != null ? `${activeZoneStatus.latest_reading.battery_v}V` : "Normal"}
-          </span>
-          <span>
-            <Wifi size={15} />
-            Node: {activeZoneStatus?.latest_reading ? "Online" : "Awaiting data"}
-          </span>
-        </div>
-      </section>
+                <small>
+                  {g.location_name} • {g.elevation_m}m
+                </small>
+              </button>
+            ))}
 
-      {/* ZONE PICKER CHIPS */}
-      {zones.length > 1 && (
-        <div className="zone-chips">
-          <span style={{ fontSize: "12px", color: "#64748b", marginRight: "4px" }}>Viewing Zone:</span>
-          {zones.map((z) => (
-            <button
-              key={z.id}
-              type="button"
-              className={`zone-chip ${activeZoneStatus?.zone_id === z.id ? "active" : ""}`}
-              onClick={() => {
-                setSelectedZone(z);
-                const s = zoneStatuses.find((item) => item.zone_id === z.id);
-                if (s) setActiveZoneStatus(s);
-              }}
-            >
-              {z.label}
-            </button>
-          ))}
-        </div>
-      )}
+            {gardens.length === 0 && (
+              <div className="dash-hero-garden-empty">
+                No gardens found.
+              </div>
+            )}
 
-      {/* 4 LIVE SENSOR CARDS */}
-      <div className="dashboard-sensor-caption">
-        Live Sensor Readings for <strong>{displayZoneLabel}</strong>:
+            <div className="dash-hero-dropdown-bottom">
+              <Link
+                to="/garden-profile"
+                onClick={() => setShowGardenMenu(false)}
+              >
+                <Plus size={15} />
+                Add New Garden Facility
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
-      <section className="sensor-grid" style={{ marginBottom: "28px" }}>
-        {sensorData.map((sensor) => (
-          <SensorCard key={sensor.title} sensor={sensor} />
+    </div>
+
+  </div>
+
+  {/* HERO CONTENT */}
+  <div className="dash-hero-content">
+
+    <h1>
+      Your garden, <span>in balance.</span>
+    </h1>
+
+    <p>
+      Monitor your rooftop ecosystem and discover
+      insights to help your plants thrive.
+    </p>
+
+    <div className="dash-hero-meta">
+      <MapPin size={15} />
+
+      <span>
+        {selectedGarden?.location_name ||
+          selectedGarden?.name ||
+          "Rooftop Garden"}
+      </span>
+    </div>
+
+  </div>
+
+</section>
+
+
+{/* ERROR */}
+
+{error && (
+  <div className="dash-error-banner">
+    <AlertCircle size={16} />
+    {error}
+  </div>
+)}
+
+{/* GARDEN OVERVIEW */}
+
+<section className="dash-overview">
+  <div className="dash-overview-heading">
+    <div>
+      <span className="dash-eyebrow">
+        GARDEN OVERVIEW
+      </span>
+
+      <h2>Garden health</h2>
+    </div>
+
+    <div className="dash-overview-garden">
+      <Sprout size={17} />
+
+      <span>
+        {selectedGarden?.name || "Rooftop Garden"}
+      </span>
+    </div>
+  </div>
+
+  <div className="dash-overview-grid">
+    <div className="dash-overview-stat">
+      <div className="dash-stat-icon green">
+        <Sprout size={18} />
+      </div>
+
+      <div className="dash-stat-copy">
+        <small>Zones in optimal condition</small>
+        <strong>{summary?.zones_ok ?? 0}</strong>
+        <span>Healthy zones</span>
+      </div>
+    </div>
+
+    <div className="dash-overview-stat">
+      <div className="dash-stat-icon gold">
+        <AlertCircle size={18} />
+      </div>
+
+      <div className="dash-stat-copy">
+        <small>Zones needing attention</small>
+
+        <strong>
+          {summary?.zones_need_attention ?? 0}
+        </strong>
+
+        <span>Requires monitoring</span>
+      </div>
+    </div>
+
+    <div className="dash-overview-stat">
+      <div className="dash-stat-icon sage">
+        <Activity size={18} />
+      </div>
+
+      <div className="dash-stat-copy">
+        <small>Monitored zones</small>
+
+        <strong>
+          {summary?.total_zones ?? zones.length}
+        </strong>
+
+        <span>Registered plant zones</span>
+      </div>
+    </div>
+
+    <div className="dash-overview-stat">
+      <div className="dash-stat-icon alert">
+        <AlertCircle size={18} />
+      </div>
+
+      <div className="dash-stat-copy">
+        <small>Active alerts</small>
+
+        <strong>
+          {summary?.active_alerts_count ?? 0}
+        </strong>
+
+        <span>Current notifications</span>
+      </div>
+    </div>
+  </div>
+
+  <div className="dash-hardware-row">
+    <div className="dash-hardware-item">
+      <BatteryFull size={16} />
+      <span>Battery</span>
+
+      <strong>
+        {activeZoneStatus?.latest_reading?.battery_v != null
+          ? `${activeZoneStatus.latest_reading.battery_v}V`
+          : "Normal"}
+      </strong>
+    </div>
+
+    <div className="dash-hardware-item">
+      <Wifi size={16} />
+      <span>Sensor node</span>
+
+      <strong>
+        {activeZoneStatus?.latest_reading
+          ? "Online"
+          : "Awaiting data"}
+      </strong>
+    </div>
+  </div>
+</section>
+
+{/* MONITORING LAYOUT */}
+
+<div className="dash-monitoring-layout">
+
+  {/* TOP: MONITORING AREA */}
+
+  {zones.length > 1 && (
+    <section className="dash-zone-section">
+
+      <div className="dash-zone-heading">
+        <h2>Choose your zone</h2>
+      </div>
+
+      <div className="dash-zone-list">
+        {zones.map((z) => (
+          <button
+            key={z.id}
+            type="button"
+            className={`dash-zone-pill ${
+              activeZoneStatus?.zone_id === z.id
+                ? "active"
+                : ""
+            }`}
+            onClick={() => {
+              setSelectedZone(z);
+
+              const s = zoneStatuses.find(
+                (item) => item.zone_id === z.id,
+              );
+
+              if (s) setActiveZoneStatus(s);
+            }}
+          >
+            <Sprout size={14} />
+            {z.label}
+          </button>
         ))}
-      </section>
+      </div>
 
-      {/* WEATHER AND RECOMMENDATIONS */}
-      <WeatherSection weather={summary?.weather_summary || null} />
+    </section>
+  )}
 
-      <RecommendationsSection
-        recommendations={recommendations}
-        generating={generating}
-        generateError={generateError}
-        generateMessage={generateMessage}
-        onGenerate={handleGenerateRecommendations}
+ {/* BOTTOM: SENSOR MONITORING */}
+
+<section className="dash-sensor-section">
+  <div className="dash-section-heading">
+    <div className="dash-sensor-heading-content">
+      <div className="dash-sensor-title-row">
+        <h2>Live sensor readings</h2>
+
+        <p>
+          Real-time conditions for{" "}
+          <strong>{displayZoneLabel}</strong>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div className="dash-sensor-grid">
+    {sensorData.map((sensor) => (
+      <SensorCard
+        key={sensor.title}
+        sensor={sensor}
       />
+    ))}
+  </div>
+</section>
+
+</div>
+        {/* WEATHER & AI */}
+
+        <div className="dash-bottom-grid">
+          {/* LEFT: AI PLANT INSIGHTS */}
+          <RecommendationsSection
+            recommendations={recommendations}
+            generating={generating}
+            generateError={generateError}
+            generateMessage={generateMessage}
+            onGenerate={handleGenerateRecommendations}
+          />
+
+          {/* RIGHT: WEATHER OUTLOOK */}
+          <WeatherSection
+            weather={summary?.weather_summary || null}
+          />
+        </div>
+
+        {/* FOOTER */}
+        <footer className="app-footer">
+          <span>
+             &copy; 2026 MENARA. Monitoring Environment for AI Rooftop Agriculture.
+          </span>
+        </footer>
     </div>
   );
 };
