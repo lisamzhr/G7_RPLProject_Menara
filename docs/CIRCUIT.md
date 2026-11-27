@@ -8,65 +8,65 @@ This document describes the hardware schematic, power distribution, and GPIO pin
 
 ```mermaid
 flowchart LR
-    subgraph PWR["Power & Charging Stage"]
+    subgraph PWR["Power and Charging Stage"]
         direction TB
-        SOLAR["Solar Panel<br/>(5V–6V Nominal)"]
-        HW373["HW-373 Charge Controller<br/>(TP4056 + DW01A Protection)<br/>IN+ / IN- | B+ / B- | OUT+ / OUT-"]
-        BATT["3.7V Li-Ion / LiPo<br/>Rechargeable Battery<br/>(1S, 3.0V–4.2V)"]
-        LDO["AP2112K-3.3 LDO<br/>(SOT-23-5, 600mA)<br/>1:VIN  2:GND  3:EN  5:VOUT"]
-        CIN["C_in: 1µF–10µF<br/>Ceramic Cap"]
-        COUT["C_out: 1µF–10µF<br/>Ceramic Cap"]
+        SOLAR["Solar Panel (5V to 6V)"]
+        HW373["HW-373 Charger (TP4056 + DW01A)"]
+        BATT["3.7V Li-Ion / LiPo Battery (1S)"]
+        LDO["AP2112K-3.3 LDO (SOT-23-5, 600mA)"]
+        CIN["Input Cap (1uF to 10uF)"]
+        COUT["Output Cap (1uF to 10uF)"]
 
-        SOLAR -->|"V_solar (+)"| HW373
-        SOLAR -->|"GND (-)"| HW373
-        HW373 <-->|"B+ / B-"| BATT
-        HW373 -->|"OUT+ (3.0V–4.2V)"| CIN
-        HW373 -->|"OUT+ (VIN & EN)"| LDO
-        CIN ---|"GND"| HW373
-        LDO -->|"VOUT (Regulated 3.3V)"| COUT
+        SOLAR -->|"IN+ (V_solar)"| HW373
+        SOLAR ---|"IN- (GND)"| HW373
+        HW373 ---|"B+ and B-"| BATT
+        HW373 -->|"OUT+ (3.0V to 4.2V)"| CIN
+        HW373 -->|"OUT+ to VIN and EN"| LDO
+        CIN ---|"OUT- (GND)"| HW373
+        LDO -->|"VOUT (3.3V)"| COUT
         COUT ---|"GND"| LDO
     end
 
     subgraph MCU["Controller (esp32dev)"]
         direction TB
-        ESP["ESP32 DevKit<br/>(Board: esp32dev)<br/><br/>3V3 | GND<br/>GPIO0 (BOOT / CONFIG_BUTTON_PIN)<br/>GPIO2 (STATUS_LED_PIN, optional)<br/>GPIO4 (DHT_PIN)<br/>GPIO21 (I2C_SDA_PIN)<br/>GPIO22 (I2C_SCL_PIN)<br/>GPIO26 (RELAY_PIN, Active-LOW)<br/>GPIO32 (SOIL_PIN, ADC1)"]
-        BTN["Onboard BOOT Button<br/>(Active-LOW, Hold 3s on Boot<br/>for Captive Portal)"]
-        BTN ---|"GPIO0 -> GND"| ESP
+        ESP["ESP32 DevKit (esp32dev)"]
+        BTN["BOOT Button (GPIO0, Active-LOW)"]
+        LED["Status LED (GPIO2, Optional)"]
+
+        BTN ---|"GPIO0 to GND"| ESP
+        ESP -.->|"GPIO2"| LED
     end
 
-    subgraph SENS["Sensors (3.3V Logic & Supply)"]
+    subgraph SENS["Sensors (3.3V Supply and Logic)"]
         direction TB
-        BH1750["BH1750 (GY-302)<br/>Ambient Light Sensor<br/>I2C Addr: 0x23"]
-        DHT22["DHT22 (AM2302)<br/>Temp & Humidity Sensor<br/>1-Wire Digital"]
-        RPULL["4.7kΩ–10kΩ<br/>Pull-up Resistor"]
-        SOIL["Capacitive Soil Moisture<br/>Sensor v1.2<br/>Analog Output (AOUT)"]
+        BH1750["BH1750 Light Sensor (I2C 0x23)"]
+        DHT22["DHT22 Temp and Humidity"]
+        RPULL["Pull-up Resistor (4.7k to 10k Ohm)"]
+        SOIL["Capacitive Soil Moisture v1.2"]
 
         DHT22 ---|"DATA Pull-up to 3.3V"| RPULL
     end
 
     subgraph ACT["Actuator"]
         direction TB
-        RELAY["Sprinkler Relay Module<br/>(Active-LOW Trigger)<br/>IN | VCC | GND"]
-        VALVE["Solenoid Valve / Pump<br/>& External Load Supply"]
+        RELAY["Sprinkler Relay (Active-LOW)"]
+        VALVE["Solenoid Valve / Pump + Load Supply"]
         RELAY -->|"COM / NO Switch"| VALVE
     end
 
-    %% Power Rails
-    LDO -->|"3.3V Rail"| ESP
-    LDO -->|"3.3V Rail"| BH1750
-    LDO -->|"3.3V Rail"| DHT22
+    LDO -->|"3.3V to 3V3 Pin"| ESP
+    LDO -->|"3.3V to VCC"| BH1750
+    LDO -->|"3.3V to VCC"| DHT22
     RPULL -->|"3.3V Rail"| LDO
-    LDO -->|"3.3V Rail"| SOIL
-    HW373 -.->|"OUT+ (3.7V–4.2V) or<br/>External 5V for Coil*"| RELAY
+    LDO -->|"3.3V to VCC"| SOIL
+    HW373 -.->|"OUT+ or External 5V Coil Supply*"| RELAY
 
-    %% Sensor Signal Connections
-    BH1750 <-->|"SDA <-> GPIO21"| ESP
-    BH1750 <--|"SCL <-- GPIO22"| ESP
-    DHT22 <-->|"DATA <-> GPIO4"| ESP
-    SOIL -->|"AOUT --> GPIO32 (ADC)"| ESP
+    ESP ---|"GPIO21 (I2C_SDA_PIN)"| BH1750
+    ESP -->|"GPIO22 (I2C_SCL_PIN)"| BH1750
+    ESP ---|"GPIO4 (DHT_PIN)"| DHT22
+    SOIL -->|"AOUT to GPIO32 (SOIL_PIN)"| ESP
 
-    %% Actuator Control
-    ESP -->|"GPIO26 --> IN (Active-LOW)"| RELAY
+    ESP -->|"GPIO26 (RELAY_PIN)"| RELAY
 ```
 
 > **\*Relay Power Note:** If using a **5V relay module** (as listed in [`docs/architecture.md`](./architecture.md)), its coil `VCC` requires a 5V supply (or a 3.3V-compatible relay / MOSFET driver) while `GPIO26` drives the Active-LOW `IN` pin. Do **not** draw solenoid valve or high-current relay coil power through the AP2112K-3.3 (`600mA` max, shared with ESP32 Wi-Fi TX peaks).
@@ -77,7 +77,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    subgraph IN["Solar Input"]
+    subgraph SOLAR_IN["Solar Input"]
         SP_P["Solar +"]
         SP_N["Solar -"]
     end
@@ -100,19 +100,19 @@ flowchart LR
         P1["Pin 1: VIN"]
         P2["Pin 2: GND"]
         P3["Pin 3: EN"]
-        P4["Pin 4: NC (Leave Open)"]
+        P4["Pin 4: NC (Open)"]
         P5["Pin 5: VOUT (3.3V)"]
     end
 
-    SP_P -->|"Optional Schottky<br/>blocking diode"| INP
-    SP_N --> INN
+    SP_P -->|"Optional Schottky diode"| INP
+    SP_N --- INN
     BP --- B_P
     BM --- B_N
     OUTP --> P1
-    OUTP -->|"Tie EN high<br/>for always-on"| P3
-    OUTM --> P2
-    P5 -->|"3.3V_RAIL"| V33["ESP32 3V3 & Sensors VCC"]
-    P2 -->|"GND_RAIL"| GND["ESP32 GND & Sensors GND"]
+    OUTP -->|"Tie EN high (always-on)"| P3
+    OUTM --- P2
+    P5 -->|"3.3V Rail"| V33["ESP32 3V3 and Sensors VCC"]
+    P2 ---|"GND Rail"| GND_NET["ESP32 GND and Sensors GND"]
 ```
 
 ### Power Stage Design Notes
